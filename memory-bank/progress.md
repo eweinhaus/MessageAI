@@ -1,9 +1,9 @@
 # Progress Tracker
 
 ## Current Status
-**Project Phase**: PR 5 Complete - Home Screen & Chat List Implemented  
+**Project Phase**: PR 6 Complete - Contact Picker & New Chat Creation Implemented  
 **Last Updated**: October 20, 2025  
-**Overall Completion**: 33% (PR 5/15)
+**Overall Completion**: 40% (PR 6/15)
 
 ## What's Working ✅
 - Expo project runs on physical device (Expo Go)
@@ -31,6 +31,11 @@
 - **ChatListItem component with avatar, timestamp, preview**
 - **Time formatting utilities for relative timestamps**
 - **Tab navigation with styled header and New Chat button**
+- **Contact picker with search and multi-select functionality**
+- **1:1 chat creation with duplicate prevention**
+- **Group chat creation with name validation**
+- **Optimistic UI updates when creating chats**
+- **ContactListItem and GroupNameModal components**
 
 ## What's Built (Completed PRs)
 - ✅ **PR 1**: Project Setup & Firebase Configuration
@@ -38,6 +43,7 @@
 - ✅ **PR 3**: Firestore Schema & Network Detection
 - ✅ **PR 4**: SQLite Local Database & Sync Strategy
 - ✅ **PR 5**: Home Screen & Chat List
+- ✅ **PR 6**: Contact Picker & New Chat Creation (awaiting manual testing)
 
 ## What's Left to Build
 
@@ -51,7 +57,7 @@
 
 #### Core Messaging UI
 - [x] **PR 5**: Home Screen & Chat List
-- [ ] **PR 6**: Contact Picker & New Chat Creation
+- [x] **PR 6**: Contact Picker & New Chat Creation (manual testing pending)
 - [ ] **PR 7**: Chat Detail Screen & Message Display
 
 #### Messaging Functionality
@@ -99,26 +105,27 @@
 1. **Offline queue**: Skeleton only - full implementation in PR8
 2. **Incremental sync**: Currently syncs all data - pagination needed
 3. **Security rules**: Firestore wide open - will secure in PR16
+4. **PR 6 Manual Testing**: Need to test contact picker with multiple users on physical devices
 
 ## Blockers
-None currently. Data layer complete, ready for UI development.
+None currently. PR 6 implementation complete, awaiting manual testing.
 
 ## Next Milestone
-**Target**: Complete PR 6 (Contact Picker & New Chat Creation)  
+**Target**: Complete PR 7 (Chat Detail Screen & Message Display)  
 **ETA**: Today (October 20, 2025)  
 **Success Criteria**:
-- Contact list displays all registered users
-- Search filters contacts correctly
-- Can create 1:1 chats (with duplicate prevention)
-- Can create group chats with custom names
-- New chats appear in home screen immediately
+- Messages display in chronological order
+- Own messages styled differently from others
+- Group chats show sender attribution
+- Real-time message updates work
+- Empty state for chats with no messages
 
 ## MVP Completion Checklist
 
 ### Core Functionality (15 items)
 - [x] Users can sign up and login (PR 2 - tested)
-- [ ] Users can create 1:1 chats (PR 6 - in progress)
-- [ ] Users can create group chats (3+ users) (PR 6 - in progress)
+- [x] Users can create 1:1 chats (PR 6 - implemented, manual testing pending)
+- [x] Users can create group chats (3+ users) (PR 6 - implemented, manual testing pending)
 - [ ] Users can send text messages (PR 8)
 - [ ] Messages appear instantly (optimistic UI) (PR 8)
 - [x] Messages persist across app restarts (SQLite tested in PR 4-5)
@@ -225,6 +232,21 @@ None currently. Data layer complete, ready for UI development.
   - Created placeholder screens for PR6 and PR7
   - ~450 lines of code added
   - **Manual testing complete**: Real-time updates, pull-to-refresh, navigation all working
+- October 20, 2025: PR6 - Contact picker and new chat creation implemented ⏳
+  - Created ContactListItem component with selection state (components/ContactListItem.js)
+  - Created GroupNameModal component with validation (components/GroupNameModal.js)
+  - Implemented full contact picker screen (app/contacts/newChat.js) with:
+    - User fetching and filtering
+    - Search bar (filters by name and email)
+    - Multi-select with visual feedback
+    - Selection counter and type indicator
+    - 1:1 chat creation with duplicate prevention
+    - Group chat creation with name validation (2-50 characters)
+    - Optimistic UI updates (SQLite + Zustand)
+    - Loading and empty states
+  - Enhanced chat detail placeholder to show correct names
+  - ~450 lines of code added
+  - **Manual testing pending**: Need to test with multiple users on physical devices
 
 ## Decisions Made
 1. **Tech Stack Confirmed**: React Native + Expo, Firebase backend

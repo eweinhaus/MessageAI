@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current Status
-**Phase**: PR 5 Complete - Home Screen & Chat List Implemented  
+**Phase**: PR 6 Complete - Contact Picker & New Chat Creation Implemented  
 **Date**: October 20, 2025  
 **Next Milestone**: MVP (Tuesday EOD)  
 **Firebase Project**: MessageAI-dev
@@ -12,22 +12,21 @@
 - ✅ **PR 3**: Firestore Schema & Network Detection - COMPLETE
 - ✅ **PR 4**: SQLite Local Database & Sync Strategy - COMPLETE
 - ✅ **PR 5**: Home Screen & Chat List - COMPLETE & TESTED ✅
-  - Created utils/timeUtils.js for timestamp formatting and text truncation
-  - Implemented components/ChatListItem.js with avatar, name, preview, timestamp
-  - Built complete home screen (app/(tabs)/index.js) with:
-    - Instant load from SQLite cache
-    - Firestore real-time listeners (dual queries for 1:1 and group chats)
-    - Pull-to-refresh functionality
-    - Empty state with "Start Chatting" button
-    - Loading states
-  - Updated tab layout with styled header and "New Chat" button
-  - Created placeholder screens for PR 6 and PR 7
+- ✅ **PR 6**: Contact Picker & New Chat Creation - COMPLETE (awaiting manual tests) ⏳
+  - Created components/ContactListItem.js with avatar, name, email, selection state
+  - Created components/GroupNameModal.js with validation and error handling
+  - Implemented full contact picker screen (app/contacts/newChat.js) with:
+    - User fetching from Firestore (getAllUsers already existed)
+    - Search bar filtering by name and email (case-insensitive)
+    - Multi-select functionality with visual feedback
+    - Selection counter and type indicator (1:1 vs group)
+    - Dynamic "Next" button enabled only when users selected
+    - 1:1 chat creation with duplicate prevention
+    - Group chat creation with name validation
+    - Optimistic UI updates (write to SQLite + Zustand immediately)
+    - Loading and empty states
+  - Enhanced chat detail placeholder to show correct participant names
   - All code compiles without linter errors
-  - **Manual testing complete on physical device:**
-    - ✅ Real-time updates from Firestore working
-    - ✅ Chat list displays correctly with avatars and previews
-    - ✅ Pull-to-refresh syncs data
-    - ✅ Navigation works to placeholder screens
 
 ## Current Work Focus
 
@@ -37,15 +36,15 @@
 3. ✅ **PR 3**: Firestore Schema & Network Detection - DONE
 4. ✅ **PR 4**: SQLite Local Database & Sync Strategy - DONE
 5. ✅ **PR 5**: Home Screen & Chat List - DONE
-6. **PR 6**: Contact Picker & New Chat Creation (NEXT)
-   - Fetch all users from Firestore
-   - Create contact list with search
-   - Handle 1:1 chat creation
-   - Handle group chat creation with group name modal
-   - Check for existing chats before creating duplicates
+6. ✅ **PR 6**: Contact Picker & New Chat Creation - DONE (needs manual testing)
+7. **PR 7**: Chat Detail Screen & Message Display (NEXT)
+   - Create MessageBubble component
+   - Create MessageList component
+   - Build chat detail screen with Firestore listener
+   - Display messages in correct order with proper styling
 
 ### Today's Goal
-Complete **PR 6: Contact Picker & New Chat Creation** from task list.
+Test **PR 6** on physical device, then proceed to **PR 7: Chat Detail Screen & Message Display**.
 
 ## Active Decisions & Considerations
 
@@ -175,13 +174,17 @@ None yet - just starting!
 - ✅ Home screen with real-time chat list (tested on physical device)
 - ✅ Pull-to-refresh functionality
 - ✅ Navigation to chat detail and new chat screens
+- ✅ Contact picker with search functionality
+- ✅ 1:1 chat creation with duplicate prevention
+- ✅ Group chat creation with name validation
+- ✅ Optimistic UI updates when creating chats
 
 ## What Needs Attention
-1. **Contact Picker**: Need screen to browse users and create chats (PR 6)
-2. **Chat Creation Logic**: Implement 1:1 and group chat creation with duplicate prevention (PR 6)
-3. **Chat Detail Screen**: Message display with bubbles and real-time updates (PR 7)
-4. **Message Input**: Text input component with send button (PR 8)
-5. **Message Sending**: Implement full offline queue with retry logic (PR 8)
+1. **Manual Testing PR 6**: Test contact picker and chat creation on physical device with multiple users
+2. **Chat Detail Screen**: Message display with bubbles and real-time updates (PR 7)
+3. **Message Input**: Text input component with send button (PR 8)
+4. **Message Sending**: Implement full offline queue with retry logic (PR 8)
+5. **Read Receipts**: Track and display message read status (PR 9)
 
 ## Questions to Resolve
 1. **Persona Selection**: Which user persona will we target for Phase 2 AI features?
@@ -200,31 +203,34 @@ None yet - just starting!
 
 ## Next Session Planning
 
-### PR 6 Checklist (Contact Picker & New Chat Creation)
-- [ ] Fetch all users from Firestore (exclude current user)
-- [ ] Create ContactListItem component
-- [ ] Create contact picker screen with search
-- [ ] Implement user selection (single or multiple)
-- [ ] Handle 1:1 chat creation (check for existing chat first)
-- [ ] Create GroupNameModal for group chats
-- [ ] Handle group chat creation
-- [ ] Test chat creation and navigation
-- [ ] Commit: "feat: implement contact picker and new chat creation"
+### PR 7 Checklist (Chat Detail Screen & Message Display)
+- [ ] Create MessageBubble component (own vs other styling)
+- [ ] Create MessageList component with FlatList
+- [ ] Build chat detail screen with proper header
+- [ ] Set up Firestore listener for messages
+- [ ] Load messages from SQLite on mount
+- [ ] Display messages in correct order (oldest to newest)
+- [ ] Handle message grouping (consecutive same sender)
+- [ ] Show sender info in group chats
+- [ ] Create group members screen (basic)
+- [ ] Test message display and real-time updates
+- [ ] Commit: "feat: implement chat detail screen with message display"
 
-### Success Criteria for PR 6
-- Contact list loads all registered users
-- Search filters contacts correctly
-- Can select 1 user and create 1:1 chat
-- Duplicate 1:1 chat prevention works
-- Can select 2+ users and create group chat
-- Group name modal prompts for group name
-- New chats appear in home screen immediately
+### Success Criteria for PR 7
+- Chat detail screen loads for both 1:1 and group chats
+- Messages display in correct order
+- Own messages align right with blue bubble
+- Other messages align left with gray bubble
+- Sender name and avatar show in group chats
+- Message grouping works correctly
+- Empty state shows when no messages
 
 ## Context for Next Session
 When resuming:
-1. Home screen is fully functional with real-time updates
-2. SQLite cache loads chats instantly
-3. Navigation structure is in place (placeholders ready)
-4. Need to implement contact picker and chat creation logic
-5. Proceed to PR 6: Contact Picker & New Chat Creation
+1. PR 6 fully implemented - contact picker and chat creation complete
+2. Users can create 1:1 and group chats with duplicate prevention
+3. Optimistic UI updates when creating chats
+4. Chat detail screen placeholder ready to be replaced
+5. Ready to implement PR 7: Chat Detail Screen & Message Display
+6. Need to test PR 6 on physical device with multiple test users
 

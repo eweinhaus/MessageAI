@@ -2,13 +2,26 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import useChatStore from '../../store/chatStore';
+import useUserStore from '../../store/userStore';
 
 export default function ChatDetailScreen() {
   const { chatId } = useLocalSearchParams();
   const { getChatByID } = useChatStore();
+  const currentUser = useUserStore((state) => state.currentUser);
   
   const chat = getChatByID(chatId);
-  const chatName = chat?.groupName || chat?.participantNames?.[0] || 'Chat';
+  
+  // For 1:1 chats, show the other user's name
+  let chatName = 'Chat';
+  if (chat) {
+    if (chat.type === 'group') {
+      chatName = chat.groupName;
+    } else if (chat.type === '1:1' && chat.participantIDs) {
+      // Find the other user's index
+      const otherUserIndex = chat.participantIDs[0] === currentUser?.userID ? 1 : 0;
+      chatName = chat.participantNames?.[otherUserIndex] || 'Chat';
+    }
+  }
   
   return (
     <>
