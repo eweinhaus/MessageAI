@@ -1,6 +1,7 @@
 // Offline Banner Component - Shows when device is offline
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNetworkStatus } from '../utils/networkStatus';
 
 /**
@@ -10,7 +11,8 @@ import { useNetworkStatus } from '../utils/networkStatus';
  */
 export default function OfflineBanner() {
   const { isOnline } = useNetworkStatus();
-  const slideAnim = useRef(new Animated.Value(-60)).current; // Start hidden above screen
+  const insets = useSafeAreaInsets();
+  const slideAnim = useRef(new Animated.Value(-200)).current; // Start hidden above screen
 
   useEffect(() => {
     if (!isOnline) {
@@ -24,7 +26,7 @@ export default function OfflineBanner() {
     } else {
       // Slide up to hide banner
       Animated.timing(slideAnim, {
-        toValue: -60,
+        toValue: -200,
         duration: 300,
         useNativeDriver: true,
       }).start();
@@ -37,6 +39,7 @@ export default function OfflineBanner() {
       style={[
         styles.banner,
         {
+          paddingTop: insets.top + 8, // Safe area top + padding
           transform: [{ translateY: slideAnim }],
         },
       ]}
@@ -55,9 +58,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#d32f2f', // Red for error/warning
-    paddingVertical: 12,
+    paddingBottom: 12,
     paddingHorizontal: 16,
-    paddingTop: 48, // Account for status bar
     zIndex: 9999, // Ensure it's above all other content
     shadowColor: '#000',
     shadowOffset: {
