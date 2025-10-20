@@ -12,11 +12,11 @@
 
 ### Tasks
 
-- [ ] Initialize React Native project with Expo
-  - [ ] Run `npx create-expo-app@latest messageai --template blank`
-  - [ ] `cd messageai`
-  - [ ] Test on physical device via Expo Go
-- [ ] Install core dependencies
+- [x] Initialize React Native project with Expo
+  - [x] Run `npx create-expo-app@latest messageai --template blank`
+  - [x] `cd messageai`
+  - [x] Test on physical device via Expo Go
+- [x] Install core dependencies
   ```bash
   npx expo install expo-router react-native-safe-area-context react-native-screens expo-linking expo-constants expo-status-bar
   npx expo install firebase
@@ -26,18 +26,18 @@
   npm install @react-native-community/netinfo
   npm install react-native-uuid
   ```
-- [ ] Create Firebase project
-  - [ ] Set up Firebase project in console (console.firebase.google.com) - Project name: "MessageAI-dev"
-  - [ ] Enable Firestore Database (production mode - we'll add rules later)
-  - [ ] Enable Firebase Authentication (Google provider)
-  - [ ] Enable Cloud Messaging (FCM) for iOS and Android
-  - [ ] Add Web app to Firebase project (for React Native)
-  - [ ] Copy config credentials
-- [ ] Create `config/firebaseConfig.js`
-  - [ ] Initialize Firebase app with credentials
-  - [ ] Export Firestore instance, Auth instance
-  - [ ] Test connection (no errors on startup)
-- [ ] Set up project directory structure
+- [x] Create Firebase project
+  - [x] Set up Firebase project in console (console.firebase.google.com) - Project name: "MessageAI-dev"
+  - [x] Enable Firestore Database (production mode - we'll add rules later)
+  - [x] Enable Firebase Authentication (Google provider)
+  - [x] Enable Cloud Messaging (FCM) for iOS and Android
+  - [x] Add Web app to Firebase project (for React Native)
+  - [x] Copy config credentials
+- [x] Create `config/firebaseConfig.js`
+  - [x] Initialize Firebase app with credentials
+  - [x] Export Firestore instance, Auth instance
+  - [x] Test connection (no errors on startup)
+- [x] Set up project directory structure
   ```
   app/
     (auth)/
@@ -73,23 +73,23 @@
   constants/
     colors.js
   ```
-- [ ] Create `.env` file
-  - [ ] Add Firebase credentials
-  - [ ] Add to `.gitignore`
-- [ ] Configure Expo Router
-  - [ ] Update `app.json` with scheme
-  - [ ] Create root `app/_layout.js`
-- [ ] Initialize Git repository
-  - [ ] `git init`
-  - [ ] Create `.gitignore` (node_modules, .env, .expo, etc.)
-  - [ ] Create initial commit: "chore: initial project setup"
+- [x] Create `.env` file
+  - [x] Add Firebase credentials
+  - [x] Add to `.gitignore`
+- [x] Configure Expo Router
+  - [x] Update `app.json` with scheme
+  - [x] Create root `app/_layout.js`
+- [x] Initialize Git repository
+  - [x] `git init`
+  - [x] Create `.gitignore` (node_modules, .env, .expo, etc.)
+  - [x] Create initial commit: "chore: initial project setup"
 
 ### Testing Checklist
-- [ ] App launches on physical device without errors
-- [ ] Expo Go works
-- [ ] Firebase config loads without errors
+- [x] App launches on physical device without errors
+- [x] Expo Go works
+- [x] Firebase config loads without errors
 - [ ] Console shows no warnings/errors
-- [ ] Can navigate between screens (even if empty)
+- [x] Can navigate between screens (even if empty)
 
 ### Commit
 `feat: initialize React Native app with Expo and Firebase`
