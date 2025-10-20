@@ -1,106 +1,220 @@
-// Home Screen - Chat List (Placeholder for PR 5)
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+// Home Screen - Chat List
+import React, { useEffect, useState, useCallback } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  RefreshControl, 
+  ActivityIndicator,
+  TouchableOpacity 
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebaseConfig';
 import useUserStore from '../../store/userStore';
-import Avatar from '../../components/Avatar';
-import { createOneOnOneChat, sendMessage, getAllUserChats } from '../../services/firestore';
+import useChatStore from '../../store/chatStore';
+import ChatListItem from '../../components/ChatListItem';
+import { getAllChats, insertChat } from '../../db/messageDb';
+import { syncChatsFromFirestore } from '../../utils/syncManager';
 
 export default function HomeScreen() {
-  const { currentUser, logout } = useUserStore();
-
-  const handleLogout = async () => {
+  const router = useRouter();
+  const { currentUser } = useUserStore();
+  const { chats, setChats, addChat, updateChat } = useChatStore();
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Load chats from SQLite on mount (instant display)
+  useEffect(() => {
+    async function loadChatsFromCache() {
+      if (!currentUser) return;
+      
+      try {
+        console.log('[HomeScreen] Loading chats from SQLite cache...');
+        const cachedChats = await getAllChats();
+        setChats(cachedChats);
+        console.log(`[HomeScreen] Loaded ${cachedChats.length} chats from cache`);
+      } catch (error) {
+        console.error('[HomeScreen] Error loading chats from cache:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    loadChatsFromCache();
+  }, [currentUser]);
+  
+  // Set up Firestore real-time listener
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    console.log('[HomeScreen] Setting up Firestore listener...');
+    
+    // Query chats where user is a participant (1:1 chats)
+    const chatsQuery1 = query(
+      collection(db, 'chats'),
+      where('participantIDs', 'array-contains', currentUser.userID)
+    );
+    
+    // Query chats where user is a member (group chats)
+    const chatsQuery2 = query(
+      collection(db, 'chats'),
+      where('memberIDs', 'array-contains', currentUser.userID)
+    );
+    
+    // Subscribe to both queries
+    const unsubscribe1 = onSnapshot(
+      chatsQuery1,
+      (snapshot) => {
+        handleSnapshot(snapshot);
+      },
+      (error) => {
+        console.error('[HomeScreen] Firestore listener error (query 1):', error);
+      }
+    );
+    
+    const unsubscribe2 = onSnapshot(
+      chatsQuery2,
+      (snapshot) => {
+        handleSnapshot(snapshot);
+      },
+      (error) => {
+        console.error('[HomeScreen] Firestore listener error (query 2):', error);
+      }
+    );
+    
+    // Cleanup listeners on unmount
+    return () => {
+      console.log('[HomeScreen] Cleaning up Firestore listeners');
+      unsubscribe1();
+      unsubscribe2();
+    };
+  }, [currentUser]);
+  
+  // Handle Firestore snapshot updates
+  const handleSnapshot = useCallback(async (snapshot) => {
     try {
-      await logout();
+      snapshot.docChanges().forEach(async (change) => {
+        const chatData = { ...change.doc.data(), chatID: change.doc.id };
+        
+        // Convert Firestore timestamps to milliseconds
+        const chat = {
+          chatID: chatData.chatID,
+          type: chatData.type,
+          participantIDs: chatData.participantIDs || [],
+          participantNames: chatData.participantNames || [],
+          memberIDs: chatData.memberIDs || [],
+          memberNames: chatData.memberNames || [],
+          groupName: chatData.groupName || null,
+          createdBy: chatData.createdBy || null,
+          lastMessageText: chatData.lastMessageText || null,
+          lastMessageTimestamp: chatData.lastMessageTimestamp?.toMillis?.() || chatData.lastMessageTimestamp || null,
+          lastMessageSenderID: chatData.lastMessageSenderID || null,
+          createdAt: chatData.createdAt?.toMillis?.() || chatData.createdAt || Date.now(),
+          updatedAt: chatData.updatedAt?.toMillis?.() || chatData.updatedAt || Date.now(),
+        };
+        
+        if (change.type === 'added' || change.type === 'modified') {
+          console.log(`[HomeScreen] Chat ${change.type}: ${chat.chatID}`);
+          
+          // Write to SQLite
+          await insertChat(chat);
+          
+          // Update Zustand store
+          if (change.type === 'added') {
+            addChat(chat);
+          } else {
+            updateChat(chat.chatID, chat);
+          }
+        } else if (change.type === 'removed') {
+          console.log(`[HomeScreen] Chat removed: ${chat.chatID}`);
+          // TODO: Handle chat deletion (future feature)
+        }
+      });
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('[HomeScreen] Error handling snapshot:', error);
     }
-  };
-
-  // TEST FUNCTION - Remove after PR 3 testing
-  const testFirestoreFunctions = async () => {
-    if (!currentUser) {
-      Alert.alert('Error', 'No user logged in');
-      return;
-    }
-
+  }, [addChat, updateChat]);
+  
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    if (!currentUser) return;
+    
+    setIsRefreshing(true);
     try {
-      console.log('🧪 Testing Firestore functions...');
-
-      // Create a dummy test user for chat
-      const testUserID = 'test-user-123';
-      const testUserName = 'Test User';
-
-      // 1. Create a 1:1 chat
-      console.log('📝 Creating 1:1 chat...');
-      const chat = await createOneOnOneChat(
-        currentUser.userID,
-        currentUser.displayName,
-        testUserID,
-        testUserName
-      );
-      console.log('✅ Chat created:', chat.chatID);
-
-      // 2. Send a test message
-      console.log('💬 Sending test message...');
-      const message = await sendMessage(
-        chat.chatID,
-        currentUser.userID,
-        currentUser.displayName,
-        'Hello! This is a test message from PR 3.'
-      );
-      console.log('✅ Message sent:', message.messageID);
-
-      // 3. Get all user chats
-      console.log('📋 Fetching all chats...');
-      const allChats = await getAllUserChats(currentUser.userID);
-      console.log('✅ Found', allChats.length, 'chat(s)');
-
-      Alert.alert(
-        '✅ Success!',
-        `Created chat: ${chat.chatID}\nSent message: ${message.messageID}\nTotal chats: ${allChats.length}\n\nCheck Firebase Console to see the documents!`,
-        [{ text: 'OK' }]
-      );
+      console.log('[HomeScreen] Manual refresh triggered');
+      const syncedChats = await syncChatsFromFirestore(currentUser.userID);
+      setChats(syncedChats);
+      console.log('[HomeScreen] Refresh complete');
     } catch (error) {
-      console.error('❌ Test failed:', error);
-      Alert.alert('Error', error.message);
+      console.error('[HomeScreen] Error refreshing chats:', error);
+    } finally {
+      setIsRefreshing(false);
     }
+  }, [currentUser, setChats]);
+  
+  // Navigate to new chat screen
+  const handleNewChat = () => {
+    router.push('/contacts/newChat');
   };
-
-  return (
-    <View style={styles.container}>
-      {/* User Info */}
-      {currentUser && (
-        <View style={styles.userInfo}>
-          <Avatar 
-            displayName={currentUser.displayName} 
-            userID={currentUser.userID}
-            size={60}
-          />
-          <Text style={styles.userName}>{currentUser.displayName}</Text>
-          <Text style={styles.userEmail}>{currentUser.email}</Text>
-        </View>
-      )}
-
-      {/* Placeholder */}
-      <View style={styles.content}>
-        <Text style={styles.text}>Chat List</Text>
-        <Text style={styles.subtext}>PR 5: Home Screen & Chat List</Text>
-        <Text style={styles.info}>
-          ✅ Authentication is working!
+  
+  // Render chat list item
+  const renderChatItem = ({ item }) => (
+    <ChatListItem chat={item} />
+  );
+  
+  // Render empty state
+  const renderEmptyState = () => {
+    if (isLoading) {
+      return null; // Show loading spinner instead
+    }
+    
+    return (
+      <View style={styles.emptyState}>
+        <Text style={styles.emptyStateIcon}>💬</Text>
+        <Text style={styles.emptyStateTitle}>No conversations yet</Text>
+        <Text style={styles.emptyStateText}>
+          Start a conversation by tapping the + button above
         </Text>
-
-        {/* TEST BUTTON - Remove after PR 3 testing */}
         <TouchableOpacity 
-          style={styles.testButton} 
-          onPress={testFirestoreFunctions}
+          style={styles.emptyStateButton}
+          onPress={handleNewChat}
         >
-          <Text style={styles.testButtonText}>🧪 Test Firestore Functions</Text>
+          <Text style={styles.emptyStateButtonText}>Start Chatting</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
+    );
+  };
+  
+  // Show loading spinner on initial load
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+        <Text style={styles.loadingText}>Loading chats...</Text>
+      </View>
+    );
+  }
+  
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={chats}
+        renderItem={renderChatItem}
+        keyExtractor={(item) => item.chatID}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={['#4CAF50']}
+            tintColor="#4CAF50"
+          />
+        }
+        ListEmptyComponent={renderEmptyState}
+        contentContainerStyle={chats.length === 0 ? styles.emptyContainer : null}
+      />
     </View>
   );
 }
@@ -110,65 +224,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  userInfo: {
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  userName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 12,
-  },
-  userEmail: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  content: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
   },
-  subtext: {
+  emptyContainer: {
+    flexGrow: 1,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyStateIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptyStateText: {
     fontSize: 14,
     color: '#666',
-    marginBottom: 20,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
   },
-  info: {
-    fontSize: 16,
-    color: '#4CAF50',
-    marginTop: 10,
-  },
-  testButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 14,
+  emptyStateButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 12,
     paddingHorizontal: 32,
-    borderRadius: 8,
-    marginTop: 30,
-    alignItems: 'center',
+    borderRadius: 24,
   },
-  testButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  logoutButton: {
-    backgroundColor: '#f44336',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-    margin: 20,
-    alignItems: 'center',
-  },
-  logoutButtonText: {
+  emptyStateButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',

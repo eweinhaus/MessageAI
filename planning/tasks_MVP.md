@@ -310,61 +310,78 @@
 
 ---
 
-## PR 5: Home Screen & Chat List
+## PR 5: Home Screen & Chat List ✅
 
 **Objective:** Display all user's chats with last message preview, unread counts, and real-time updates.
 
 ### Tasks
 
-- [ ] Create Avatar component
-  - [ ] `components/Avatar.js`:
-    - [ ] Accept: `displayName`, `userID`, `size` (default 40)
-    - [ ] Generate initials from display name
-    - [ ] Generate background color from userID
-    - [ ] Render circle with initials
-    - [ ] Style: centered text, bold, white color
-- [ ] Create Chat List Item component
-  - [ ] `components/ChatListItem.js`:
-    - [ ] Props: `chat` object
-    - [ ] Display: Avatar (for 1:1, use other user's data; for group, show group icon)
-    - [ ] Chat name (for 1:1, other user's name; for group, group name)
-    - [ ] Last message preview (first 50 chars)
-    - [ ] Timestamp (formatted: "Just now", "2m ago", "Yesterday", "MM/DD")
-    - [ ] Unread badge (if unread count > 0)
-    - [ ] Online status indicator (green dot for 1:1 if other user online)
-    - [ ] Tap handler to navigate to chat detail
-- [ ] Create Home Screen (Chat List)
-  - [ ] `app/(tabs)/index.js`:
-    - [ ] Set up Firestore listener on mount:
-      - [ ] `onSnapshot` query: `/chats` where `participantIDs` array-contains currentUserID
-      - [ ] OR `/chats` where `memberIDs` array-contains currentUserID
-      - [ ] Listen for real-time updates
-    - [ ] On listener update:
-      - [ ] Write to SQLite
-      - [ ] Update Zustand chat store
-      - [ ] UI auto-updates via store
-    - [ ] Load from SQLite first (instant display)
-    - [ ] Sort chats by `lastMessageTimestamp` descending
-    - [ ] Render FlatList of ChatListItem components
-    - [ ] Empty state: "Start a conversation!" with big + button
-    - [ ] Pull-to-refresh: manually trigger sync
-    - [ ] Header: "Messages" title + New Chat button (+ icon)
-- [ ] Create bottom tab navigator
-  - [ ] `app/(tabs)/_layout.js`:
-    - [ ] Single tab for now: "Chats"
-    - [ ] Icons using Expo icons
-- [ ] Handle navigation to chat detail
-  - [ ] On ChatListItem tap, navigate to `/chat/[chatId]` with chatID param
-  - [ ] Use Expo Router's `useRouter()` and `router.push()`
+- [x] Create Avatar component
+  - [x] `components/Avatar.js`:
+    - [x] Accept: `displayName`, `userID`, `size` (default 40)
+    - [x] Generate initials from display name
+    - [x] Generate background color from userID
+    - [x] Render circle with initials
+    - [x] Style: centered text, bold, white color
+- [x] Create Chat List Item component
+  - [x] `components/ChatListItem.js`:
+    - [x] Props: `chat` object
+    - [x] Display: Avatar (for 1:1, use other user's data; for group, show group icon)
+    - [x] Chat name (for 1:1, other user's name; for group, group name)
+    - [x] Last message preview (first 50 chars)
+    - [x] Timestamp (formatted: "Just now", "2m ago", "Yesterday", "MM/DD")
+    - [x] Unread badge placeholder (will implement in PR 9)
+    - [x] Online status indicator placeholder (will implement in PR 10)
+    - [x] Tap handler to navigate to chat detail
+- [x] Create Home Screen (Chat List)
+  - [x] `app/(tabs)/index.js`:
+    - [x] Set up Firestore listener on mount:
+      - [x] `onSnapshot` query: `/chats` where `participantIDs` array-contains currentUserID
+      - [x] AND `/chats` where `memberIDs` array-contains currentUserID
+      - [x] Listen for real-time updates
+    - [x] On listener update:
+      - [x] Write to SQLite
+      - [x] Update Zustand chat store
+      - [x] UI auto-updates via store
+    - [x] Load from SQLite first (instant display)
+    - [x] Sort chats by `lastMessageTimestamp` descending
+    - [x] Render FlatList of ChatListItem components
+    - [x] Empty state: "Start a conversation!" with + button
+    - [x] Pull-to-refresh: manually trigger sync
+    - [x] Header: "Messages" title + New Chat button (+ icon)
+- [x] Create bottom tab navigator
+  - [x] `app/(tabs)/_layout.js`:
+    - [x] Single tab for now: "Chats"
+    - [x] Icons using Expo icons
+    - [x] Added "New Chat" button in header right
+- [x] Handle navigation to chat detail
+  - [x] On ChatListItem tap, navigate to `/chat/[chatId]` with chatID param
+  - [x] Use Expo Router's `useRouter()` and `router.push()`
+- [x] Create time formatting utilities
+  - [x] `utils/timeUtils.js`:
+    - [x] `formatTimestamp()` - relative time for chat list
+    - [x] `formatMessageTime()` - detailed time for messages
+    - [x] `truncateText()` - truncate long text with ellipsis
+- [x] Create placeholder screens
+  - [x] `app/contacts/newChat.js` - placeholder for PR 6
+  - [x] `app/chat/[chatId].js` - placeholder for PR 7
 
 ### Testing Checklist
-- [ ] Home screen loads and displays empty state if no chats
-- [ ] Create test chat in Firestore console - verify appears in app immediately
-- [ ] Chat list item shows correct name, avatar, last message
-- [ ] Tap chat item navigates to chat detail (screen can be empty for now)
-- [ ] Pull-to-refresh triggers sync
-- [ ] Avatar displays correct initials and color
-- [ ] Timestamp formats correctly
+- [x] Home screen loads and displays empty state if no chats
+- [x] SQLite loads chats instantly on app start
+- [x] Firestore listener updates UI in real-time
+- [x] Pull-to-refresh triggers sync
+- [x] Avatar displays correct initials and color
+- [x] Timestamp formats correctly
+- [x] New Chat button navigates to contact picker (placeholder)
+- [x] Chat list item navigates to chat detail (placeholder)
+- [x] No linter errors
+
+### Manual Testing (completed on physical device) ✅
+- [x] Create test chat in Firestore console - verify appears in app immediately
+- [x] Chat list item shows correct name, avatar, last message
+- [x] Real-time updates work when data changes in Firestore
+- [x] Pull-to-refresh works
 
 ### Commit
 `feat: implement home screen with chat list and real-time updates`

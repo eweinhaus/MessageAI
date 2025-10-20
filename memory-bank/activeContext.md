@@ -1,7 +1,7 @@
 # Active Context
 
 ## Current Status
-**Phase**: PR 4 Complete - SQLite Database & Sync Strategy Implemented  
+**Phase**: PR 5 Complete - Home Screen & Chat List Implemented  
 **Date**: October 20, 2025  
 **Next Milestone**: MVP (Tuesday EOD)  
 **Firebase Project**: MessageAI-dev
@@ -11,14 +11,23 @@
 - ✅ **PR 2**: Firebase Authentication - COMPLETE
 - ✅ **PR 3**: Firestore Schema & Network Detection - COMPLETE
 - ✅ **PR 4**: SQLite Local Database & Sync Strategy - COMPLETE
-  - Created db/database.js with schema initialization (messages & chats tables)
-  - Implemented db/messageDb.js with 11 CRUD functions for SQLite operations
-  - Built utils/syncManager.js for bidirectional Firestore ↔ SQLite sync
-  - Created utils/offlineQueue.js skeleton (full implementation in PR8)
-  - Integrated database initialization in root layout with loading states
-  - Set up automatic sync on app startup and network reconnect
-  - Implemented offline-first architecture: SQLite cache + Firestore source of truth
+- ✅ **PR 5**: Home Screen & Chat List - COMPLETE & TESTED ✅
+  - Created utils/timeUtils.js for timestamp formatting and text truncation
+  - Implemented components/ChatListItem.js with avatar, name, preview, timestamp
+  - Built complete home screen (app/(tabs)/index.js) with:
+    - Instant load from SQLite cache
+    - Firestore real-time listeners (dual queries for 1:1 and group chats)
+    - Pull-to-refresh functionality
+    - Empty state with "Start Chatting" button
+    - Loading states
+  - Updated tab layout with styled header and "New Chat" button
+  - Created placeholder screens for PR 6 and PR 7
   - All code compiles without linter errors
+  - **Manual testing complete on physical device:**
+    - ✅ Real-time updates from Firestore working
+    - ✅ Chat list displays correctly with avatars and previews
+    - ✅ Pull-to-refresh syncs data
+    - ✅ Navigation works to placeholder screens
 
 ## Current Work Focus
 
@@ -27,16 +36,16 @@
 2. ✅ **PR 2**: Firebase Authentication - DONE
 3. ✅ **PR 3**: Firestore Schema & Network Detection - DONE
 4. ✅ **PR 4**: SQLite Local Database & Sync Strategy - DONE
-5. **PR 5**: Home Screen & Chat List (NEXT)
-   - Create Avatar component
-   - Create ChatListItem component
-   - Build home screen with chat list
-   - Set up Firestore real-time listeners
-   - Implement pull-to-refresh
-   - Add new chat button
+5. ✅ **PR 5**: Home Screen & Chat List - DONE
+6. **PR 6**: Contact Picker & New Chat Creation (NEXT)
+   - Fetch all users from Firestore
+   - Create contact list with search
+   - Handle 1:1 chat creation
+   - Handle group chat creation with group name modal
+   - Check for existing chats before creating duplicates
 
 ### Today's Goal
-Complete **PR 5: Home Screen & Chat List** from task list.
+Complete **PR 6: Contact Picker & New Chat Creation** from task list.
 
 ## Active Decisions & Considerations
 
@@ -163,13 +172,16 @@ None yet - just starting!
 - ✅ Sync manager for offline-first architecture
 - ✅ Automatic data persistence and recovery
 - ✅ App lifecycle handling (startup, background, reconnect)
+- ✅ Home screen with real-time chat list (tested on physical device)
+- ✅ Pull-to-refresh functionality
+- ✅ Navigation to chat detail and new chat screens
 
 ## What Needs Attention
-1. **UI Components**: Need to build Avatar, ChatListItem, and home screen
-2. **Real-time Listeners**: Need to set up Firestore onSnapshot for live updates
-3. **Contact Picker**: Need screen to browse users and create chats
-4. **Message Display**: Need chat detail screen with message bubbles
-5. **Message Sending**: Need to implement full offline queue in PR8
+1. **Contact Picker**: Need screen to browse users and create chats (PR 6)
+2. **Chat Creation Logic**: Implement 1:1 and group chat creation with duplicate prevention (PR 6)
+3. **Chat Detail Screen**: Message display with bubbles and real-time updates (PR 7)
+4. **Message Input**: Text input component with send button (PR 8)
+5. **Message Sending**: Implement full offline queue with retry logic (PR 8)
 
 ## Questions to Resolve
 1. **Persona Selection**: Which user persona will we target for Phase 2 AI features?
@@ -188,29 +200,31 @@ None yet - just starting!
 
 ## Next Session Planning
 
-### PR 5 Checklist (Home Screen & Chat List)
-- [ ] Create Avatar component with initials and colors
-- [ ] Create ChatListItem component with preview
-- [ ] Build home screen with FlatList
-- [ ] Set up Firestore real-time listeners for chats
-- [ ] Implement pull-to-refresh
-- [ ] Add new chat button navigation
-- [ ] Test real-time updates
-- [ ] Commit: "feat: implement home screen with chat list"
+### PR 6 Checklist (Contact Picker & New Chat Creation)
+- [ ] Fetch all users from Firestore (exclude current user)
+- [ ] Create ContactListItem component
+- [ ] Create contact picker screen with search
+- [ ] Implement user selection (single or multiple)
+- [ ] Handle 1:1 chat creation (check for existing chat first)
+- [ ] Create GroupNameModal for group chats
+- [ ] Handle group chat creation
+- [ ] Test chat creation and navigation
+- [ ] Commit: "feat: implement contact picker and new chat creation"
 
-### Success Criteria for PR 5
-- Home screen displays chat list (even if empty)
-- Chats load instantly from SQLite cache
-- Firestore listener updates UI in real-time
-- Pull-to-refresh triggers manual sync
-- New chat button navigates to contact picker
-- Avatar displays correct initials and colors
+### Success Criteria for PR 6
+- Contact list loads all registered users
+- Search filters contacts correctly
+- Can select 1 user and create 1:1 chat
+- Duplicate 1:1 chat prevention works
+- Can select 2+ users and create group chat
+- Group name modal prompts for group name
+- New chats appear in home screen immediately
 
 ## Context for Next Session
 When resuming:
-1. SQLite database is initialized and ready
-2. Sync manager loads data on startup
-3. Zustand chatStore is populated from SQLite
-4. Need to build UI components to display the data
-5. Proceed to PR 5: Home Screen & Chat List
+1. Home screen is fully functional with real-time updates
+2. SQLite cache loads chats instantly
+3. Navigation structure is in place (placeholders ready)
+4. Need to implement contact picker and chat creation logic
+5. Proceed to PR 6: Contact Picker & New Chat Creation
 
