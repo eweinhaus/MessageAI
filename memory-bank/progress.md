@@ -1,17 +1,28 @@
 # Progress Tracker
 
 ## Current Status
-**Project Phase**: PR 1 Complete  
+**Project Phase**: PR 3 Complete - Firestore & Network Detection Working  
 **Last Updated**: October 20, 2025  
-**Overall Completion**: 7% (PR 1/15)
+**Overall Completion**: 20% (PR 3/15)
 
 ## What's Working ✅
 - Expo project runs on physical device (Expo Go)
 - Expo Router configured and navigates between placeholder screens
 - Firebase config present and loads without errors
+- **Email/Password authentication fully functional**
+- User sign-up creates Firebase Auth account + Firestore profile
+- Session persistence across app restarts
+- Logout returns to login screen
+- Avatar component displays initials with deterministic colors
+- **Firestore schema documented and service layer complete**
+- **Network status detection with offline banner**
+- **Zustand stores for chats and messages scaffolded**
+- All Firestore CRUD operations for chats/messages implemented
 
 ## What's Built (Completed PRs)
 - ✅ **PR 1**: Project Setup & Firebase Configuration
+- ✅ **PR 2**: Firebase Authentication (Email/Password - Google OAuth deferred to post-MVP)
+- ✅ **PR 3**: Firestore Schema & Network Detection
 
 ## What's Left to Build
 
@@ -19,8 +30,8 @@
 
 #### Infrastructure & Setup
 - [x] **PR 1**: Project Setup & Firebase Configuration
-- [ ] **PR 2**: Firebase Authentication (Sign-Up & Login)
-- [ ] **PR 3**: Firestore Schema & Network Detection
+- [x] **PR 2**: Firebase Authentication (Email/Password implementation)
+- [x] **PR 3**: Firestore Schema & Network Detection
 - [ ] **PR 4**: SQLite Local Database & Sync Strategy
 
 #### Core Messaging UI

@@ -1,41 +1,38 @@
 # Active Context
 
 ## Current Status
-**Phase**: PR 1 - Project Setup & Firebase Configuration (In Progress)  
+**Phase**: PR 3 Complete - Firestore & Network Detection Working  
 **Date**: October 20, 2025  
 **Next Milestone**: MVP (Tuesday EOD)  
 **Firebase Project**: MessageAI-dev
 
 ## What We Just Did
-- ✅ Initialized Expo project with blank template
-- ✅ Installed all core dependencies (expo-router, firebase, sqlite, zustand, notifications, netinfo)
-- ✅ Created complete directory structure (app/, components/, services/, db/, store/, utils/, config/)
-- ✅ Created Firebase project "MessageAI-dev"
-- ✅ Enabled Google Authentication (changed from Email/Password)
-- ✅ Updated all planning and memory-bank documentation to reflect Google auth
-- ⏳ Awaiting Firebase credentials to continue setup
+- ✅ **PR 1**: Project Setup & Firebase Configuration - COMPLETE
+- ✅ **PR 2**: Firebase Authentication - COMPLETE
+- ✅ **PR 3**: Firestore Schema & Network Detection - COMPLETE
+  - Documented complete Firestore schema in services/firestore.js
+  - Extended Firestore service with 8 new functions for chats/messages
+  - Created Zustand chat store and message store (scaffolded)
+  - Built network status utility with useNetworkStatus hook
+  - Created OfflineBanner component with smooth animations
+  - Integrated network detection into root layout
+  - All code compiles without linter errors
 
 ## Current Work Focus
 
 ### Immediate Next Steps
-1. ✅ **Initialize React Native project with Expo** - DONE
-2. ✅ **Install core dependencies** - DONE
-3. ✅ **Create project structure** - DONE
-4. ⏳ **Get Firebase credentials** - WAITING FOR USER
-5. **Configure Firebase in app**
-   - Create .env file with credentials
-   - Create config/firebaseConfig.js
-   - Configure Expo Router
-   - Update app.json
-6. **Initialize Git**
-   - Set up .gitignore
-   - Create initial commit
-7. **Test on device**
-   - Launch with Expo Go
-   - Verify Firebase connection
+1. ✅ **PR 1**: Project Setup - DONE
+2. ✅ **PR 2**: Firebase Authentication - DONE
+3. ✅ **PR 3**: Firestore Schema & Network Detection - DONE
+4. **PR 4**: SQLite Local Database & Sync Strategy (NEXT)
+   - Create SQLite database schema
+   - Implement message and chat database operations
+   - Build sync manager utility
+   - Initialize database on app startup
+   - Set up sync strategy (Firestore → SQLite)
 
 ### Today's Goal
-Complete **PR 1: Project Setup & Firebase Configuration** from task list.
+Complete **PR 4: SQLite Local Database & Sync Strategy** from task list.
 
 ## Active Decisions & Considerations
 
@@ -46,6 +43,50 @@ Complete **PR 1: Project Setup & Firebase Configuration** from task list.
 - **Local Database**: Expo SQLite
 - **Backend**: Firebase (Firestore, Auth, Cloud Functions, FCM)
 - **Network Detection**: @react-native-community/netinfo
+- **Authentication**: Email/Password (primary), Google OAuth (post-MVP)
+
+### Recent Key Decisions
+
+#### Authentication Strategy Change (PR 2)
+**Decision**: Use Email/Password authentication for MVP; defer Google OAuth to post-MVP Phase 2
+
+**Rationale**:
+- Google OAuth consent screen setup proved time-consuming during MVP sprint
+- Email/Password auth is simpler and unblocks development immediately
+- Core messaging features are higher priority than OAuth polish
+- Google OAuth can be added post-MVP without affecting existing users
+- Both auth methods can coexist (users can link accounts later)
+
+**Implementation**:
+- Created complete Email/Password auth flow with sign-up/sign-in toggle
+- Google OAuth code remains in codebase but unused
+- Documentation preserved in `planning/md_files/` for future implementation
+
+**Impact**:
+- ✅ Unblocked PR 2 completion, can proceed to PR 3
+- ✅ Users can create accounts and test immediately
+- ⚠️ Will need to add Google OAuth back post-MVP (estimated 2-3 hours)
+- ⚠️ Firestore security rules currently open (will secure in PR 16)
+
+#### Firestore Security Rules (Temporary)
+**Decision**: Open Firestore to all authenticated users for MVP development
+
+**Current Rules**:
+```javascript
+match /{document=**} {
+  allow read, write: if request.auth != null;
+}
+```
+
+**Rationale**:
+- Unblocks rapid development and testing
+- Sufficient security for MVP testing phase (no production users yet)
+- Will implement proper granular rules in PR 16
+
+**Next Steps for Production**:
+- PR 16 will add proper rules (users can only read/write their own data)
+- Will implement chat participant validation
+- Will add rate limiting and abuse prevention
 
 ### Architecture Approach
 **Offline-First with Firestore as Source of Truth**:

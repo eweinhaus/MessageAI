@@ -96,66 +96,84 @@
 
 ---
 
-## PR 2: Firebase Authentication (Sign-Up & Login)
+## PR 2: Firebase Authentication (Sign-Up & Login) ✅
 
 **Objective:** Users can create accounts and log in. Sessions persist across app restarts.
 
+**Implementation:** Email/Password authentication (Google OAuth deferred to post-MVP Phase 2)
+
 ### Tasks
 
-- [ ] Create Auth service layer
-  - [ ] `services/auth.js` with functions:
-    - [ ] `signInWithGoogle()` - Authenticate with Google, store profile in Firestore
-    - [ ] `logout()` - Sign out and clear local session
-    - [ ] `getCurrentUser()` - Return current authenticated user
-    - [ ] `onAuthStateChanged(callback)` - Listen for auth state changes
-- [ ] Create Zustand user store
-  - [ ] `store/userStore.js` with state:
-    - [ ] `currentUser` (user object with userID, email, displayName)
-    - [ ] `isAuthenticated` (boolean)
-    - [ ] `isLoading` (boolean)
-    - [ ] `setCurrentUser(user)`
-    - [ ] `logout()`
-    - [ ] `initialize()` - Check auth status on app launch
-- [ ] Create Firestore user document service
-  - [ ] `services/firestore.js` with functions:
-    - [ ] `createUserProfile(userID, displayName, email)` - Write to `/users/{userID}`
-    - [ ] `getUserProfile(userID)` - Read user from Firestore
-    - [ ] `updateUserProfile(userID, updates)` - Update user data
-- [ ] Create avatar utility
-  - [ ] `utils/avatarUtils.js`:
-    - [ ] `getInitials(displayName)` - Extract initials (e.g., "John Doe" → "JD")
-    - [ ] `getAvatarColor(userID)` - Generate consistent color from userID hash
-    - [ ] Export color palette (6-8 distinct colors)
-- [ ] Build Login Screen
-  - [ ] `app/(auth)/login.js`
-  - [ ] "Sign in with Google" button calls `signInWithGoogle()` from auth service
-  - [ ] Show loading state during authentication
-  - [ ] Error handling & display (show Firebase errors)
-  - [ ] Navigate to home on success
-  - [ ] Display app branding/logo
-- [ ] Create Auth navigation stack
-  - [ ] `app/(auth)/_layout.js` - Stack navigator for auth screens
-  - [ ] `app/_layout.js` - Root layout that conditionally shows auth or main app
-  - [ ] Show auth screens when `isAuthenticated === false`
-  - [ ] Show main app when `isAuthenticated === true`
-- [ ] Handle auth persistence
-  - [ ] In root layout, call `onAuthStateChanged` on mount
-  - [ ] Update Zustand store when auth state changes
-  - [ ] Show loading screen while checking auth status
+- [x] Create Auth service layer
+  - [x] `services/auth.js` with functions:
+    - [x] `signUpWithEmail(email, password, displayName)` - Create new user account
+    - [x] `signInWithEmail(email, password)` - Sign in existing user
+    - [x] `sendPasswordReset(email)` - Send password reset email
+    - [x] `logout()` - Sign out and clear local session
+    - [x] `getCurrentUser()` - Return current authenticated user
+    - [x] `subscribeToAuth(callback)` - Listen for auth state changes
+    - [x] Google OAuth functions (present but unused until post-MVP)
+- [x] Create Zustand user store
+  - [x] `store/userStore.js` with state:
+    - [x] `currentUser` (user object with userID, email, displayName)
+    - [x] `isAuthenticated` (boolean)
+    - [x] `isLoading` (boolean)
+    - [x] `setCurrentUser(user)`
+    - [x] `logout()`
+    - [x] `initialize()` - Check auth status on app launch
+- [x] Create Firestore user document service
+  - [x] `services/firestore.js` with functions:
+    - [x] `createUserProfile(userID, displayName, email)` - Write to `/users/{userID}`
+    - [x] `getUserProfile(userID)` - Read user from Firestore
+    - [x] `updateUserProfile(userID, updates)` - Update user data
+- [x] Create avatar utility
+  - [x] `utils/avatarUtils.js`:
+    - [x] `getInitials(displayName)` - Extract initials (e.g., "John Doe" → "JD")
+    - [x] `getAvatarColor(userID)` - Generate consistent color from userID hash
+    - [x] Export color palette (8 distinct colors)
+- [x] Build Login Screen
+  - [x] `app/(auth)/login.js`
+  - [x] Email/password input fields with sign-up/sign-in toggle
+  - [x] Show loading state during authentication
+  - [x] Error handling & display (show Firebase errors)
+  - [x] Navigate to home on success
+  - [x] Display app branding/logo
+  - [x] Google Sign-In button (present but requires OAuth config)
+- [x] Create Auth navigation stack
+  - [x] `app/(auth)/_layout.js` - Stack navigator for auth screens
+  - [x] `app/_layout.js` - Root layout that conditionally shows auth or main app
+  - [x] Show auth screens when `isAuthenticated === false`
+  - [x] Show main app when `isAuthenticated === true`
+- [x] Handle auth persistence
+  - [x] In root layout, call `initialize()` on mount
+  - [x] Update Zustand store when auth state changes
+  - [x] Show loading screen while checking auth status
+  - [x] Configured AsyncStorage for React Native persistence
+- [x] Firebase Console Configuration
+  - [x] Enabled Email/Password provider in Firebase Auth
+  - [x] Configured Firestore security rules (authenticated users can read/write)
 
-### Testing Checklist
-- [ ] Sign in with Google creates account
-- [ ] New user appears in Firebase Auth console
-- [ ] New user document created in Firestore `/users/{userID}`
-- [ ] Display name pulled from Google account
-- [ ] Authentication errors show user-friendly messages
-- [ ] Close app and reopen - user stays logged in
-- [ ] Logout works and returns to login screen
-- [ ] Initial-based avatar generates correctly from display name
-- [ ] Avatar color is consistent for same user across app restarts
+### Testing Checklist ✅
+- [x] Sign up with email/password creates account
+- [x] New user appears in Firebase Auth console
+- [x] New user document created in Firestore `/users/{userID}`
+- [x] Display name from sign-up form stored correctly
+- [x] Authentication errors show user-friendly messages
+- [x] Close app and reopen - user stays logged in
+- [x] Logout works and returns to login screen
+- [x] Initial-based avatar generates correctly from display name
+- [x] Avatar color is consistent for same user across app restarts
+
+### Post-MVP Enhancement
+- [ ] **Re-implement Google OAuth Sign-In** (Phase 2 - Post-MVP)
+  - Configure OAuth consent screen in Google Cloud Console
+  - Add test users for development
+  - Set up authorized redirect URIs
+  - Test Google sign-in flow end-to-end
+  - See `planning/md_files/GOOGLE_AUTH_SETUP.md` for detailed steps
 
 ### Commit
-`feat: implement Firebase Google authentication with session persistence`
+`feat: implement Firebase email/password authentication with session persistence`
 
 ---
 
@@ -165,7 +183,7 @@
 
 ### Tasks
 
-- [ ] Document Firestore schema (in comments or separate doc)
+- [x] Document Firestore schema (in comments or separate doc)
   ```
   /users/{userID}
     - userID, email, displayName, isOnline, lastSeenTimestamp, fcmToken, createdAt
@@ -181,57 +199,57 @@
     - timestamp, deliveryStatus, readBy[]
     - createdAt
   ```
-- [ ] Extend Firestore service layer
-  - [ ] `services/firestore.js` - Add functions:
-    - [ ] `createOneOnOneChat(userAID, userBID)` - Create or get existing 1:1 chat
-    - [ ] `checkIfChatExists(userAID, userBID)` - Check for existing 1:1 chat
-    - [ ] `createGroupChat(groupName, memberIDs, createdBy)` - Create group chat
-    - [ ] `getChat(chatID)` - Fetch chat metadata
-    - [ ] `getAllUserChats(userID)` - Query chats where userID in participantIDs/memberIDs
-    - [ ] `sendMessage(chatID, senderID, senderName, text)` - Write message to subcollection
-    - [ ] `markMessageAsRead(chatID, messageID, userID)` - Add userID to readBy array
-    - [ ] `updateChatLastMessage(chatID, messageText, timestamp, senderID)` - Update chat metadata
-- [ ] Create Zustand chat store
-  - [ ] `store/chatStore.js`:
-    - [ ] `chats` - Array of chat objects
-    - [ ] `currentChatID` - Currently active chat
-    - [ ] `setChats(chats)`
-    - [ ] `addChat(chat)`
-    - [ ] `updateChat(chatID, updates)`
-    - [ ] `setCurrentChat(chatID)`
-    - [ ] `getChatByID(chatID)`
-- [ ] Create Zustand message store
-  - [ ] `store/messageStore.js`:
-    - [ ] `messagesByChat` - Object: { [chatID]: [messages] }
-    - [ ] `addMessage(chatID, message)`
-    - [ ] `updateMessage(chatID, messageID, updates)`
-    - [ ] `setMessagesForChat(chatID, messages)`
-    - [ ] `getMessagesForChat(chatID)`
-    - [ ] `markAsRead(chatID, messageID, userID)`
-- [ ] Create network status utility
-  - [ ] `utils/networkStatus.js`:
-    - [ ] `useNetworkStatus()` - Custom hook using @react-native-community/netinfo
-    - [ ] Returns: `{ isOnline, isConnected, type }`
-    - [ ] Subscribe to network state changes
-    - [ ] Export `addNetworkListener(callback)` for non-component usage
-- [ ] Add network status banner component
-  - [ ] `components/OfflineBanner.js`:
-    - [ ] Shows red banner at top when offline
-    - [ ] Text: "No internet connection. Messages will send when online."
-    - [ ] Automatically hides when back online
-- [ ] Integrate network status into root layout
-  - [ ] In `app/_layout.js`, use `useNetworkStatus()` hook
-  - [ ] Store network status in global state (Zustand or Context)
-  - [ ] Render `<OfflineBanner>` when offline
+- [x] Extend Firestore service layer
+  - [x] `services/firestore.js` - Add functions:
+    - [x] `createOneOnOneChat(userAID, userBID)` - Create or get existing 1:1 chat
+    - [x] `checkIfChatExists(userAID, userBID)` - Check for existing 1:1 chat
+    - [x] `createGroupChat(groupName, memberIDs, createdBy)` - Create group chat
+    - [x] `getChat(chatID)` - Fetch chat metadata
+    - [x] `getAllUserChats(userID)` - Query chats where userID in participantIDs/memberIDs
+    - [x] `sendMessage(chatID, senderID, senderName, text)` - Write message to subcollection
+    - [x] `markMessageAsRead(chatID, messageID, userID)` - Add userID to readBy array
+    - [x] `updateChatLastMessage(chatID, messageText, timestamp, senderID)` - Update chat metadata
+- [x] Create Zustand chat store
+  - [x] `store/chatStore.js`:
+    - [x] `chats` - Array of chat objects
+    - [x] `currentChatID` - Currently active chat
+    - [x] `setChats(chats)`
+    - [x] `addChat(chat)`
+    - [x] `updateChat(chatID, updates)`
+    - [x] `setCurrentChat(chatID)`
+    - [x] `getChatByID(chatID)`
+- [x] Create Zustand message store
+  - [x] `store/messageStore.js`:
+    - [x] `messagesByChat` - Object: { [chatID]: [messages] }
+    - [x] `addMessage(chatID, message)`
+    - [x] `updateMessage(chatID, messageID, updates)`
+    - [x] `setMessagesForChat(chatID, messages)`
+    - [x] `getMessagesForChat(chatID)`
+    - [x] `markAsRead(chatID, messageID, userID)`
+- [x] Create network status utility
+  - [x] `utils/networkStatus.js`:
+    - [x] `useNetworkStatus()` - Custom hook using @react-native-community/netinfo
+    - [x] Returns: `{ isOnline, isConnected, type }`
+    - [x] Subscribe to network state changes
+    - [x] Export `addNetworkListener(callback)` for non-component usage
+- [x] Add network status banner component
+  - [x] `components/OfflineBanner.js`:
+    - [x] Shows red banner at top when offline
+    - [x] Text: "No internet connection. Messages will send when online."
+    - [x] Automatically hides when back online
+- [x] Integrate network status into root layout
+  - [x] In `app/_layout.js`, OfflineBanner component integrated
+  - [x] Banner uses `useNetworkStatus()` hook internally
+  - [x] Render `<OfflineBanner>` which shows/hides based on network state
 
 ### Testing Checklist
-- [ ] Network status correctly detects online state
-- [ ] Toggle airplane mode - offline banner appears immediately
-- [ ] Toggle airplane mode off - banner disappears
-- [ ] Can create chat document in Firestore (test manually in service)
-- [ ] Can write message to subcollection
-- [ ] Zustand stores update correctly
-- [ ] No console errors
+- [x] Network status correctly detects online state
+- [x] Toggle airplane mode - offline banner appears immediately
+- [x] Toggle airplane mode off - banner disappears
+- [x] Can create chat document in Firestore (test manually in service)
+- [x] Can write message to subcollection
+- [x] Zustand stores update correctly
+- [x] No console errors
 
 ### Commit
 `feat: set up Firestore schema, data access layer, and network detection`
