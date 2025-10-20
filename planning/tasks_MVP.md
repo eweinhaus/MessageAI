@@ -262,48 +262,48 @@
 
 ### Tasks
 
-- [ ] Create SQLite database schema
-  - [ ] `db/database.js`:
-    - [ ] `initDatabase()` - Create tables if not exist
-    - [ ] Table: `messages` (messageID, chatID, senderID, senderName, text, timestamp, deliveryStatus, readBy, syncStatus, retryCount, lastSyncAttempt, createdAt)
-    - [ ] Table: `chats` (chatID, type, participantIDs, participantNames, groupName, lastMessageText, lastMessageTimestamp, lastMessageSenderID, updatedAt)
-    - [ ] Indexes: chatID, timestamp on messages; chatID on chats
-    - [ ] Run on app startup
-- [ ] Create message database service
-  - [ ] `db/messageDb.js`:
-    - [ ] `insertMessage(message)` - Insert to SQLite
-    - [ ] `updateMessage(messageID, updates)` - Update existing message
-    - [ ] `getMessagesForChat(chatID, limit = 100)` - Query messages, sorted by timestamp
-    - [ ] `getPendingMessages()` - Query messages with syncStatus = 'pending'
-    - [ ] `updateMessageSyncStatus(messageID, syncStatus, retryCount)` - Update sync state
-    - [ ] `deleteMessage(messageID)` - Delete from SQLite
-    - [ ] `insertChat(chat)` - Insert chat metadata
-    - [ ] `updateChat(chatID, updates)` - Update chat
-    - [ ] `getAllChats()` - Get all chats, sorted by lastMessageTimestamp
-    - [ ] `getChatByID(chatID)` - Get single chat
-- [ ] Initialize database on app startup
-  - [ ] In root layout `app/_layout.js`, call `initDatabase()` before rendering
-  - [ ] Handle initialization errors gracefully
-- [ ] Create sync utility
-  - [ ] `utils/syncManager.js`:
-    - [ ] `syncChatsFromFirestore(userID)` - Fetch chats from Firestore, update SQLite
-    - [ ] `syncMessagesForChat(chatID)` - Fetch messages from Firestore, update SQLite
-    - [ ] `reconcileMessage(firestoreMsg, sqliteMsg)` - Firestore wins conflicts
-    - [ ] `markSyncComplete(chatID)` - Update last sync timestamp
-- [ ] Implement sync on app startup
-  - [ ] In root layout or home screen, after auth check:
-    - [ ] Load chats from SQLite (instant UI)
-    - [ ] Async: sync with Firestore
-    - [ ] Update UI after sync completes
+- [x] Create SQLite database schema
+  - [x] `db/database.js`:
+    - [x] `initDatabase()` - Create tables if not exist
+    - [x] Table: `messages` (messageID, chatID, senderID, senderName, text, timestamp, deliveryStatus, readBy, syncStatus, retryCount, lastSyncAttempt, createdAt)
+    - [x] Table: `chats` (chatID, type, participantIDs, participantNames, groupName, lastMessageText, lastMessageTimestamp, lastMessageSenderID, updatedAt)
+    - [x] Indexes: chatID, timestamp on messages; chatID on chats
+    - [x] Run on app startup
+- [x] Create message database service
+  - [x] `db/messageDb.js`:
+    - [x] `insertMessage(message)` - Insert to SQLite
+    - [x] `updateMessage(messageID, updates)` - Update existing message
+    - [x] `getMessagesForChat(chatID, limit = 100)` - Query messages, sorted by timestamp
+    - [x] `getPendingMessages()` - Query messages with syncStatus = 'pending'
+    - [x] `updateMessageSyncStatus(messageID, syncStatus, retryCount)` - Update sync state
+    - [x] `deleteMessage(messageID)` - Delete from SQLite
+    - [x] `insertChat(chat)` - Insert chat metadata
+    - [x] `updateChat(chatID, updates)` - Update chat
+    - [x] `getAllChats()` - Get all chats, sorted by lastMessageTimestamp
+    - [x] `getChatByID(chatID)` - Get single chat
+- [x] Initialize database on app startup
+  - [x] In root layout `app/_layout.js`, call `initDatabase()` before rendering
+  - [x] Handle initialization errors gracefully
+- [x] Create sync utility
+  - [x] `utils/syncManager.js`:
+    - [x] `syncChatsFromFirestore(userID)` - Fetch chats from Firestore, update SQLite
+    - [x] `syncMessagesForChat(chatID)` - Fetch messages from Firestore, update SQLite
+    - [x] `reconcileMessage(firestoreMsg, sqliteMsg)` - Firestore wins conflicts
+    - [x] `markSyncComplete(chatID)` - Update last sync timestamp
+- [x] Implement sync on app startup
+  - [x] In root layout or home screen, after auth check:
+    - [x] Load chats from SQLite (instant UI)
+    - [x] Async: sync with Firestore
+    - [x] Update UI after sync completes
 
 ### Testing Checklist
-- [ ] Database initializes without errors
-- [ ] Can insert message to SQLite
-- [ ] Can query messages by chatID
-- [ ] Can update message sync status
-- [ ] App restart shows data from SQLite immediately
-- [ ] Check database contents using Expo SQLite inspector or logging
-- [ ] No duplicate entries after multiple syncs
+- [x] Database initializes without errors
+- [x] Can insert message to SQLite
+- [x] Can query messages by chatID
+- [x] Can update message sync status
+- [x] App restart shows data from SQLite immediately
+- [x] Check database contents using Expo SQLite inspector or logging
+- [x] No duplicate entries after multiple syncs
 
 ### Commit
 `feat: implement SQLite local database with sync strategy`
