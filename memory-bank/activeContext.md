@@ -1,0 +1,161 @@
+# Active Context
+
+## Current Status
+**Phase**: PR 1 - Project Setup & Firebase Configuration (In Progress)  
+**Date**: October 20, 2025  
+**Next Milestone**: MVP (Tuesday EOD)  
+**Firebase Project**: MessageAI-dev
+
+## What We Just Did
+- ✅ Initialized Expo project with blank template
+- ✅ Installed all core dependencies (expo-router, firebase, sqlite, zustand, notifications, netinfo)
+- ✅ Created complete directory structure (app/, components/, services/, db/, store/, utils/, config/)
+- ✅ Created Firebase project "MessageAI-dev"
+- ✅ Enabled Google Authentication (changed from Email/Password)
+- ✅ Updated all planning and memory-bank documentation to reflect Google auth
+- ⏳ Awaiting Firebase credentials to continue setup
+
+## Current Work Focus
+
+### Immediate Next Steps
+1. ✅ **Initialize React Native project with Expo** - DONE
+2. ✅ **Install core dependencies** - DONE
+3. ✅ **Create project structure** - DONE
+4. ⏳ **Get Firebase credentials** - WAITING FOR USER
+5. **Configure Firebase in app**
+   - Create .env file with credentials
+   - Create config/firebaseConfig.js
+   - Configure Expo Router
+   - Update app.json
+6. **Initialize Git**
+   - Set up .gitignore
+   - Create initial commit
+7. **Test on device**
+   - Launch with Expo Go
+   - Verify Firebase connection
+
+### Today's Goal
+Complete **PR 1: Project Setup & Firebase Configuration** from task list.
+
+## Active Decisions & Considerations
+
+### Tech Stack Confirmed
+- **Frontend**: React Native with Expo
+- **Routing**: Expo Router (file-based navigation)
+- **State Management**: Zustand
+- **Local Database**: Expo SQLite
+- **Backend**: Firebase (Firestore, Auth, Cloud Functions, FCM)
+- **Network Detection**: @react-native-community/netinfo
+
+### Architecture Approach
+**Offline-First with Firestore as Source of Truth**:
+- SQLite serves as read cache + write queue
+- Firestore is authoritative source for all data
+- On conflict, Firestore always wins
+- Optimistic UI updates for instant feedback
+
+### Key Design Decisions
+
+#### Message Sync Strategy
+```
+Send Flow:
+1. Write to SQLite immediately (syncStatus: 'pending')
+2. Show in UI instantly (optimistic)
+3. Async write to Firestore
+4. On success: Update SQLite (syncStatus: 'synced')
+5. Update UI with confirmation
+
+Receive Flow:
+1. Firestore listener fires
+2. Write to SQLite
+3. Update Zustand state
+4. UI re-renders automatically
+```
+
+#### Network Handling
+- Use NetInfo for connection detection
+- Show persistent banner when offline
+- Disable send button while offline
+- Auto-process queue on reconnect
+- Exponential backoff for retries (1s, 2s, 4s, 8s, 16s, max 30s)
+- Max 5 retry attempts, then mark as failed
+
+#### Presence Tracking
+- Update on app foreground/background
+- Use Firestore onDisconnect() handlers
+- Throttle updates (max 1 per 30 seconds)
+- Track in /users/{userID} document
+
+## Blockers & Risks
+
+### Current Blockers
+None yet - just starting!
+
+### Potential Risks
+1. **Time Constraint**: MVP deadline is aggressive (24 hours)
+   - Mitigation: Follow task list strictly, no scope creep
+   - Priority: Core messaging over polish
+
+2. **Firebase Setup Complexity**: First-time setup can be tricky
+   - Mitigation: Follow documentation carefully
+   - Test connection early
+
+3. **Offline Sync Complexity**: Most challenging technical aspect
+   - Mitigation: Build incrementally, test after each PR
+   - Start with simple cases, handle edge cases later
+
+4. **Testing on Physical Devices**: Emulators don't represent real behavior
+   - Mitigation: Test on physical device from day 1
+   - Use Expo Go for quick iteration
+
+## What's Working
+Nothing yet - project hasn't started!
+
+## What Needs Attention
+1. **Firebase account setup** - Need valid credentials
+2. **Development device** - Need physical iOS/Android device for testing
+3. **Environment variables** - Need secure .env setup
+4. **Git workflow** - Need clean commit strategy
+
+## Questions to Resolve
+1. **Persona Selection**: Which user persona will we target for Phase 2 AI features?
+   - Can decide after MVP is complete
+   - Options: Remote Team Professional, International Communicator, Busy Parent, Content Creator
+
+2. **Testing Strategy**: How will we test with 2+ devices?
+   - Expo Go on multiple devices
+   - Create test user accounts
+   - Test offline scenarios with airplane mode
+
+3. **Demo Approach**: How to capture demo video?
+   - Screen recording on devices
+   - Show split-screen for real-time sync
+   - Record offline scenarios clearly
+
+## Next Session Planning
+
+### PR 1 Checklist (Project Setup)
+- [ ] Initialize Expo project
+- [ ] Install all dependencies
+- [ ] Create Firebase project
+- [ ] Configure Firebase in app
+- [ ] Set up directory structure
+- [ ] Create .env file
+- [ ] Initialize Git
+- [ ] Test app launches on device
+- [ ] Commit: "feat: initialize project with Firebase"
+
+### Success Criteria for Today
+- App launches on physical device without errors
+- Firebase config loads successfully
+- Can navigate between empty screens
+- Git repository initialized with first commit
+- Ready to start PR 2 (Authentication)
+
+## Context for Next Session
+When resuming:
+1. Check if Firebase is configured correctly
+2. Verify app runs on physical device
+3. Review any console errors/warnings
+4. Proceed to PR 2: Firebase Authentication
+

@@ -1,0 +1,133 @@
+graph TB
+    subgraph "Client Layer - React Native + Expo"
+        UA["👤 User A's Phone<br/>React Native App"]
+        UB["👤 User B's Phone<br/>React Native App"]
+        
+        subgraph "User A - App Components"
+            UAComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List"]
+            UAState["📦 Zustand State<br/>• Current User<br/>• Active Chats<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue"]
+            UASQL["💾 SQLite Database<br/>• Messages (with syncStatus)<br/>• Chat Metadata<br/>• Pending Queue<br/>• Last Sync Timestamp"]
+            UANotif["🔔 Expo Notifications<br/>• FCM Receiver<br/>• In-App Toast Handler<br/>• Foreground Only"]
+            UANet["📡 NetInfo Listener<br/>• Network Status<br/>• Online/Offline Detection<br/>• Auto-Reconnect Trigger"]
+        end
+        
+        subgraph "User B - App Components"
+            UBComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List"]
+            UBState["📦 Zustand State<br/>• Current User<br/>• Active Chats<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue"]
+            UBSQL["💾 SQLite Database<br/>• Messages (with syncStatus)<br/>• Chat Metadata<br/>• Pending Queue<br/>• Last Sync Timestamp"]
+            UBNotif["🔔 Expo Notifications<br/>• FCM Receiver<br/>• In-App Toast Handler<br/>• Foreground Only"]
+            UBNet["📡 NetInfo Listener<br/>• Network Status<br/>• Online/Offline Detection<br/>• Auto-Reconnect Trigger"]
+        end
+        
+        UA --> UAComp
+        UA --> UAState
+        UA --> UASQL
+        UA --> UANotif
+        UA --> UANet
+        
+        UB --> UBComp
+        UB --> UBState
+        UB --> UBSQL
+        UB --> UBNotif
+        UB --> UBNet
+    end
+    
+    subgraph "Real-Time Listeners - Firestore SDK"
+        ListenerA["📡 Firestore Listener A<br/>onSnapshot: /chats where<br/>participantIDs contains userA"]
+        ListenerB["📡 Firestore Listener B<br/>onSnapshot: /chats where<br/>participantIDs contains userB"]
+        
+        PresenceA["📡 Presence Listener A<br/>onSnapshot: /users/{userB}<br/>Field: isOnline"]
+        PresenceB["📡 Presence Listener B<br/>onSnapshot: /users/{userA}<br/>Field: isOnline"]
+        
+        MsgListenerA["📡 Message Listener A<br/>onSnapshot: /chats/{chatID}<br/>/messages orderBy timestamp"]
+        MsgListenerB["📡 Message Listener B<br/>onSnapshot: /chats/{chatID}<br/>/messages orderBy timestamp"]
+    end
+    
+    subgraph "Cloud Layer - Firebase"
+        AUTH["🔐 Firebase Auth<br/>• Google Sign-In<br/>• Session Management<br/>• Token Auto-Refresh<br/>• onAuthStateChanged"]
+        
+        FS["☁️ Firestore<br/>(Source of Truth)<br/><br/>Collections:<br/>• /users<br/>• /chats<br/>• /chats/{id}/messages"]
+        
+        CF["⚡ Cloud Functions<br/><br/>onMessageCreated:<br/>• Check recipient online<br/>• Get FCM token<br/>• Send push (foreground)<br/><br/>Scheduled:<br/>• Clean old presence data"]
+        
+        FCM["📢 Firebase Cloud<br/>Messaging (FCM)<br/>• Push to Device A<br/>• Push to Device B<br/>• Foreground Only"]
+    end
+    
+    subgraph "Data Flow: Send Message"
+        SEND["1️⃣ User A types 'Hello'<br/>2️⃣ Tap Send<br/>3️⃣ Write to SQLite immediately<br/>   (syncStatus: pending)<br/>4️⃣ Show in UI (optimistic)<br/>5️⃣ Async: Write to Firestore<br/>6️⃣ On success: Update SQLite<br/>   (syncStatus: synced)<br/>7️⃣ Update UI (sent ✓)"]
+    end
+    
+    subgraph "Data Flow: Receive Message"
+        RECEIVE["1️⃣ Firestore message created<br/>2️⃣ Listener B fires<br/>3️⃣ Write to SQLite<br/>4️⃣ Update Zustand state<br/>5️⃣ UI re-renders (new message)<br/>6️⃣ CF sends FCM notification<br/>7️⃣ User B sees in-app toast<br/>8️⃣ User B views message<br/>9️⃣ Update readBy in Firestore<br/>🔟 Listener A fires → read receipt"]
+    end
+    
+    subgraph "Data Flow: Offline → Online"
+        OFFLINE["1️⃣ User A offline (airplane mode)<br/>2️⃣ Types 'Are you free?'<br/>3️⃣ Tap Send<br/>4️⃣ Write to SQLite (pending)<br/>5️⃣ Show 'Offline' banner<br/>6️⃣ NetInfo detects online<br/>7️⃣ Hide banner<br/>8️⃣ Process pending queue:<br/>   - Query SQLite for pending<br/>   - Retry with backoff (1s, 2s, 4s...)<br/>   - Max 5 attempts<br/>9️⃣ On success: Update to synced<br/>🔟 Normal flow resumes"]
+    end
+    
+    subgraph "Data Flow: Presence"
+        PRESENCE["1️⃣ App foreground:<br/>   - setUserOnline(userID)<br/>   - Write to /users/{id}<br/>   - Set onDisconnect() handler<br/>2️⃣ App background:<br/>   - onDisconnect triggers<br/>   - Sets isOnline: false<br/>3️⃣ Listener fires<br/>4️⃣ UI updates (gray dot)<br/><br/>Throttle: Max 1 write per 30s"]
+    end
+    
+    subgraph "Sync Strategy"
+        SYNC["SQLite = Read Cache + Write Queue<br/>Firestore = Source of Truth<br/><br/>On Startup:<br/>1. Read SQLite (instant UI)<br/>2. Async sync with Firestore<br/>3. Reconcile differences<br/><br/>On Conflict:<br/>• Firestore ALWAYS wins<br/>• Overwrite SQLite<br/><br/>On Send:<br/>1. Write SQLite (pending)<br/>2. Write Firestore (async)<br/>3. Update SQLite (synced)<br/><br/>On Receive:<br/>1. Listener fires<br/>2. Write SQLite<br/>3. Update UI"]
+    end
+    
+    %% Connections - User A Flow
+    UAComp -->|User Action: Send| UAState
+    UAState -->|Optimistic Write| UASQL
+    UASQL -->|Queue Processor| FS
+    UANet -->|Network Status| UAState
+    
+    %% Connections - User B Flow
+    UBComp -->|View Message| UBState
+    UBState -->|Mark Read| FS
+    UBNet -->|Network Status| UBState
+    
+    %% Connections - Real-Time Sync
+    FS -->|Real-Time Updates| ListenerA
+    FS -->|Real-Time Updates| ListenerB
+    FS -->|Real-Time Updates| MsgListenerA
+    FS -->|Real-Time Updates| MsgListenerB
+    FS -->|Real-Time Updates| PresenceA
+    FS -->|Real-Time Updates| PresenceB
+    
+    ListenerA -->|New Chat Data| UAState
+    ListenerB -->|New Chat Data| UBState
+    MsgListenerA -->|New Messages| UAState
+    MsgListenerB -->|New Messages| UBState
+    PresenceA -->|Status Update| UAComp
+    PresenceB -->|Status Update| UBComp
+    
+    UAState -->|Write on Receive| UASQL
+    UBState -->|Write on Receive| UBSQL
+    
+    %% Connections - Push Notifications
+    FS -->|onCreate Message| CF
+    CF -->|Send Notification| FCM
+    FCM -->|Foreground Push| UANotif
+    FCM -->|Foreground Push| UBNotif
+    UANotif -->|Display Toast| UAComp
+    UBNotif -->|Display Toast| UBComp
+    
+    %% Connections - Auth
+    AUTH -->|Validate & Refresh| FS
+    AUTH -->|Token Management| UAState
+    AUTH -->|Token Management| UBState
+    
+    %% Network Detection
+    UANet -->|Reconnect Event| UASQL
+    UBNet -->|Reconnect Event| UBSQL
+    
+    %% Styling
+    classDef client fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef firebase fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef listener fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef flow fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef sync fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class UA,UB,UAComp,UAState,UASQL,UANotif,UANet,UBComp,UBState,UBSQL,UBNotif,UBNet client
+    class FS,AUTH,CF,FCM firebase
+    class ListenerA,ListenerB,PresenceA,PresenceB,MsgListenerA,MsgListenerB listener
+    class SEND,RECEIVE,OFFLINE,PRESENCE flow
+    class SYNC sync
