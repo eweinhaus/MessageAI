@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   TouchableOpacity 
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebaseConfig';
@@ -191,15 +192,18 @@ export default function HomeScreen() {
   // Show loading spinner on initial load
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>Loading chats...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4CAF50" />
+          <Text style={styles.loadingText}>Loading chats...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <View style={styles.container}>
       <FlatList
         data={chats}
         renderItem={renderChatItem}
@@ -215,11 +219,16 @@ export default function HomeScreen() {
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={chats.length === 0 ? styles.emptyContainer : null}
       />
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',

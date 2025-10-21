@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,12 +52,19 @@ export default function NewChatScreen() {
   async function fetchUsers() {
     try {
       setIsLoading(true);
+      console.log('[ContactPicker] Fetching users from Firestore...');
+      console.log('[ContactPicker] Current user ID:', currentUser?.userID);
+      
       const users = await getAllUsers();
+      console.log('[ContactPicker] Total users fetched:', users.length);
+      console.log('[ContactPicker] Users:', users.map(u => ({ id: u.userID, name: u.displayName })));
       
       // Filter out current user
       const filteredUsers = users.filter(
         (user) => user.userID !== currentUser.userID
       );
+      
+      console.log('[ContactPicker] Filtered users (excluding self):', filteredUsers.length);
       
       // Sort by display name
       filteredUsers.sort((a, b) =>
@@ -65,7 +73,7 @@ export default function NewChatScreen() {
       
       setAllUsers(filteredUsers);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('[ContactPicker] Error fetching users:', error);
       Alert.alert('Error', 'Failed to load contacts. Please try again.');
     } finally {
       setIsLoading(false);
@@ -304,7 +312,8 @@ export default function NewChatScreen() {
         }}
       />
       
-      <View style={styles.container} testID="new-chat-screen">
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container} testID="new-chat-screen">
         {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
@@ -357,12 +366,29 @@ export default function NewChatScreen() {
             testID="contact-list"
             data={filteredUsers}
             renderItem={renderItem}
-            keyExtractor={(item) => item.userID}
+            keyExtractor={(item, index) => item.userID || `user-${index}`}
             ListEmptyComponent={renderEmptyState}
             contentContainerStyle={
-              filteredUsers.length === 0 && styles.emptyListContent
+              filteredUsers.length === 0 ? styles.emptyListContent : styles.listContent
             }
           />
+        )}
+        
+        {/* Floating Action Button */}
+        {selectedUsers.size > 0 && (
+          <View style={styles.fabContainer}>
+            <TouchableOpacity
+              style={styles.fab}
+              onPress={handleNext}
+              disabled={isCreating}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.fabText}>
+                {isCreating ? 'Creating...' : selectedUsers.size === 1 ? 'Create Chat' : 'Create Group'}
+              </Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </View>
         )}
         
         {/* Group Name Modal */}
@@ -372,12 +398,17 @@ export default function NewChatScreen() {
           onCancel={() => setShowGroupModal(false)}
           onCreate={handleCreateGroup}
         />
-      </View>
+        </View>
+      </SafeAreaView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
@@ -465,5 +496,33 @@ const styles = StyleSheet.create({
     color: '#bbb',
     marginTop: 8,
     textAlign: 'center',
+  },
+  listContent: {
+    paddingBottom: 100, // Space for FAB
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 16,
+    right: 16,
+  },
+  fab: {
+    backgroundColor: '#4CAF50',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -18,9 +18,12 @@
  */
 export function formatTimestamp(timestamp) {
   if (!timestamp) return '';
+  // Support Firestore Timestamp and guard against NaN
+  const ts = typeof timestamp?.toMillis === 'function' ? timestamp.toMillis() : timestamp;
+  if (Number.isNaN(ts)) return '';
   
   const now = Date.now();
-  const diff = now - timestamp;
+  const diff = now - ts;
   
   // Convert to seconds
   const seconds = Math.floor(diff / 1000);
@@ -50,13 +53,13 @@ export function formatTimestamp(timestamp) {
   
   // Less than 7 days - show day of week
   if (days < 7) {
-    const date = new Date(timestamp);
+    const date = new Date(ts);
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return dayNames[date.getDay()];
   }
   
   // Less than 1 year - show MM/DD
-  const date = new Date(timestamp);
+  const date = new Date(ts);
   const currentYear = new Date().getFullYear();
   
   if (date.getFullYear() === currentYear) {
@@ -88,8 +91,11 @@ export function formatTimestamp(timestamp) {
  */
 export function formatMessageTime(timestamp) {
   if (!timestamp) return '';
+  // Support Firestore Timestamp and guard against NaN
+  const ts = typeof timestamp?.toMillis === 'function' ? timestamp.toMillis() : timestamp;
+  if (Number.isNaN(ts)) return '';
   
-  const date = new Date(timestamp);
+  const date = new Date(ts);
   const now = new Date();
   
   const hours = date.getHours();

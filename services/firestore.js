@@ -200,14 +200,25 @@ export async function getUserProfiles(userIDs) {
  */
 export async function getAllUsers() {
   try {
+    console.log('[Firestore] Fetching all users from /users collection...');
     const usersRef = collection(db, 'users');
     const querySnapshot = await getDocs(usersRef);
     
     const users = [];
     querySnapshot.forEach((doc) => {
-      users.push(doc.data());
+      const userData = doc.data();
+      
+      // Validate user data has required fields
+      if (!userData.userID || !userData.displayName || !userData.email) {
+        console.warn('[Firestore] Skipping invalid user document:', doc.id, userData);
+        return;
+      }
+      
+      console.log('[Firestore] Found user:', userData.userID, userData.displayName);
+      users.push(userData);
     });
     
+    console.log('[Firestore] Total valid users in collection:', users.length);
     return users;
   } catch (error) {
     console.error('Error getting all users:', error);

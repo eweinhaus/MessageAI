@@ -475,3 +475,135 @@ function MessageList({ chatID }) {
 **Why**: Spam Firestore writes, costs money
 **Do**: Throttle to max 1 update per 30 seconds
 
+## UI Responsiveness & Screen Compatibility
+
+### SafeAreaView Implementation
+
+**Critical Pattern**: All screens MUST use SafeAreaView to respect device safe areas (notches, status bars, home indicators).
+
+#### When SafeAreaView is Required:
+1. **Login/Auth screens** - No navigation header
+2. **Modal screens** - Custom full-screen modals
+3. **Screens without Expo Router headers** - Custom layouts
+
+#### When SafeAreaView is Automatic:
+1. **Expo Router Stack screens** - Header handles safe areas
+2. **Tab Navigator screens** - Tabs handle bottom safe area
+3. **Nested navigators** - Parent handles safe areas
+
+#### Implementation Pattern:
+```javascript
+import { SafeAreaView, View, StyleSheet } from 'react-native';
+
+export default function MyScreen() {
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        {/* Content */}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff', // Match container background
+  },
+  container: {
+    flex: 1,
+    // Your layout styles
+  },
+});
+```
+
+### Screen Compatibility Matrix
+
+**CRITICAL**: Always use `react-native-safe-area-context` SafeAreaView with `edges` prop for fine control.
+
+| Screen | SafeAreaView | Edges | Reason |
+|--------|--------------|-------|--------|
+| Login | ✅ Required | ['top', 'bottom'] | No header, custom layout |
+| Contact Picker | ✅ Required | ['top', 'bottom'] | Modal style screen |
+| Home (Chat List) | ✅ Required | ['bottom'] | Tab header handles top, need bottom |
+| Chat Detail | ✅ Required | ['bottom'] | Stack header handles top, need bottom |
+| Group Members | ❌ Not needed | N/A | Stack navigator fully handles it |
+
+**Key Learning**: Even with Expo Router headers, **always** add SafeAreaView with `edges={['bottom']}` for consistency across all iPhone models (13, 14, 15).
+
+### Device Testing Requirements
+
+**Must test on**:
+- iPhone with notch (iPhone X+, 13, 14, 15)
+- iPhone without notch (SE, 8)
+- Android with notch
+- Android without notch
+- Tablets (iPad, Android tablet)
+
+**Key checks**:
+- Status bar doesn't overlap content
+- Navigation bar doesn't block buttons
+- Keyboard doesn't cover input fields
+- Content is fully scrollable
+- Safe area insets respected
+
+### Responsive Design Guidelines
+
+1. **Flexible layouts**: Use `flex: 1` instead of fixed heights
+2. **Percentage widths**: `width: '90%'` for containers
+3. **MaxWidth constraints**: `maxWidth: 600` for readability
+4. **Minimum touch targets**: 44x44 points (iOS), 48x48 dp (Android)
+5. **Scalable fonts**: Use relative sizes, test with accessibility settings
+6. **KeyboardAvoidingView**: Required for screens with text input
+
+### Common UI Issues & Fixes
+
+#### Issue: Content cut off at top (iPhone notch)
+**Fix**: Add SafeAreaView from `react-native-safe-area-context` with `edges` prop
+
+#### Issue: Keyboard covers input
+**Fix**: Use KeyboardAvoidingView + ScrollView
+
+#### Issue: FlatList items have no keys
+**Fix**: Always provide `keyExtractor` with fallback:
+```javascript
+keyExtractor={(item, index) => item.id || `item-${index}`}
+```
+
+#### Issue: Zustand selector causes infinite loops
+**Fix**: Use custom equality check:
+```javascript
+const data = useStore(
+  (state) => state.data,
+  (a, b) => a === b // Custom equality
+);
+```
+
+#### Issue: Timestamps show "NaN" or "undefined"
+**Fix**: Always validate timestamps before formatting:
+```javascript
+const validTimestamp = timestamp && !isNaN(timestamp) ? timestamp : Date.now();
+```
+
+#### Issue: SQLite duplicate insertion errors
+**Fix**: Use `INSERT OR REPLACE` and validate data before insertion:
+```javascript
+if (!message.messageID || !message.chatID || !message.text) {
+  console.warn('[SQLite] Skipping invalid message');
+  return;
+}
+```
+
+### Testing Checklist
+
+Before deploying any UI changes:
+- [ ] Test on iPhone 13+ (notch)
+- [ ] Test on Android (various screen sizes)
+- [ ] Test in light mode
+- [ ] Test in dark mode (future)
+- [ ] Test with large text accessibility setting
+- [ ] Test landscape orientation
+- [ ] Test keyboard interactions
+- [ ] Verify no content is cut off
+- [ ] Verify no overlapping UI elements
+

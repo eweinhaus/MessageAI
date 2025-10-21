@@ -2,6 +2,25 @@
 import { getDb } from './database';
 
 /**
+ * Check if a message exists in SQLite
+ * @param {string} messageID - Message ID to check
+ * @returns {Promise<boolean>} True if message exists
+ */
+export async function messageExists(messageID) {
+  try {
+    const db = getDb();
+    const result = await db.getFirstAsync(
+      'SELECT messageID FROM messages WHERE messageID = ? LIMIT 1',
+      [messageID]
+    );
+    return result !== null;
+  } catch (error) {
+    console.error('[SQLite] Error checking message existence:', error);
+    return false;
+  }
+}
+
+/**
  * Insert a message into SQLite
  * @param {Object} message - Message object
  * @returns {Promise<void>}
@@ -10,6 +29,12 @@ export async function insertMessage(message) {
   try {
     const db = getDb();
     
+    // Validate required fields
+    if (!message.messageID || !message.chatID || !message.text) {
+      console.warn('[SQLite] Skipping invalid message:', message);
+      return;
+    }
+    
     await db.runAsync(
       `INSERT OR REPLACE INTO messages 
        (messageID, chatID, senderID, senderName, text, timestamp, deliveryStatus, readBy, syncStatus, retryCount, lastSyncAttempt, createdAt)
@@ -17,10 +42,10 @@ export async function insertMessage(message) {
       [
         message.messageID,
         message.chatID,
-        message.senderID,
-        message.senderName,
+        message.senderID || '',
+        message.senderName || 'Unknown',
         message.text,
-        message.timestamp,
+        message.timestamp || Date.now(),
         message.deliveryStatus || 'sending',
         JSON.stringify(message.readBy || []),
         message.syncStatus || 'pending',
@@ -30,7 +55,7 @@ export async function insertMessage(message) {
       ]
     );
 
-    console.log(`[SQLite] Inserted message ${message.messageID}`);
+    console.log(`[SQLite] Upserted message ${message.messageID}`);
   } catch (error) {
     console.error('[SQLite] Error inserting message:', error);
     throw error;

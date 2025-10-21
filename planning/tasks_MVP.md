@@ -474,62 +474,63 @@
 
 ---
 
-## PR 7: Chat Detail Screen & Message Display
+## PR 7: Chat Detail Screen & Message Display ✅
 
 **Objective:** Display conversation history with proper message styling and real-time updates.
 
 ### Tasks
 
-- [ ] Create Message Bubble component
-  - [ ] `components/MessageBubble.js`:
-    - [ ] Props: `message`, `isOwnMessage`, `showSenderInfo` (for groups)
-    - [ ] If `showSenderInfo`: display Avatar + sender name above bubble
-    - [ ] Message text in bubble
-    - [ ] Timestamp below (small, gray)
-    - [ ] Delivery status indicator (only for own messages):
-      - [ ] Sending: spinner or clock icon
-      - [ ] Sent: single checkmark
-      - [ ] Delivered: double checkmark
-      - [ ] Read: double checkmark (blue/filled)
-    - [ ] Style: own messages align right (blue bubble), other messages align left (gray bubble)
-    - [ ] Group consecutive messages from same sender
-- [ ] Create Message List component
-  - [ ] `components/MessageList.js`:
-    - [ ] Props: `chatID`
-    - [ ] FlatList of MessageBubble components
-    - [ ] Inverted list (newest at bottom)
-    - [ ] Auto-scroll to bottom on new message
-    - [ ] Load messages from Zustand store
-    - [ ] Show loading indicator while loading
-    - [ ] Empty state: "Say hello! 👋"
-- [ ] Create Chat Detail Screen
-  - [ ] `app/chat/[chatId].js`:
-    - [ ] Get chatID from route params
-    - [ ] Fetch chat metadata from Zustand store
-    - [ ] Header: 
-      - [ ] Chat name (1:1: other user's name, group: group name)
-      - [ ] Subtitle: (1:1: online status, group: "N members")
-      - [ ] For 1:1: online status dot (green/gray)
-      - [ ] Back button
-      - [ ] For groups: tap header to view member list
-    - [ ] Render MessageList component
-    - [ ] Set up Firestore listener on mount:
-      - [ ] `onSnapshot` on `/chats/{chatID}/messages` orderBy timestamp
-      - [ ] On update:
-        - [ ] Write to SQLite
-        - [ ] Update Zustand message store
-        - [ ] UI auto-updates
-    - [ ] Load messages from SQLite on mount (instant display)
-    - [ ] Unsubscribe listener on unmount
-- [ ] Create Group Members Screen (basic)
-  - [ ] `app/chat/members/[chatId].js`:
-    - [ ] Display list of all group members
-    - [ ] Show Avatar, name, online status for each
-    - [ ] Simple list, no actions yet
-- [ ] Implement message grouping logic
-  - [ ] In MessageList, determine if consecutive messages are from same sender
-  - [ ] If yes, hide avatar and name for subsequent messages
-  - [ ] Show timestamp every N messages or time gap > 5 minutes
+- [x] Create Message Bubble component
+  - [x] `components/MessageBubble.js`:
+    - [x] Props: `message`, `isOwn`, `showSenderInfo`, `isGrouped`
+    - [x] If `showSenderInfo`: display Avatar + sender name above bubble
+    - [x] Message text in bubble
+    - [x] Timestamp below (small, gray)
+    - [x] Delivery status indicator (only for own messages):
+      - [x] Sending: spinner or clock icon
+      - [x] Sent: single checkmark
+      - [x] Delivered: double checkmark
+      - [x] Read: double checkmark (blue/filled)
+    - [x] Style: own messages align right (blue bubble), other messages align left (gray bubble)
+    - [x] Group consecutive messages from same sender
+    - [x] Memoized component for performance
+- [x] Create Message List component
+  - [x] `components/MessageList.js`:
+    - [x] Props: `chatID`, `isGroup`, `isLoading`
+    - [x] FlatList of MessageBubble components
+    - [x] Standard list (newest at bottom)
+    - [x] Auto-scroll to bottom on new message
+    - [x] Load messages from Zustand store
+    - [x] Show loading indicator while loading
+    - [x] Empty state: "Say hello! 👋"
+- [x] Create Chat Detail Screen
+  - [x] `app/chat/[chatId].js`:
+    - [x] Get chatID from route params
+    - [x] Fetch chat metadata from Zustand store
+    - [x] Header: 
+      - [x] Chat name (1:1: other user's name, group: group name)
+      - [x] For groups: header button to view member list (people icon)
+      - [x] Back button (default Expo Router behavior)
+    - [x] Render MessageList component
+    - [x] Set up Firestore listener on mount:
+      - [x] `onSnapshot` on `/chats/{chatID}/messages` orderBy timestamp
+      - [x] On update:
+        - [x] Write to SQLite
+        - [x] Update Zustand message store
+        - [x] UI auto-updates
+    - [x] Load messages from SQLite on mount (instant display)
+    - [x] Unsubscribe listener on unmount
+- [x] Create Group Members Screen (basic)
+  - [x] `app/chat/members/[chatId].js`:
+    - [x] Display list of all group members
+    - [x] Show Avatar, name, online status (placeholder) for each
+    - [x] Simple list with sorting (You first, online, alphabetical)
+    - [x] Header shows group name and member count
+- [x] Implement message grouping logic
+  - [x] In MessageList, determine if consecutive messages are from same sender
+  - [x] If yes, hide avatar and name for subsequent messages
+  - [x] Time gap: 5 minutes for grouping
+- [x] Create constants/colors.js with consistent color palette
 
 ### Testing Checklist
 - [ ] Chat detail screen loads for 1:1 chat

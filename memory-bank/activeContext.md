@@ -1,10 +1,20 @@
 # Active Context
 
 ## Current Status
-**Phase**: PR 6 Complete - Contact Picker & New Chat Creation Implemented  
-**Date**: October 20, 2025  
-**Next Milestone**: MVP (Tuesday EOD)  
+**Phase**: PR 7 Implementation Complete - Testing & Debugging  
+**Date**: October 21, 2025  
+**Next Milestone**: PR 7 Manual Testing, then PR 8 (Message Sending)  
 **Firebase Project**: MessageAI-dev
+
+## Recent Fixes (October 21, 2025)
+- ✅ Fixed infinite loop in MessageList (Zustand selector)
+- ✅ Fixed SQLite error with try-catch wrapper
+- ✅ Added SafeAreaView to ALL screens (Login, Contact Picker, Home, Chat Detail)
+- ✅ Added validation to skip invalid user documents in Firestore
+- ✅ Fixed FlatList key prop warnings with fallback keyExtractor
+- ✅ Fixed timestamp display (was showing "undefined NaN, NaN")
+- ✅ Added prominent FAB (Floating Action Button) to contact picker
+- ✅ Updated systemPatterns.md with UI responsiveness guidelines
 
 ## What We Just Did
 - ✅ **PR 1**: Project Setup & Firebase Configuration - COMPLETE
