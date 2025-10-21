@@ -1,6 +1,7 @@
 // Group Members Screen - View all members of a group chat
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import useChatStore from '../../../store/chatStore';
 import useUserStore from '../../../store/userStore';
@@ -189,18 +190,24 @@ export default function GroupMembersScreen() {
           },
         }}
       />
-      <FlatList
-        data={members}
-        renderItem={renderMember}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={styles.listContainer}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-      />
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <FlatList
+          data={members}
+          renderItem={renderMember}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.listContainer}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+        />
+      </SafeAreaView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: BACKGROUND_PRIMARY,
+  },
   listContainer: {
     paddingVertical: 8,
     backgroundColor: BACKGROUND_PRIMARY,

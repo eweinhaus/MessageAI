@@ -312,7 +312,7 @@ export default function NewChatScreen() {
         }}
       />
       
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <View style={styles.container} testID="new-chat-screen">
         {/* Search Bar */}
         <View style={styles.searchContainer}>

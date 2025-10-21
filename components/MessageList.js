@@ -15,7 +15,13 @@ import { BACKGROUND_CHAT, TEXT_SECONDARY } from '../constants/colors';
  * @param {boolean} props.isGroup - Whether this is a group chat (shows sender info)
  * @param {boolean} props.isLoading - Loading state
  */
-export default function MessageList({ chatID, isGroup = false, isLoading = false }) {
+export default function MessageList({
+  chatID,
+  isGroup = false,
+  isLoading = false,
+  topInset = 0,
+  bottomInset = 0,
+}) {
   const flatListRef = useRef(null);
   // Use a stable selector to avoid infinite loops
   const messages = useMessageStore(
@@ -61,7 +67,27 @@ export default function MessageList({ chatID, isGroup = false, isLoading = false
    * Render individual message item
    */
   const renderMessage = ({ item, index }) => {
-    const isOwn = item.senderID === currentUser?.userID;
+    const senderId =
+      item?.senderID ??
+      item?.senderId ??
+      (typeof item?.sender === 'object'
+        ? item?.sender?.userID || item?.sender?.id || item?.sender?.uid
+        : item?.sender) ??
+      item?.userID ??
+      item?.userId ??
+      null;
+
+    const normalizedSenderId =
+      typeof senderId === 'string' || typeof senderId === 'number'
+        ? String(senderId)
+        : Array.isArray(senderId)
+        ? String(senderId[0])
+        : senderId;
+
+    const isOwn =
+      normalizedSenderId !== null &&
+      normalizedSenderId !== undefined &&
+      normalizedSenderId === currentUser?.userID;
     const prevMessage = index > 0 ? messages[index - 1] : null;
     const isGrouped = isMessageGrouped(item, prevMessage);
 
@@ -120,6 +146,8 @@ export default function MessageList({ chatID, isGroup = false, isLoading = false
       contentContainerStyle={[
         styles.contentContainer,
         messages.length === 0 && styles.emptyContainer,
+        { paddingTop: 4 + Math.max(topInset, 0) },
+        { paddingBottom: 8 + Math.max(bottomInset, 0) },
       ]}
       ListEmptyComponent={renderEmptyState}
       showsVerticalScrollIndicator={true}
@@ -137,7 +165,7 @@ export default function MessageList({ chatID, isGroup = false, isLoading = false
 
 const styles = StyleSheet.create({
   contentContainer: {
-    paddingVertical: 8,
+    paddingBottom: 8,
     backgroundColor: BACKGROUND_CHAT,
   },
   emptyContainer: {

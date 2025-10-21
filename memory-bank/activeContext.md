@@ -1,9 +1,9 @@
 # Active Context
 
 ## Current Status
-**Phase**: PR 7 Implementation Complete - Testing & Debugging  
+**Phase**: PR 8 Complete & Tested - Message Sending with Optimistic UI & Offline Queue  
 **Date**: October 21, 2025  
-**Next Milestone**: PR 7 Manual Testing, then PR 8 (Message Sending)  
+**Next Milestone**: PR 9 (Read Receipts & Delivery Status)  
 **Firebase Project**: MessageAI-dev
 
 ## Recent Fixes (October 21, 2025)
@@ -22,7 +22,39 @@
 - ✅ **PR 3**: Firestore Schema & Network Detection - COMPLETE
 - ✅ **PR 4**: SQLite Local Database & Sync Strategy - COMPLETE
 - ✅ **PR 5**: Home Screen & Chat List - COMPLETE & TESTED ✅
-- ✅ **PR 6**: Contact Picker & New Chat Creation - COMPLETE (awaiting manual tests) ⏳
+- ✅ **PR 6**: Contact Picker & New Chat Creation - COMPLETE ✅
+- ✅ **PR 7**: Chat Detail Screen & Message Display - COMPLETE ✅
+- ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - COMPLETE & TESTED ✅
+  - Created MessageInput component (components/MessageInput.js) with:
+    - Multiline text input (expands up to 4 lines, max 2000 chars)
+    - Send button with offline detection
+    - Disabled state when offline or text empty
+    - Network status integration
+  - Created message sending service (services/messageService.js) with:
+    - `sendMessage()` - optimistic UI with SQLite → Zustand → Firestore flow
+    - `writeToFirestore()` - handles Firestore writes with error handling
+    - `retryFailedMessage()` - manual retry for failed messages
+  - Completed offline queue processor (utils/offlineQueue.js) with:
+    - Exponential backoff retry logic (1s, 2s, 4s, 8s, 16s, max 30s)
+    - Max 5 retry attempts before marking failed
+    - Sequential message processing to preserve order
+    - Network state listener for automatic processing on reconnect
+    - Prevention of concurrent processing
+  - Enhanced MessageBubble component with:
+    - Retry button for failed messages (red button below bubble)
+    - Failed state styling (⚠ icon in red)
+    - Delivery status icon display (○ sending, ✓ sent, ✓✓ delivered/read, ⚠ failed)
+  - Integrated into ChatDetailScreen with:
+    - MessageInput at bottom with KeyboardAvoidingView
+    - handleSendMessage callback
+    - Platform-specific keyboard behavior (iOS padding, Android resize)
+  - Added color constants: ERROR_COLOR and BACKGROUND_COLOR to constants/colors.js
+  - Network listener already wired in app/_layout.js (line 82-101)
+  - Created comprehensive testing guide (md_files/PR8_TESTING_GUIDE.md)
+  - ~600+ lines of code added
+  - No linter errors
+
+### PR 6 Implementation Details (for reference)
   - Created components/ContactListItem.js with avatar, name, email, selection state
   - Created components/GroupNameModal.js with validation and error handling
   - Implemented full contact picker screen (app/contacts/newChat.js) with:
@@ -46,15 +78,17 @@
 3. ✅ **PR 3**: Firestore Schema & Network Detection - DONE
 4. ✅ **PR 4**: SQLite Local Database & Sync Strategy - DONE
 5. ✅ **PR 5**: Home Screen & Chat List - DONE
-6. ✅ **PR 6**: Contact Picker & New Chat Creation - DONE (needs manual testing)
-7. **PR 7**: Chat Detail Screen & Message Display (NEXT)
-   - Create MessageBubble component
-   - Create MessageList component
-   - Build chat detail screen with Firestore listener
-   - Display messages in correct order with proper styling
+6. ✅ **PR 6**: Contact Picker & New Chat Creation - DONE
+7. ✅ **PR 7**: Chat Detail Screen & Message Display - DONE
+8. ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - DONE (code complete)
+9. **PR 9**: Read Receipts & Delivery Status (NEXT)
+   - Implement delivery status tracking
+   - Implement read receipt tracking with FlatList viewability
+   - Update MessageBubble read status display
+   - Set up listener for read receipt updates
 
 ### Today's Goal
-Test **PR 6** on physical device, then proceed to **PR 7: Chat Detail Screen & Message Display**.
+**PR 8 complete and tested!** Ready to proceed to **PR 9: Read Receipts & Delivery Status**.
 
 ## Active Decisions & Considerations
 
@@ -190,11 +224,10 @@ None yet - just starting!
 - ✅ Optimistic UI updates when creating chats
 
 ## What Needs Attention
-1. **Manual Testing PR 6**: Test contact picker and chat creation on physical device with multiple users
-2. **Chat Detail Screen**: Message display with bubbles and real-time updates (PR 7)
-3. **Message Input**: Text input component with send button (PR 8)
-4. **Message Sending**: Implement full offline queue with retry logic (PR 8)
-5. **Read Receipts**: Track and display message read status (PR 9)
+1. **Read Receipts**: Track and display message read status (PR 9 - NEXT)
+2. **Delivery Status**: Update checkmarks as messages progress through states (PR 9)
+3. **Online Presence**: Show user online/offline status (PR 10)
+4. **Push Notifications**: Foreground notifications for incoming messages (PR 11)
 
 ## Questions to Resolve
 1. **Persona Selection**: Which user persona will we target for Phase 2 AI features?
@@ -237,10 +270,15 @@ None yet - just starting!
 
 ## Context for Next Session
 When resuming:
-1. PR 6 fully implemented - contact picker and chat creation complete
-2. Users can create 1:1 and group chats with duplicate prevention
-3. Optimistic UI updates when creating chats
-4. Chat detail screen placeholder ready to be replaced
-5. Ready to implement PR 7: Chat Detail Screen & Message Display
-6. Need to test PR 6 on physical device with multiple test users
+1. **PR 8 fully complete and tested** - message sending with optimistic UI and offline queue working perfectly
+2. All manual testing scenarios completed successfully:
+   - ✅ Real-time message delivery between users
+   - ✅ Offline message queuing and auto-send on reconnect
+   - ✅ Force-quit recovery (messages persist and send)
+   - ✅ Retry button for failed messages
+   - ✅ No message loss or duplicates
+   - ✅ Sequential message ordering preserved
+3. Ready to implement **PR 9: Read Receipts & Delivery Status**
+4. Core messaging infrastructure is solid and reliable
+5. Next focus: Track when messages are delivered and read by recipients
 

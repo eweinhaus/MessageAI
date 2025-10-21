@@ -551,24 +551,24 @@
 
 ---
 
-## PR 8: Send Message with Optimistic UI & Offline Queue
+## PR 8: Send Message with Optimistic UI & Offline Queue ✅
 
 **Objective:** Users can send messages. Messages appear instantly with delivery state progression. Offline messages queue and send on reconnect.
 
 ### Tasks
 
-- [ ] Create Message Input component
-  - [ ] `components/MessageInput.js`:
-    - [ ] TextInput (multiline, max 4 lines)
-    - [ ] Send button (icon, enabled if text not empty)
-    - [ ] On send: call `onSendMessage(text)`, clear input
-    - [ ] Show offline indicator if network offline
-    - [ ] Disable send button if offline
-- [ ] Create message sending service
-  - [ ] `services/messageService.js`:
-    - [ ] `sendMessage(chatID, senderID, senderName, text)`:
-      - [ ] Generate messageID (UUID)
-      - [ ] Create message object:
+- [x] Create Message Input component
+  - [x] `components/MessageInput.js`:
+    - [x] TextInput (multiline, max 4 lines)
+    - [x] Send button (icon, enabled if text not empty)
+    - [x] On send: call `onSendMessage(text)`, clear input
+    - [x] Show offline indicator if network offline
+    - [x] Disable send button if offline
+- [x] Create message sending service
+  - [x] `services/messageService.js`:
+    - [x] `sendMessage(chatID, senderID, senderName, text)`:
+      - [x] Generate messageID (UUID)
+      - [x] Create message object:
         ```js
         {
           messageID,
@@ -582,61 +582,64 @@
           createdAt: Date.now()
         }
         ```
-      - [ ] Write to SQLite with `syncStatus: 'pending'`
-      - [ ] Add to Zustand message store (UI updates instantly)
-      - [ ] Async: write to Firestore
-        - [ ] Write to `/chats/{chatID}/messages/{messageID}`
-        - [ ] Update chat's last message in `/chats/{chatID}`
-      - [ ] On Firestore success:
-        - [ ] Update SQLite: `syncStatus: 'synced'`, `deliveryStatus: 'sent'`
-        - [ ] Update Zustand store
-      - [ ] On Firestore error:
-        - [ ] Update SQLite: `syncStatus: 'failed'`, increment retryCount
-        - [ ] Update Zustand store with error state
-    - [ ] `retryFailedMessage(messageID)` - Manually retry failed message
-- [ ] Create offline queue processor
-  - [ ] `utils/offlineQueue.js`:
-    - [ ] `processPendingMessages()`:
-      - [ ] Query SQLite for messages with `syncStatus: 'pending'` or `'failed'`
-      - [ ] For each message:
-        - [ ] Check retry count (max 5)
-        - [ ] Attempt to send to Firestore with exponential backoff
-        - [ ] Update sync status on success/failure
-    - [ ] `startQueueProcessor()` - Start background processor
-    - [ ] `stopQueueProcessor()` - Stop processor
-    - [ ] Called automatically when network comes online
-- [ ] Integrate message input into chat detail screen
-  - [ ] In `app/chat/[chatId].js`:
-    - [ ] Add MessageInput at bottom (KeyboardAvoidingView)
-    - [ ] On send: call `sendMessage()` from message service
-    - [ ] Pass chatID, currentUserID, currentUserName
-- [ ] Set up queue processor
-  - [ ] In root layout, add network state listener
-  - [ ] When network changes to online, call `processPendingMessages()`
-- [ ] Add retry button for failed messages
-  - [ ] In MessageBubble, show "Retry" button if message deliveryStatus = 'failed'
-  - [ ] On tap: call `retryFailedMessage(messageID)`
+      - [x] Write to SQLite with `syncStatus: 'pending'`
+      - [x] Add to Zustand message store (UI updates instantly)
+      - [x] Async: write to Firestore
+        - [x] Write to `/chats/{chatID}/messages/{messageID}`
+        - [x] Update chat's last message in `/chats/{chatID}`
+      - [x] On Firestore success:
+        - [x] Update SQLite: `syncStatus: 'synced'`, `deliveryStatus: 'sent'`
+        - [x] Update Zustand store
+      - [x] On Firestore error:
+        - [x] Update SQLite: `syncStatus: 'failed'`, increment retryCount
+        - [x] Update Zustand store with error state
+    - [x] `retryFailedMessage(messageID)` - Manually retry failed message
+- [x] Create offline queue processor
+  - [x] `utils/offlineQueue.js`:
+    - [x] `processPendingMessages()`:
+      - [x] Query SQLite for messages with `syncStatus: 'pending'` or `'failed'`
+      - [x] For each message:
+        - [x] Check retry count (max 5)
+        - [x] Attempt to send to Firestore with exponential backoff
+        - [x] Update sync status on success/failure
+    - [x] `startQueueProcessor()` - Start background processor
+    - [x] `stopQueueProcessor()` - Stop processor
+    - [x] Called automatically when network comes online
+- [x] Integrate message input into chat detail screen
+  - [x] In `app/chat/[chatId].js`:
+    - [x] Add MessageInput at bottom (KeyboardAvoidingView)
+    - [x] On send: call `sendMessage()` from message service
+    - [x] Pass chatID, currentUserID, currentUserName
+- [x] Set up queue processor
+  - [x] In root layout, add network state listener
+  - [x] When network changes to online, call `processPendingMessages()`
+- [x] Add retry button for failed messages
+  - [x] In MessageBubble, show "Retry" button if message deliveryStatus = 'failed'
+  - [x] On tap: call `retryFailedMessage(messageID)`
 
-### Testing Checklist
-- [ ] Type message, tap send - message appears instantly
-- [ ] Message shows "sending" state briefly
-- [ ] Message updates to "sent" after Firestore confirms (checkmark)
-- [ ] Message appears on other user's device in real-time
-- [ ] Turn on airplane mode, send message
-- [ ] Message shows in chat with pending/offline indicator
-- [ ] Send button disabled when offline
-- [ ] Offline banner visible
-- [ ] Turn off airplane mode
-- [ ] Offline banner disappears
-- [ ] Pending message automatically sends
-- [ ] Message progresses to "sent"
-- [ ] Send 5+ messages offline, go online - all send in order
-- [ ] Force-quit app after sending offline message
-- [ ] Reopen app, verify message eventually sends
-- [ ] Failed message shows retry button
+### Testing Checklist ✅
+- [x] Type message, tap send - message appears instantly
+- [x] Message shows "sending" state briefly
+- [x] Message updates to "sent" after Firestore confirms (checkmark)
+- [x] Message appears on other user's device in real-time (manual test completed)
+- [x] Turn on airplane mode, send message (manual test completed)
+- [x] Message shows in chat with pending/offline indicator (manual test completed)
+- [x] Send button disabled when offline
+- [x] Offline banner visible
+- [x] Turn off airplane mode (manual test completed)
+- [x] Offline banner disappears (manual test completed)
+- [x] Pending message automatically sends (manual test completed)
+- [x] Message progresses to "sent" (manual test completed)
+- [x] Send 5+ messages offline, go online - all send in order (manual test completed)
+- [x] Force-quit app after sending offline message (manual test completed)
+- [x] Reopen app, verify message eventually sends (manual test completed)
+- [x] Failed message shows retry button
+
+### Manual Testing ✅
+All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfully
 
 ### Commit
-`feat: implement message sending with optimistic UI and offline queue`
+`feat: implement message sending with optimistic UI and offline queue (PR8)`
 
 ---
 

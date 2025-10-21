@@ -1,14 +1,16 @@
 // MessageBubble Component - Individual message display
 import React, { memo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Avatar from './Avatar';
 import { formatMessageTime } from '../utils/timeUtils';
+import { retryFailedMessage } from '../services/messageService';
 import {
   BUBBLE_OWN,
   BUBBLE_OTHER,
   TEXT_PRIMARY,
   TEXT_ON_PRIMARY,
   TIMESTAMP_COLOR,
+  ERROR_COLOR,
 } from '../constants/colors';
 
 /**
@@ -23,6 +25,8 @@ import {
  */
 function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = false }) {
   const {
+    messageID,
+    chatID,
     text,
     timestamp,
     senderName,
@@ -35,6 +39,11 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
 
   // Determine if we should show avatar/name
   const shouldShowSender = showSenderInfo && !isGrouped && !isOwn;
+
+  // Handle retry button press
+  const handleRetry = async () => {
+    await retryFailedMessage(messageID, chatID);
+  };
 
   return (
     <View style={[styles.container, isOwn ? styles.containerOwn : styles.containerOther]}>
@@ -51,29 +60,45 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
         </View>
       )}
       
-      {/* Message bubble */}
-      <View
-        style={[
-          styles.bubble,
-          isOwn ? styles.bubbleOwn : styles.bubbleOther,
-          shouldShowSender && styles.bubbleWithSender,
-          isGrouped && !isOwn && styles.bubbleGrouped,
-        ]}
-      >
-        <Text style={[styles.messageText, isOwn ? styles.messageTextOwn : styles.messageTextOther]}>
-          {text}
-        </Text>
-      </View>
-
-      {/* Timestamp and delivery status */}
-      <View style={[styles.metaContainer, isOwn ? styles.metaContainerOwn : styles.metaContainerOther]}>
-        <Text style={styles.timestamp}>{formatMessageTime(validTimestamp)}</Text>
-        
-        {/* Delivery status for own messages (placeholder for PR 8) */}
-        {isOwn && deliveryStatus && (
-          <Text style={styles.deliveryStatus}>
-            {getDeliveryStatusIcon(deliveryStatus)}
+      <View style={[styles.messageBlock, isOwn ? styles.messageBlockOwn : styles.messageBlockOther]}>
+        {/* Message bubble */}
+        <View
+          style={[
+            styles.bubble,
+            isOwn ? styles.bubbleOwn : styles.bubbleOther,
+            shouldShowSender && styles.bubbleWithSender,
+            isGrouped && !isOwn && styles.bubbleGrouped,
+          ]}
+        >
+          <Text style={[styles.messageText, isOwn ? styles.messageTextOwn : styles.messageTextOther]}>
+            {text}
           </Text>
+        </View>
+
+        {/* Timestamp and delivery status */}
+        <View style={[styles.metaContainer, isOwn ? styles.metaContainerOwn : styles.metaContainerOther]}>
+          <Text style={styles.timestamp}>{formatMessageTime(validTimestamp)}</Text>
+          
+          {/* Delivery status for own messages */}
+          {isOwn && deliveryStatus && (
+            <Text
+              style={[
+                styles.deliveryStatus,
+                deliveryStatus === 'failed' && styles.deliveryStatusFailed
+              ]}
+            >
+              {getDeliveryStatusIcon(deliveryStatus)}
+            </Text>
+          )}
+        </View>
+
+        {/* Retry button for failed messages */}
+        {isOwn && deliveryStatus === 'failed' && (
+          <View style={styles.retryContainer}>
+            <TouchableOpacity onPress={handleRetry} style={styles.retryButton}>
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </View>
@@ -178,6 +203,36 @@ const styles = StyleSheet.create({
   deliveryStatus: {
     fontSize: 11,
     color: TIMESTAMP_COLOR,
+  },
+  deliveryStatusFailed: {
+    color: ERROR_COLOR || '#d32f2f',
+  },
+  retryContainer: {
+    alignItems: 'flex-end',
+    marginTop: 4,
+    paddingRight: 4,
+  },
+  retryButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: ERROR_COLOR || '#d32f2f',
+  },
+  retryText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  messageBlock: {
+    maxWidth: '100%',
+  },
+  messageBlockOwn: {
+    alignItems: 'flex-end',
+    alignSelf: 'flex-end',
+  },
+  messageBlockOther: {
+    alignItems: 'flex-start',
+    alignSelf: 'flex-start',
   },
 });
 

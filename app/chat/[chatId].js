@@ -1,7 +1,8 @@
 // Chat Detail Screen - Conversation View
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebaseConfig';
@@ -9,13 +10,19 @@ import useChatStore from '../../store/chatStore';
 import useMessageStore from '../../store/messageStore';
 import useUserStore from '../../store/userStore';
 import MessageList from '../../components/MessageList';
+import MessageInput from '../../components/MessageInput';
 import { getMessagesForChat, insertMessage, updateMessage } from '../../db/messageDb';
+import { sendMessage } from '../../services/messageService';
 import { Ionicons } from '@expo/vector-icons';
 import { PRIMARY_GREEN } from '../../constants/colors';
 
 export default function ChatDetailScreen() {
   const router = useRouter();
   const { chatId } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight() || 0;
+  const topInset = Math.max(insets.top - headerHeight, 0);
+  const bottomInset = insets.bottom || 0;
   const { getChatByID } = useChatStore();
   const { setMessagesForChat, addMessage, updateMessage: updateMessageInStore } = useMessageStore();
   const currentUser = useUserStore((state) => state.currentUser);
@@ -124,6 +131,22 @@ export default function ChatDetailScreen() {
     }
   };
 
+  // Handle sending a message
+  const handleSendMessage = async (text) => {
+    if (!currentUser) return;
+    
+    try {
+      await sendMessage(
+        chatId,
+        currentUser.userID,
+        currentUser.displayName,
+        text
+      );
+    } catch (error) {
+      console.error('[ChatDetail] Error sending message:', error);
+    }
+  };
+
   return (
     <>
       <Stack.Screen
@@ -144,14 +167,26 @@ export default function ChatDetailScreen() {
           ) : null,
         }}
       />
-      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        <View style={styles.container}>
-          <MessageList 
-            chatID={chatId} 
-            isGroup={isGroup} 
-            isLoading={isLoading}
-          />
-        </View>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoid}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+        >
+          <View style={styles.container}>
+            <MessageList
+              chatID={chatId}
+              isGroup={isGroup}
+              isLoading={isLoading}
+              topInset={topInset}
+              bottomInset={bottomInset}
+            />
+            <MessageInput
+              chatID={chatId}
+              onSend={handleSendMessage}
+            />
+          </View>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </>
   );
@@ -161,6 +196,9 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FAFAFA',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   container: {
     flex: 1,
