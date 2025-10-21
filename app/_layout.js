@@ -6,12 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import useUserStore from '../store/userStore';
 import useChatStore from '../store/chatStore';
 import OfflineBanner from '../components/OfflineBanner';
+import NotificationBanner from '../components/NotificationBanner';
 import { initDatabase } from '../db/database';
 import { getAllChats } from '../db/messageDb';
 import { performFullSync } from '../utils/syncManager';
 import { addNetworkListener } from '../utils/networkStatus';
 import { processPendingMessages } from '../utils/offlineQueue';
 import { initializePresence, setUserOnline, setUserOffline, cleanupPresence } from '../services/presenceService';
+import { requestPermissions, registerToken, setupListeners } from '../services/notificationService';
 
 export default function RootLayout() {
   const { isAuthenticated, isLoading, initialize, currentUser } = useUserStore();
@@ -21,6 +23,8 @@ export default function RootLayout() {
   const [dbInitialized, setDbInitialized] = useState(false);
   const [dbError, setDbError] = useState(null);
   const appState = useRef(AppState.currentState);
+  const [notificationBanner, setNotificationBanner] = useState(null);
+  const notificationCleanup = useRef(null);
 
   // Initialize database on app startup (before anything else)
   useEffect(() => {
@@ -133,6 +137,57 @@ export default function RootLayout() {
     };
   }, [isAuthenticated, currentUser]);
 
+  // Set up push notifications - request permissions and register token
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser || !dbInitialized) return;
+
+    async function initializeNotifications() {
+      try {
+        console.log('[App] Initializing push notifications...');
+
+        // Request notification permissions
+        const permissionsGranted = await requestPermissions();
+        
+        if (!permissionsGranted) {
+          console.warn('[App] Notification permissions not granted, notifications disabled');
+          return;
+        }
+
+        // Register FCM token with Firestore
+        const tokenRegistered = await registerToken(currentUser.userID);
+        
+        if (!tokenRegistered) {
+          console.warn('[App] Failed to register FCM token');
+          return;
+        }
+
+        // Set up notification listeners
+        const cleanup = setupListeners(router, (notificationData) => {
+          // Show notification banner
+          console.log('[App] Showing notification banner:', notificationData.title);
+          setNotificationBanner(notificationData);
+        });
+
+        notificationCleanup.current = cleanup;
+        console.log('[App] Push notifications initialized successfully');
+
+      } catch (error) {
+        console.error('[App] Error initializing notifications:', error);
+      }
+    }
+
+    initializeNotifications();
+
+    // Cleanup on unmount
+    return () => {
+      if (notificationCleanup.current) {
+        console.log('[App] Cleaning up notification listeners');
+        notificationCleanup.current();
+        notificationCleanup.current = null;
+      }
+    };
+  }, [isAuthenticated, currentUser, dbInitialized]);
+
   // Handle navigation based on auth state
   useEffect(() => {
     if (isLoading) {
@@ -183,6 +238,14 @@ export default function RootLayout() {
         <Stack.Screen name="contacts" options={{ headerShown: false }} />
       </Stack>
       <OfflineBanner />
+      {notificationBanner && (
+        <NotificationBanner
+          title={notificationBanner.title}
+          body={notificationBanner.body}
+          onPress={notificationBanner.onPress}
+          onDismiss={() => setNotificationBanner(null)}
+        />
+      )}
     </>
   );
 }
