@@ -143,7 +143,7 @@ export default function GroupMembersScreen() {
   }, [chatId, chat, currentUser]);
 
   /**
-   * Format last seen time
+   * Format last seen time for offline users
    */
   const getLastSeenText = (lastSeen) => {
     if (!lastSeen) return 'Offline';
@@ -155,10 +155,11 @@ export default function GroupMembersScreen() {
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
     
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
+    // Show relative time for offline users
+    if (minutes < 1) return 'Last seen just now';
+    if (minutes < 60) return `Last seen ${minutes}m ago`;
+    if (hours < 24) return `Last seen ${hours}h ago`;
+    if (days < 7) return `Last seen ${days}d ago`;
     return 'Offline';
   };
 

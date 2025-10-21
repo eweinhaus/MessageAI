@@ -52,7 +52,10 @@ export default function ChatHeader({ chat, currentUserID, onPress }) {
   
   // Format last seen time
   const getLastSeenText = () => {
+    // If explicitly marked as online, show "Online"
     if (isOnline) return 'Online';
+    
+    // If no last seen timestamp, show "Offline"
     if (!lastSeen) return 'Offline';
     
     const now = Date.now();
@@ -62,10 +65,11 @@ export default function ChatHeader({ chat, currentUserID, onPress }) {
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
     
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
+    // Show relative time for offline users
+    if (minutes < 1) return 'Last seen just now';
+    if (minutes < 60) return `Last seen ${minutes}m ago`;
+    if (hours < 24) return `Last seen ${hours}h ago`;
+    if (days < 7) return `Last seen ${days}d ago`;
     return 'Offline';
   };
   

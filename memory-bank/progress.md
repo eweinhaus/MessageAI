@@ -220,6 +220,22 @@ None currently. PR 9 implementation complete. Requires manual testing on physica
   - Target: > 90%
 
 ## Recent Changes
+- October 21, 2025: **Presence Tracking Fixes** - Fixed online status indicators
+  - **Issue 1 Fixed**: Current user now shows "Online" instead of "Just now" in group member lists
+  - **Issue 2 Fixed**: Force-quit/closed apps now show offline after 45 seconds (staleness detection)
+  - Added heartbeat system (25s interval) to keep presence fresh
+  - Added `isPresenceStale()` function to detect stale presence (45s timeout)
+  - Updated all UI components to prioritize `isOnline` flag over timestamp
+  - Changed "Just now" to "Last seen just now" for clarity
+  - Files modified:
+    - `services/presenceService.js` - Added heartbeat + staleness detection
+    - `components/ChatHeader.js` - Fixed status text logic
+    - `components/ContactListItem.js` - Fixed status text logic
+    - `app/chat/members/[chatId].js` - Fixed status text logic
+  - Created testing guides:
+    - `md_files/PRESENCE_FIXES.md` - Detailed explanation of fixes
+    - `md_files/PRESENCE_TESTING_GUIDE.md` - Manual testing checklist
+  - **Manual testing required** on physical devices to verify force-quit detection
 - October 21, 2025: PR9 - Read receipts and delivery status tracking implemented
   - Modified app/chat/[chatId].js: Added delivery status tracking in Firestore listener
   - Modified components/MessageList.js: Added viewability tracking with debouncing (500ms)

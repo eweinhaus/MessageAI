@@ -55,7 +55,7 @@ export async function insertMessage(message) {
       ]
     );
 
-    console.log(`[SQLite] Upserted message ${message.messageID}`);
+    //console.log(`[SQLite] Upserted message ${message.messageID}`);
   } catch (error) {
     console.error('[SQLite] Error inserting message:', error);
     throw error;

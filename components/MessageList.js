@@ -52,7 +52,7 @@ export default function MessageList({
 
   /**
    * Determine if a message should be grouped with the previous one
-   * Messages are grouped if they're from the same sender and within 5 minutes
+   * Messages are grouped if they're from the same sender and within 10 minutes
    */
   const isMessageGrouped = (currentMsg, prevMsg) => {
     if (!prevMsg) return false;
@@ -60,11 +60,28 @@ export default function MessageList({
     // Must be from same sender
     if (currentMsg.senderID !== prevMsg.senderID) return false;
     
-    // Must be within 5 minutes
+    // Must be within 10 minutes
     const timeDiff = currentMsg.timestamp - prevMsg.timestamp;
-    const fiveMinutes = 5 * 60 * 1000;
+    const tenMinutes = 10 * 60 * 1000;
     
-    return timeDiff < fiveMinutes;
+    return timeDiff < tenMinutes;
+  };
+
+  /**
+   * Determine if a message is the last in a group
+   * (i.e., the next message is NOT grouped with this one)
+   */
+  const isLastInGroup = (currentMsg, nextMsg) => {
+    if (!nextMsg) return true; // Last message overall
+    
+    // If next message is from different sender, this is last in group
+    if (currentMsg.senderID !== nextMsg.senderID) return true;
+    
+    // If next message is more than 10 minutes later, this is last in group
+    const timeDiff = nextMsg.timestamp - currentMsg.timestamp;
+    const tenMinutes = 10 * 60 * 1000;
+    
+    return timeDiff >= tenMinutes;
   };
 
   /**
@@ -93,7 +110,9 @@ export default function MessageList({
       normalizedSenderId !== undefined &&
       normalizedSenderId === currentUser?.userID;
     const prevMessage = index > 0 ? messages[index - 1] : null;
+    const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
     const isGrouped = isMessageGrouped(item, prevMessage);
+    const isLast = isLastInGroup(item, nextMessage);
 
     return (
       <MessageBubble
@@ -101,6 +120,7 @@ export default function MessageList({
         isOwn={isOwn}
         showSenderInfo={isGroup}
         isGrouped={isGrouped}
+        isLastInGroup={isLast}
       />
     );
   };
