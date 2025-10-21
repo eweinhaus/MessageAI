@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import Avatar from './Avatar';
 import { formatTimestamp, truncateText } from '../utils/timeUtils';
 import useUserStore from '../store/userStore';
+import { usePresence } from '../hooks/usePresence';
 
 /**
  * Chat List Item Component
@@ -32,6 +33,7 @@ export default function ChatListItem({ chat }) {
   let chatName = '';
   let avatarDisplayName = '';
   let avatarUserID = '';
+  let otherUserID = null;
   
   if (isGroup) {
     // Group chat
@@ -50,12 +52,16 @@ export default function ChatListItem({ chat }) {
       chatName = participantNames[otherParticipantIndex] || 'Unknown User';
       avatarDisplayName = chatName;
       avatarUserID = participantIDs[otherParticipantIndex];
+      otherUserID = participantIDs[otherParticipantIndex]; // For presence tracking
     } else {
       chatName = 'Unknown Chat';
       avatarDisplayName = chatName;
       avatarUserID = chat.chatID;
     }
   }
+  
+  // Get presence data for 1:1 chats
+  const { isOnline } = usePresence(isGroup ? null : otherUserID);
   
   // Format last message preview
   const lastMessagePreview = truncateText(chat.lastMessageText || 'No messages yet', 50);
@@ -74,13 +80,18 @@ export default function ChatListItem({ chat }) {
       onPress={handlePress}
       activeOpacity={0.7}
     >
-      {/* Avatar */}
-      <Avatar 
-        displayName={avatarDisplayName}
-        userID={avatarUserID}
-        size={50}
-        style={styles.avatar}
-      />
+      {/* Avatar with online indicator */}
+      <View style={styles.avatarContainer}>
+        <Avatar 
+          displayName={avatarDisplayName}
+          userID={avatarUserID}
+          size={50}
+        />
+        {/* Online status indicator for 1:1 chats */}
+        {!isGroup && isOnline && (
+          <View style={styles.onlineIndicator} />
+        )}
+      </View>
       
       {/* Chat Content */}
       <View style={styles.content}>
@@ -100,7 +111,7 @@ export default function ChatListItem({ chat }) {
             {lastMessagePreview}
           </Text>
           
-          {/* TODO: Unread badge (PR 9) */}
+          {/* TODO: Unread badge (future enhancement) */}
           {/* {unreadCount > 0 && (
             <View style={styles.unreadBadge}>
               <Text style={styles.unreadText}>{unreadCount}</Text>
@@ -108,11 +119,6 @@ export default function ChatListItem({ chat }) {
           )} */}
         </View>
       </View>
-      
-      {/* TODO: Online status indicator for 1:1 chats (PR 10) */}
-      {/* {!isGroup && isOnline && (
-        <View style={styles.onlineIndicator} />
-      )} */}
     </TouchableOpacity>
   );
 }
@@ -127,7 +133,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  avatar: {
+  avatarContainer: {
+    position: 'relative',
     marginRight: 12,
   },
   content: {
@@ -177,15 +184,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  // For future use (PR 10)
+  // Online status indicator
   onlineIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: '#4CAF50',
     position: 'absolute',
-    right: 16,
-    top: 20,
+    bottom: 0,
+    right: 0,
     borderWidth: 2,
     borderColor: '#fff',
   },

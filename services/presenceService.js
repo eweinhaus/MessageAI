@@ -2,17 +2,37 @@
 import { doc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebaseConfig';
 
+// Throttle state - max 1 update per 30 seconds per user
+const lastUpdateTime = {};
+const THROTTLE_DELAY = 30000; // 30 seconds
+let isInitialized = false;
+let currentUserID = null;
+
 /**
  * Update user's online status in Firestore
  * @param {string} userID - User ID
  * @param {boolean} isOnline - Online status
+ * @param {boolean} force - Force update even if throttled
  * @returns {Promise<void>}
  */
-export async function updatePresence(userID, isOnline) {
+async function updatePresence(userID, isOnline, force = false) {
   try {
     if (!userID) {
       console.warn('[Presence] No userID provided');
       return;
+    }
+    
+    // Check throttle (skip for offline updates - they're important)
+    if (!force && isOnline) {
+      const now = Date.now();
+      const lastUpdate = lastUpdateTime[userID] || 0;
+      
+      if (now - lastUpdate < THROTTLE_DELAY) {
+        console.log(`[Presence] Throttled update for ${userID} (${Math.round((THROTTLE_DELAY - (now - lastUpdate)) / 1000)}s remaining)`);
+        return;
+      }
+      
+      lastUpdateTime[userID] = now;
     }
     
     const userRef = doc(db, 'users', userID);
@@ -30,7 +50,26 @@ export async function updatePresence(userID, isOnline) {
 }
 
 /**
- * Set user online and set up disconnect handler
+ * Initialize presence tracking for a user
+ * Should be called once after authentication
+ * @param {string} userID - User ID
+ */
+export function initializePresence(userID) {
+  if (isInitialized && currentUserID === userID) {
+    console.log('[Presence] Already initialized for this user');
+    return;
+  }
+  
+  console.log(`[Presence] Initializing presence for user: ${userID}`);
+  currentUserID = userID;
+  isInitialized = true;
+  
+  // Set user online immediately
+  setUserOnline(userID);
+}
+
+/**
+ * Set user online
  * @param {string} userID - User ID
  * @returns {Promise<void>}
  */
@@ -39,12 +78,13 @@ export async function setUserOnline(userID) {
 }
 
 /**
- * Set user offline
+ * Set user offline (always executed, never throttled)
  * @param {string} userID - User ID
  * @returns {Promise<void>}
  */
 export async function setUserOffline(userID) {
-  await updatePresence(userID, false);
+  // Force update for offline status
+  await updatePresence(userID, false, true);
 }
 
 /**
@@ -85,22 +125,11 @@ export function subscribeToPresence(userID, callback) {
 }
 
 /**
- * Throttle function to limit how often a function can be called
- * @param {Function} func - Function to throttle
- * @param {number} delay - Delay in milliseconds
- * @returns {Function} Throttled function
+ * Cleanup presence state (for logout)
  */
-function throttle(func, delay) {
-  let lastCall = 0;
-  return (...args) => {
-    const now = Date.now();
-    if (now - lastCall >= delay) {
-      lastCall = now;
-      return func(...args);
-    }
-  };
+export function cleanupPresence() {
+  isInitialized = false;
+  currentUserID = null;
+  console.log('[Presence] Cleaned up presence state');
 }
-
-// Create throttled version of updatePresence (max 1 call per 30 seconds)
-export const throttledUpdatePresence = throttle(updatePresence, 30000);
 

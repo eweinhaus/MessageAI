@@ -1,6 +1,7 @@
 // User Store - Zustand State Management for Authentication
 import { create } from 'zustand';
 import { subscribeToAuth, logout as authLogout } from '../services/auth';
+import { setUserOffline, cleanupPresence } from '../services/presenceService';
 
 // Flag to prevent multiple initializations
 let isInitialized = false;
@@ -63,6 +64,16 @@ const useUserStore = create((set, get) => ({
   logout: async () => {
     try {
       set({ isLoading: true });
+      
+      // Get current user before logout
+      const user = get().currentUser;
+      
+      // Set user offline before logging out
+      if (user?.userID) {
+        await setUserOffline(user.userID);
+        cleanupPresence();
+      }
+      
       await authLogout();
       set({
         currentUser: null,

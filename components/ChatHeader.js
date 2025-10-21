@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: STATUS_ONLINE,
     borderWidth: 2,
-    borderColor: PRIMARY_GREEN,
+    borderColor: '#fff', // White border to stand out against green header
   },
   textContainer: {
     flex: 1,

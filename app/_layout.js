@@ -11,7 +11,7 @@ import { getAllChats } from '../db/messageDb';
 import { performFullSync } from '../utils/syncManager';
 import { addNetworkListener } from '../utils/networkStatus';
 import { processPendingMessages } from '../utils/offlineQueue';
-import { setUserOnline, setUserOffline } from '../services/presenceService';
+import { initializePresence, setUserOnline, setUserOffline, cleanupPresence } from '../services/presenceService';
 
 export default function RootLayout() {
   const { isAuthenticated, isLoading, initialize, currentUser } = useUserStore();
@@ -106,9 +106,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isAuthenticated || !currentUser) return;
 
-    // Set user online when authenticated
-    setUserOnline(currentUser.userID);
-    console.log('[App] User set to online');
+    // Initialize presence tracking for this user
+    initializePresence(currentUser.userID);
+    console.log('[App] Presence tracking initialized');
 
     // Listen for app state changes
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
@@ -128,6 +128,7 @@ export default function RootLayout() {
     return () => {
       console.log('[App] Cleaning up presence tracking');
       setUserOffline(currentUser.userID);
+      cleanupPresence();
       subscription.remove();
     };
   }, [isAuthenticated, currentUser]);
