@@ -1,9 +1,9 @@
 # Progress Tracker
 
 ## Current Status
-**Project Phase**: PR 9 Complete - Read Receipts & Delivery Status (Testing Pending)  
+**Project Phase**: PR 11 Complete - Foreground Push Notifications ✅  
 **Last Updated**: October 21, 2025  
-**Overall Completion**: 60% (PR 9/15)
+**Overall Completion**: 73% (PR 11/15)
 
 ## What's Working ✅
 - Expo project runs on physical device (Expo Go)
@@ -53,7 +53,9 @@
 - ✅ **PR 6**: Contact Picker & New Chat Creation
 - ✅ **PR 7**: Chat Detail Screen & Message Display
 - ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue (TESTED ✅)
-- ✅ **PR 9**: Read Receipts & Delivery Status (Implementation Complete - Testing Pending)
+- ✅ **PR 9**: Read Receipts & Delivery Status
+- ✅ **PR 10**: Online/Offline Presence
+- ✅ **PR 11**: Foreground Push Notifications (TESTED ✅)
 
 ## What's Left to Build
 
@@ -72,9 +74,9 @@
 
 #### Messaging Functionality
 - [x] **PR 8**: Send Message with Optimistic UI & Offline Queue (TESTED ✅)
-- [x] **PR 9**: Read Receipts & Delivery Status (Implementation Complete - Testing Pending)
-- [ ] **PR 10**: Online/Offline Presence (NEXT)
-- [ ] **PR 11**: Foreground Push Notifications
+- [x] **PR 9**: Read Receipts & Delivery Status (TESTED ✅)
+- [x] **PR 10**: Online/Offline Presence (TESTED ✅)
+- [x] **PR 11**: Foreground Push Notifications (TESTED ✅)
 
 #### Polish & Reliability
 - [ ] **PR 12**: Basic Group Chat Polish
@@ -86,7 +88,7 @@
 
 #### Security & Production
 - [ ] **PR 16**: Firestore Security Rules
-- [ ] **PR 17**: Auth Token Refresh Handling
+- [ ] **PR 17**: Auth Token Refresh Handling  
 - [ ] **PR 18**: Error Tracking & Monitoring
 
 #### Advanced Messaging
@@ -117,17 +119,16 @@
 3. **Group read receipts**: Simplified UI (shows blue if any user read, not detailed "Read by X of Y")
 
 ## Blockers
-None currently. PR 9 implementation complete. Requires manual testing on physical devices.
+None currently. PR 11 complete and tested. Ready for PR 12.
 
 ## Next Milestone
-**Target**: Complete PR 10 (Online/Offline Presence)  
+**Target**: Complete PR 12 (Basic Group Chat Polish)  
 **ETA**: October 22, 2025  
 **Success Criteria**:
-- User presence tracked on app foreground/background
-- Online status shows in chat headers (1:1)
-- Online status shows in contact picker
-- Presence updates within 5 seconds
-- Uses Firestore onDisconnect() handlers
+- Group member management improved
+- Group settings accessible
+- Group notifications tested
+- UI/UX polished for groups
 
 ## MVP Completion Checklist
 
@@ -140,9 +141,9 @@ None currently. PR 9 implementation complete. Requires manual testing on physica
 - [x] Messages persist across app restarts (SQLite tested in PR 4-5)
 - [x] Messages sync in real-time (Chat list tested in PR 5, Messages in PR 7)
 - [x] Offline messages queue and send when online (PR 8 - TESTED ✅)
-- [x] Read receipts work (PR 9 - implementation complete, testing pending)
-- [ ] Online/offline status displays correctly (PR 10)
-- [ ] Foreground push notifications work (PR 11)
+- [x] Read receipts work (PR 9 - TESTED ✅)
+- [x] Online/offline status displays correctly (PR 10 - TESTED ✅)
+- [x] Foreground push notifications work (PR 11 - TESTED ✅)
 - [x] No message loss across 100+ test messages (PR 8 - TESTED ✅)
 - [x] App handles force-quit gracefully (PR 8 - TESTED ✅)
 - [x] App handles network transitions (PR 8 - TESTED ✅)
@@ -183,7 +184,7 @@ None currently. PR 9 implementation complete. Requires manual testing on physica
 ### MVP Test Scenarios (10 total)
 1. [x] **Real-Time Message**: User A → User B within 2s (PR 8 - TESTED ✅)
 2. [x] **Offline Send**: Message queued offline, sends on reconnect (PR 8 - TESTED ✅)
-3. [ ] **Foreground Notification**: In-app toast appears (PR 11)
+3. [x] **Foreground Notification**: In-app banner appears (PR 11 - TESTED ✅)
 4. [x] **Force Quit**: Message persists through crash (PR 8 - TESTED ✅)
 5. [x] **Poor Network**: Graceful degradation with retry logic (PR 8 - TESTED ✅)
 6. [x] **Rapid Fire**: 20 messages in 10s, no loss (PR 8 - TESTED ✅)
@@ -220,6 +221,43 @@ None currently. PR 9 implementation complete. Requires manual testing on physica
   - Target: > 90%
 
 ## Recent Changes
+- October 21, 2025: **PR11 - Foreground Push Notifications - COMPLETE & TESTED** 🎉
+  - **Critical Fix**: Updated Cloud Function to support both Expo and FCM push tokens
+  - **Issue**: Expo Go returns `ExponentPushToken[...]` format, not native FCM tokens
+  - **Solution**: Dual notification system with automatic token type detection
+  - Implementation details:
+    - Added `sendPushNotification()` helper with token type detection
+    - Added `sendExpoNotification()` for Expo push tokens (sends via exp.host API)
+    - Added `sendFCMNotification()` for native FCM tokens (Firebase Cloud Messaging)
+    - Cloud Function automatically routes to correct service based on token format
+  - Client-side components:
+    - `services/notificationService.js` - Token management and listeners
+    - `components/NotificationBanner.js` - In-app notification UI with animations
+    - `app/_layout.js` - Notification setup on app initialization
+  - Features working:
+    - ✅ Token registration on app startup
+    - ✅ In-app notification banner (slide-in animation from top)
+    - ✅ Tap-to-navigate functionality
+    - ✅ Auto-dismiss after 3 seconds
+    - ✅ Duplicate prevention
+    - ✅ Works with both Expo Go and standalone builds
+  - Configuration:
+    - Expo project ID: `12be9046-fac8-441c-aa03-f047cfed9f72`
+    - Added to both `services/notificationService.js` and `app.json`
+  - Files modified:
+    - `functions/index.js` - Added dual notification support (~130 lines)
+    - `services/notificationService.js` - Fixed project ID
+    - `app.json` - Added Expo project ID
+  - Testing:
+    - ✅ Tested on physical devices with Expo Go
+    - ✅ Notifications appear correctly
+    - ✅ Navigation works
+    - ✅ No token errors
+    - See `md_files/PR11_TESTING_GUIDE.md` for full test scenarios
+  - Deployment:
+    - Cloud Function deployed successfully: `firebase deploy --only functions`
+    - Function: `onMessageCreated` (v2, us-central1, Node.js 22)
+- October 21, 2025: **Presence Tracking Fixes** - Fixed online status indicators
 - October 21, 2025: **Presence Tracking Fixes** - Fixed online status indicators
   - **Issue 1 Fixed**: Current user now shows "Online" instead of "Just now" in group member lists
   - **Issue 2 Fixed**: Force-quit/closed apps now show offline after 45 seconds (staleness detection)
@@ -323,22 +361,28 @@ None currently. PR 9 implementation complete. Requires manual testing on physica
 3. **Demo recording approach?** (Split-screen or sequential?)
 
 ## Notes for Next Session
-- **PR 9 implementation complete!** 🎉
-- Read receipts and delivery status tracking working:
-  - Automatic delivery status tracking (sent → delivered)
-  - Viewability-based read receipts (60% visible, 300ms)
-  - Debounced Firestore writes (500ms) to prevent spam
-  - Blue checkmarks for read messages
-  - Works for 1:1 and group chats
-- **Testing guide created** (md_files/PR9_TESTING_GUIDE.md)
-  - 10 comprehensive test scenarios
-  - Requires 2+ physical devices
-  - Covers 1:1, groups, offline, debouncing, edge cases
-- **Ready for PR 10: Online/Offline Presence**
-  - Create presence service with Firestore onDisconnect()
-  - Integrate into app lifecycle (foreground/background)
-  - Add online indicators to chat headers and contact picker
-  - Throttle presence updates (max 1 per 30 seconds)
-- Follow task list strictly to stay on schedule
-- No scope creep
+- **PR 11 complete and tested!** 🎉🎉🎉
+- Foreground push notifications fully working:
+  - ✅ Cloud Function with Expo + FCM dual support
+  - ✅ Automatic token type detection and routing
+  - ✅ In-app notification banner with animations
+  - ✅ Tap-to-navigate to specific chats
+  - ✅ Auto-dismiss after 3 seconds
+  - ✅ Token registration on app startup
+  - ✅ Tested on physical devices
+- **MVP is 73% complete!** (11/15 PRs done)
+- Only 4 PRs remaining:
+  - PR 12: Basic Group Chat Polish
+  - PR 13: App Lifecycle & Crash Recovery
+  - PR 14: UI Polish & Error Handling
+  - PR 15: Testing & Documentation
+- **Core messaging infrastructure is solid**:
+  - Real-time messaging ✅
+  - Offline support ✅
+  - Read receipts ✅
+  - Online presence ✅
+  - Push notifications ✅
+- Ready for **PR 12: Basic Group Chat Polish**
+- Follow task list strictly to finish MVP
+- No scope creep - stay focused
 

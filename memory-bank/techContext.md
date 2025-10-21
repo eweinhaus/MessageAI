@@ -78,13 +78,24 @@
 - **Indexes**: Composite indexes for complex queries
 
 #### Firebase Cloud Functions
-- **Language**: Node.js (JavaScript)
+- **Language**: Node.js 22 (JavaScript)
+- **Runtime**: Cloud Functions v2 (2nd Gen)
+- **Region**: us-central1
 - **Functions**:
-  1. **onMessageCreated** (Firestore trigger)
-     - Triggers when message written to Firestore
-     - Gets recipient FCM tokens
-     - Sends push notifications
-     - Logs delivery status
+  1. **onMessageCreated** (Firestore trigger) ✅ DEPLOYED
+     - Triggers when message written to `/chats/{chatID}/messages/{messageID}`
+     - Gets recipient FCM tokens from Firestore
+     - **Dual token support** (October 21, 2025):
+       - Detects Expo push tokens (`ExponentPushToken[...]`)
+       - Detects native FCM tokens
+       - Routes to appropriate service automatically
+     - Sends push notifications via:
+       - **Expo Push Service** (exp.host API) for Expo Go
+       - **Firebase Cloud Messaging** for standalone builds
+     - Handles invalid tokens (removes from Firestore)
+     - Logs delivery status and errors
+     - Excludes sender from notification recipients
+     - Supports both 1:1 and group chats
   
   2. **AI Functions** (Phase 2, callable)
      - aiAssistant: Process queries with LLM
@@ -92,11 +103,26 @@
      - extractActionItems: Parse conversation for tasks
      - summarizeThread: Summarize last N messages
 
-#### Firebase Cloud Messaging (FCM)
-- **Purpose**: Push notifications
-- **MVP**: Foreground notifications only (in-app toast)
+#### Push Notifications (Dual System)
+- **MVP**: Foreground notifications (in-app banner) ✅ COMPLETE
+- **Architecture**: 
+  - **Expo Go**: Uses Expo Push Service (exp.host API)
+  - **Standalone**: Uses Firebase Cloud Messaging (FCM)
+  - **Automatic Detection**: Cloud Function detects token type
+- **Client Components**:
+  - `services/notificationService.js` - Token registration and listeners
+  - `components/NotificationBanner.js` - In-app UI with animations
+  - `app/_layout.js` - Setup on app initialization
+- **Features**:
+  - Token registration on app startup
+  - In-app banner (slide-in, auto-dismiss after 3s)
+  - Tap-to-navigate to specific chat
+  - Duplicate prevention (60s TTL)
+  - Works with both Expo Go and native builds
+- **Token Management**: 
+  - Stored in user's Firestore document (`fcmToken` field)
+  - Project ID: `12be9046-fac8-441c-aa03-f047cfed9f72`
 - **Phase 2**: Background and killed app notifications
-- **Token Management**: Stored in user's Firestore document
 
 ### Development Tools
 
@@ -355,11 +381,18 @@ firebase functions:log
 ## Known Issues & Limitations
 
 ### Current Limitations (By Design)
-1. **Foreground notifications only** - Background requires native config
+1. **Foreground notifications only** - Background requires native config (Phase 2)
 2. **Text-only messages** - No media support yet
 3. **No message editing/deletion** - Deferred to Phase 2
 4. **No typing indicators** - Adds complexity
 5. **Initial-based avatars** - No profile pictures yet
+
+### Recently Completed (October 21, 2025)
+1. ✅ **Foreground push notifications** - Working with dual token support
+2. ✅ **Online/offline presence** - Heartbeat + staleness detection
+3. ✅ **Read receipts** - Viewability-based tracking
+4. ✅ **Delivery status** - Full message lifecycle tracking
+5. ✅ **Offline queue** - Automatic retry with exponential backoff
 
 ### Common Issues (To Watch For)
 1. **SQLite initialization timing** - Must complete before first read

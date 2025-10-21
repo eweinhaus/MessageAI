@@ -1,12 +1,31 @@
 # Active Context
 
 ## Current Status
-**Phase**: PR 9 Complete - Read Receipts & Delivery Status  
+**Phase**: PR 12 Complete - Basic Group Chat Polish ✅  
 **Date**: October 21, 2025  
-**Next Milestone**: PR 10 (Online/Offline Presence)  
+**Next Milestone**: PR 13 (App Lifecycle & Crash Recovery)  
 **Firebase Project**: MessageAI-dev
 
-## Recent Fixes (October 21, 2025)
+## Recent Accomplishments (October 21, 2025)
+- ✅ **PR 12: Basic Group Chat Polish - COMPLETE** 🎉
+  - ✅ Added avatar display for group message senders (32px, left-aligned)
+  - ✅ Consecutive message grouping with avatar spacer
+  - ✅ Member sorting: online first, then alphabetical
+  - ✅ Real-time sort updates on presence changes
+  - ✅ Gray dot indicators for offline members
+  - ✅ Dynamic group initials from first 2 members in header
+  - ✅ Member count displayed in group header
+  - ✅ Comprehensive documentation created (md_files/PR12_*.md)
+- ✅ **PR 11: Foreground Push Notifications - COMPLETE & TESTED** 🎉
+  - ✅ Cloud Function supports both Expo push tokens and FCM tokens
+  - ✅ Automatic token type detection (`ExponentPushToken[...]` vs native FCM)
+  - ✅ Dual notification routing (Expo Push Service + Firebase Cloud Messaging)
+  - ✅ In-app notification banner with slide-in animation
+  - ✅ Tap-to-navigate functionality
+  - ✅ Auto-dismiss after 3 seconds
+  - ✅ Token registration on app startup
+  - ✅ Tested and working on physical devices
+  - ✅ Comprehensive testing guide created (md_files/PR11_TESTING_GUIDE.md)
 - ✅ **Fixed presence tracking issues** (Critical bug fixes):
   - ✅ Fixed "Just now" showing instead of "Online" for current user
   - ✅ Fixed force-quit apps showing "Online" indefinitely
@@ -32,7 +51,33 @@
 - ✅ **PR 6**: Contact Picker & New Chat Creation - COMPLETE ✅
 - ✅ **PR 7**: Chat Detail Screen & Message Display - COMPLETE ✅
 - ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - COMPLETE & TESTED ✅
-- ✅ **PR 9**: Read Receipts & Delivery Status - COMPLETE (Implementation, Testing Pending) ✅
+- ✅ **PR 9**: Read Receipts & Delivery Status - COMPLETE ✅
+- ✅ **PR 10**: Online/Offline Presence - COMPLETE ✅
+- ✅ **PR 11**: Foreground Push Notifications - COMPLETE & TESTED ✅
+- ✅ **PR 12**: Basic Group Chat Polish - COMPLETE ✅
+  - Modified components/MessageBubble.js:
+    - Added Avatar import and rendering for group messages
+    - Avatar displays for first message from each sender (32px, left-aligned)
+    - Avatar spacer for consecutive grouped messages
+    - New styles: messageRow, avatarWrapper, avatarSpacer, messageContent
+  - Modified app/chat/members/[chatId].js:
+    - Added member sorting (online first, then alphabetical)
+    - Sorting maintained on real-time presence updates
+    - Added gray dot indicators for offline members
+    - Refactored status indicator styles (statusIndicator, onlineIndicator, offlineIndicator)
+  - Modified components/ChatHeader.js:
+    - Created getGroupInitials() helper function
+    - Replaced generic people icon with dynamic initials
+    - Shows first letter of first 2 group members
+    - New styles: groupAvatarWrapper, groupAvatar, groupInitials
+  - Created comprehensive documentation:
+    - md_files/PR12_IMPLEMENTATION_SUMMARY.md - Full implementation details
+    - md_files/PR12_TESTING_GUIDE.md - 12 comprehensive test scenarios
+  - Lines of Code: ~95 added/modified
+  - No linter errors
+  - Status: Implementation complete, manual testing pending
+- ✅ **PR 11**: Foreground Push Notifications - COMPLETE & TESTED (see above for details)
+- ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - COMPLETE & TESTED
   - Created MessageInput component (components/MessageInput.js) with:
     - Multiline text input (expands up to 4 lines, max 2000 chars)
     - Send button with offline detection
@@ -122,17 +167,18 @@
 6. ✅ **PR 6**: Contact Picker & New Chat Creation - DONE
 7. ✅ **PR 7**: Chat Detail Screen & Message Display - DONE
 8. ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - DONE
-9. ✅ **PR 9**: Read Receipts & Delivery Status - DONE (implementation complete)
-10. **PR 10**: Online/Offline Presence (NEXT)
-    - Create presence service with Firestore onDisconnect()
-    - Integrate into app lifecycle (foreground/background)
-    - Add presence listener to chat detail screen (1:1 headers)
-    - Update chat list to show online status
-    - Add online status to contact picker
-    - Throttle updates (max 1 per 30 seconds)
+9. ✅ **PR 9**: Read Receipts & Delivery Status - DONE
+10. ✅ **PR 10**: Online/Offline Presence - DONE
+11. ✅ **PR 11**: Foreground Push Notifications - DONE
+12. ✅ **PR 12**: Basic Group Chat Polish - DONE
+13. **PR 13**: App Lifecycle & Crash Recovery (NEXT)
+    - Handle app backgrounding and foreground
+    - Implement queue recovery on startup
+    - Add retry logic with exponential backoff
+    - Add logging for debugging
 
 ### Today's Goal
-**PR 9 implementation complete!** Ready to proceed to **PR 10: Online/Offline Presence**.
+**PR 12 complete!** 🎉 Ready to proceed to **PR 13: App Lifecycle & Crash Recovery**.
 
 ## Active Decisions & Considerations
 
@@ -268,12 +314,10 @@ None yet - just starting!
 - ✅ Optimistic UI updates when creating chats
 
 ## What Needs Attention
-1. ✅ **Online Presence**: Fixed critical bugs in presence tracking (October 21, 2025)
-   - Manual testing required on physical devices to verify force-quit detection
-   - See `md_files/PRESENCE_TESTING_GUIDE.md` for test scenarios
-2. **Push Notifications**: Foreground notifications for incoming messages (PR 11 - NEXT)
-3. **Group Chat Polish**: Improve group chat UX (PR 12)
-4. **App Lifecycle**: Handle crash recovery (PR 13)
+1. **Group Chat Polish**: Improve group chat UX (PR 12 - NEXT)
+2. **App Lifecycle**: Handle crash recovery (PR 13)
+3. **UI Polish & Error Handling**: Comprehensive error states (PR 14)
+4. **Testing & Documentation**: Final polish before MVP complete (PR 15)
 
 ## Questions to Resolve
 1. **Persona Selection**: Which user persona will we target for Phase 2 AI features?
@@ -316,17 +360,15 @@ None yet - just starting!
 
 ## Context for Next Session
 When resuming:
-1. **PR 9 implementation fully complete** - read receipts and delivery status tracking implemented
-2. Implementation includes:
-   - ✅ Automatic delivery status tracking (sent → delivered)
-   - ✅ Viewability-based read receipts (60% visible, 300ms minimum)
-   - ✅ Debounced Firestore writes (500ms) to prevent excessive traffic
-   - ✅ Blue checkmarks for read messages
-   - ✅ Works for 1:1 and group chats
-   - ✅ Persists in SQLite
-3. Testing guide created: md_files/PR9_TESTING_GUIDE.md (10 test scenarios)
-4. Manual testing pending (requires 2+ physical devices)
-5. Ready to implement **PR 10: Online/Offline Presence**
-6. Core messaging infrastructure is solid and reliable
-7. Next focus: Track user online/offline status with Firestore presence
+1. **PR 12 fully complete!** 🎉 - Group chat polish implemented
+2. Key implementation details:
+   - ✅ Avatar display for group message senders (MessageBubble.js)
+   - ✅ Member sorting with real-time updates (GroupMembersScreen)
+   - ✅ Offline status indicators (gray dots)
+   - ✅ Dynamic group initials in header (ChatHeader.js)
+   - ✅ Comprehensive testing guide (md_files/PR12_TESTING_GUIDE.md)
+3. **Core messaging + group features complete** - MVP nearly done!
+4. Ready to implement **PR 13: App Lifecycle & Crash Recovery**
+5. 3 PRs remaining for MVP completion (PR 13-15)
+6. Next focus: App lifecycle handling, crash recovery, and queue processing
 

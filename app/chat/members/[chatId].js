@@ -10,6 +10,7 @@ import useChatStore from '../../../store/chatStore';
 import useUserStore from '../../../store/userStore';
 import Avatar from '../../../components/Avatar';
 import { getUserProfile } from '../../../services/firestore';
+import { isPresenceStale } from '../../../services/presenceService';
 import { 
   PRIMARY_GREEN, 
   BACKGROUND_PRIMARY, 
@@ -66,9 +67,25 @@ export default function GroupMembersScreen() {
         const memberPromises = memberIDs.map(async (memberID, index) => {
           try {
             const profile = await getUserProfile(memberID);
-            return profile || {
+            
+            // If profile exists, ensure displayName is present
+            if (profile) {
+              return {
+                ...profile,
+                // Use profile displayName, fallback to memberNames, then email, then Unknown
+                displayName: profile.displayName || memberNames[index] || profile.email || 'Unknown User',
+                // Ensure userID is present
+                userID: profile.userID || memberID,
+                // Convert timestamp if needed
+                lastSeenTimestamp: profile.lastSeenTimestamp?.toMillis?.() || profile.lastSeenTimestamp || null,
+              };
+            }
+            
+            // If no profile, create fallback
+            console.warn(`[Members] No profile found for user ${memberID}, using fallback`);
+            return {
               userID: memberID,
-              displayName: memberNames[index] || 'Unknown User',
+              displayName: memberNames[index] || memberID,
               email: '',
               isOnline: false,
               lastSeenTimestamp: null,
@@ -77,7 +94,7 @@ export default function GroupMembersScreen() {
             console.error(`Error loading member ${memberID}:`, error);
             return {
               userID: memberID,
-              displayName: memberNames[index] || 'Unknown User',
+              displayName: memberNames[index] || memberID,
               email: '',
               isOnline: false,
               lastSeenTimestamp: null,
@@ -86,7 +103,18 @@ export default function GroupMembersScreen() {
         });
 
         const loadedMembers = await Promise.all(memberPromises);
-        setMembers(loadedMembers);
+        
+        // Sort members: online first, then alphabetical
+        const sortedMembers = loadedMembers.sort((a, b) => {
+          // If both have same online status, sort alphabetically
+          if (a.isOnline === b.isOnline) {
+            return (a.displayName || '').localeCompare(b.displayName || '');
+          }
+          // Otherwise, online members come first
+          return a.isOnline ? -1 : 1;
+        });
+        
+        setMembers(sortedMembers);
         setIsLoading(false);
 
         // Set up real-time presence listeners for each member
@@ -98,19 +126,35 @@ export default function GroupMembersScreen() {
             (docSnap) => {
               if (docSnap.exists()) {
                 const userData = docSnap.data();
+                let isOnline = userData.isOnline || false;
+                const lastSeenTimestamp = userData.lastSeenTimestamp?.toMillis?.() || null;
                 
-                // Update this member's presence in state
-                setMembers((prevMembers) => 
-                  prevMembers.map((member) => 
+                // Apply staleness detection - if marked online but timestamp is stale, treat as offline
+                if (isOnline && isPresenceStale(lastSeenTimestamp)) {
+                  console.log(`[Members] User ${memberID} marked online but presence is stale, treating as offline`);
+                  isOnline = false;
+                }
+                
+                // Update this member's presence in state and re-sort
+                setMembers((prevMembers) => {
+                  const updatedMembers = prevMembers.map((member) => 
                     member.userID === memberID
                       ? {
                           ...member,
-                          isOnline: userData.isOnline || false,
-                          lastSeenTimestamp: userData.lastSeenTimestamp?.toMillis?.() || null,
+                          isOnline,
+                          lastSeenTimestamp,
                         }
                       : member
-                  )
-                );
+                  );
+                  
+                  // Re-sort: online first, then alphabetical
+                  return updatedMembers.sort((a, b) => {
+                    if (a.isOnline === b.isOnline) {
+                      return (a.displayName || '').localeCompare(b.displayName || '');
+                    }
+                    return a.isOnline ? -1 : 1;
+                  });
+                });
               }
             },
             (error) => {
@@ -178,10 +222,11 @@ export default function GroupMembersScreen() {
             userID={item.userID}
             size={48}
           />
-          {/* Online status indicator */}
-          {item.isOnline && (
-            <View style={styles.onlineIndicator} />
-          )}
+          {/* Online/Offline status indicator */}
+          <View style={[
+            styles.statusIndicator,
+            item.isOnline ? styles.onlineIndicator : styles.offlineIndicator
+          ]} />
         </View>
         
         <View style={styles.memberInfo}>
@@ -400,16 +445,21 @@ const styles = StyleSheet.create({
   avatarContainer: {
     position: 'relative',
   },
-  onlineIndicator: {
+  statusIndicator: {
     position: 'absolute',
     bottom: 0,
     right: 0,
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: STATUS_ONLINE,
     borderWidth: 2,
     borderColor: BACKGROUND_PRIMARY,
+  },
+  onlineIndicator: {
+    backgroundColor: STATUS_ONLINE,
+  },
+  offlineIndicator: {
+    backgroundColor: STATUS_OFFLINE,
   },
   memberInfo: {
     flex: 1,

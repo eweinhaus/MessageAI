@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Avatar from './Avatar';
 import { PRIMARY_GREEN, STATUS_ONLINE, TEXT_SECONDARY } from '../constants/colors';
 import { usePresence } from '../hooks/usePresence';
+import { getInitials } from '../utils/avatarUtils';
 
 /**
  * ChatHeader Component
@@ -21,6 +22,23 @@ import { usePresence } from '../hooks/usePresence';
  * @param {string} props.currentUserID - Current user's ID
  * @param {Function} props.onPress - Callback when header is tapped
  */
+/**
+ * Get group initials from the first 2 members
+ * @param {Array<string>} memberNames - Array of member display names
+ * @returns {string} Combined initials (e.g. "JD" for John + David)
+ */
+function getGroupInitials(memberNames = []) {
+  if (!memberNames || memberNames.length === 0) {
+    return 'GR'; // Default for "Group"
+  }
+  
+  // Get first letter of first 2 members
+  const first = memberNames[0] ? getInitials(memberNames[0])[0] : 'G';
+  const second = memberNames[1] ? getInitials(memberNames[1])[0] : 'R';
+  
+  return (first + second).toUpperCase();
+}
+
 export default function ChatHeader({ chat, currentUserID, onPress }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -32,6 +50,7 @@ export default function ChatHeader({ chat, currentUserID, onPress }) {
   let otherUserID = null;
   let displayName = 'Chat';
   let memberCount = 0;
+  let groupInitials = 'GR';
   
   if (!chat) {
     return null;
@@ -40,6 +59,7 @@ export default function ChatHeader({ chat, currentUserID, onPress }) {
   if (isGroup) {
     displayName = chat.groupName || 'Group Chat';
     memberCount = chat.memberIDs?.length || 0;
+    groupInitials = getGroupInitials(chat.memberNames || []);
   } else {
     // 1:1 chat
     const otherUserIndex = chat.participantIDs?.[0] === currentUserID ? 1 : 0;
@@ -102,8 +122,10 @@ export default function ChatHeader({ chat, currentUserID, onPress }) {
           {/* Avatar or Group Icon */}
           <View style={styles.avatarContainer}>
             {isGroup ? (
-              <View style={styles.groupIcon}>
-                <Ionicons name="people" size={24} color="#fff" />
+              <View style={styles.groupAvatarWrapper}>
+                <View style={styles.groupAvatar}>
+                  <Text style={styles.groupInitials}>{groupInitials}</Text>
+                </View>
               </View>
             ) : (
               <>
@@ -173,13 +195,23 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginRight: 12,
   },
-  groupIcon: {
+  groupAvatarWrapper: {
+    width: 36,
+    height: 36,
+  },
+  groupAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  groupInitials: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
   },
   onlineIndicator: {
     position: 'absolute',

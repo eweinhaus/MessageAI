@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { formatMessageTime } from '../utils/timeUtils';
 import { retryFailedMessage } from '../services/messageService';
+import Avatar from './Avatar';
 import {
   BUBBLE_OWN,
   BUBBLE_OTHER,
@@ -40,7 +41,9 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
   const validTimestamp = timestamp && !isNaN(timestamp) ? timestamp : Date.now();
 
   // Determine if we should show avatar/name
-  const shouldShowSender = showSenderInfo && !isGrouped && !isOwn;
+  // Avatar shows on LAST message in group (iMessage style), name shows on FIRST
+  const shouldShowAvatar = showSenderInfo && isLastInGroup && !isOwn;
+  const shouldShowName = showSenderInfo && !isGrouped && !isOwn;
 
   // Handle retry button press
   const handleRetry = async () => {
@@ -48,10 +51,31 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
   };
 
   return (
-    <View style={[styles.container, isOwn ? styles.containerOwn : styles.containerOther]}>
-      <View style={[styles.messageBlock, isOwn ? styles.messageBlockOwn : styles.messageBlockOther]}>
-        {/* Sender name for other users in groups (no avatar) */}
-        {shouldShowSender && (
+    <View style={[
+      styles.container, 
+      isOwn ? styles.containerOwn : styles.containerOther,
+      !isGrouped && styles.containerFirstInGroup // Add spacing when starting new group
+    ]}>
+      {/* Avatar for other users in groups - show on LAST message in sequence */}
+      {shouldShowAvatar && (
+        <View style={styles.avatarWrapper}>
+          <Avatar
+            displayName={senderName || 'Unknown'}
+            userID={senderID}
+            size={32}
+          />
+        </View>
+      )}
+      
+      {/* Spacer to align grouped messages when no avatar shown */}
+      {!shouldShowAvatar && showSenderInfo && !isOwn && (
+        <View style={styles.avatarSpacer} />
+      )}
+      
+      {/* Message content */}
+      <View style={styles.messageContent}>
+        {/* Sender name for other users in groups - show on FIRST message */}
+        {shouldShowName && (
           <Text style={styles.senderName}>{senderName}</Text>
         )}
         
@@ -129,14 +153,31 @@ function getStatusText({ deliveryStatus, isRead, syncStatus }) {
 
 const styles = StyleSheet.create({
   container: {
+    flexDirection: 'row',
     marginVertical: 2,
     paddingHorizontal: 12,
+    alignItems: 'center', // Changed from flex-end to center for inline alignment
   },
   containerOwn: {
-    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
   },
   containerOther: {
-    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+  },
+  containerFirstInGroup: {
+    marginTop: 12, // Extra spacing when starting a new message group
+  },
+  avatarWrapper: {
+    width: 32,
+    height: 32,
+    marginRight: 8,
+  },
+  avatarSpacer: {
+    width: 32,
+    marginRight: 8,
+  },
+  messageContent: {
+    maxWidth: '75%',
   },
   senderName: {
     fontSize: 12,
@@ -147,7 +188,6 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   bubble: {
-    maxWidth: '75%',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 18,
@@ -166,7 +206,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   bubbleInGroup: {
-    marginBottom: 2, // Tighter spacing for grouped messages
+    marginBottom: 1, // Tighter spacing for grouped messages (iMessage-style)
   },
   messageText: {
     fontSize: 16,
@@ -181,8 +221,8 @@ const styles = StyleSheet.create({
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 3,
-    paddingHorizontal: 4,
+    marginTop: 4,
+    marginHorizontal: 4,
   },
   metaContainerOwn: {
     justifyContent: 'flex-end',
@@ -222,17 +262,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     fontWeight: '600',
-  },
-  messageBlock: {
-    maxWidth: '100%',
-  },
-  messageBlockOwn: {
-    alignItems: 'flex-end',
-    alignSelf: 'flex-end',
-  },
-  messageBlockOther: {
-    alignItems: 'flex-start',
-    alignSelf: 'flex-start',
   },
 });
 

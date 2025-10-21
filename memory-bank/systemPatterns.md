@@ -161,7 +161,141 @@ async function processPendingMessages() {
 - App returns to foreground
 - Manual retry from failed message UI
 
-### 5. Presence Tracking
+### 5. Push Notifications (Dual Token Support)
+
+**Pattern**: Cloud Function with automatic token type detection
+
+**Implementation** (October 21, 2025):
+```javascript
+// Detect token type and route to appropriate service
+async function sendPushNotification(token, notification, data) {
+  const isExpoToken = token.startsWith("ExponentPushToken[");
+  
+  if (isExpoToken) {
+    // Send via Expo Push Service (for Expo Go)
+    return sendExpoNotification(token, notification, data);
+  } else {
+    // Send via Firebase Cloud Messaging (for standalone builds)
+    return sendFCMNotification(token, notification, data);
+  }
+}
+
+// Expo Push Service (exp.host API)
+function sendExpoNotification(expoPushToken, notification, data) {
+  const message = {
+    to: expoPushToken,
+    sound: "default",
+    title: notification.title,
+    body: notification.body,
+    data: data,
+    priority: "high",
+    channelId: "messages",
+  };
+  
+  // POST to https://exp.host/--/api/v2/push/send
+  // Returns {data: {status: 'ok'}} on success
+}
+
+// Firebase Cloud Messaging
+async function sendFCMNotification(fcmToken, notification, data) {
+  const payload = {
+    notification: { title, body },
+    data: stringifiedData, // All values must be strings
+    token: fcmToken,
+    android: { priority: "high", notification: { channelId: "messages" } },
+    apns: { payload: { aps: { sound: "default", badge: 1 } } },
+  };
+  
+  return admin.messaging().send(payload);
+}
+```
+
+**Token Management**:
+```javascript
+// Client: Register token on app startup
+async function registerToken(userID) {
+  const token = await Notifications.getExpoPushTokenAsync({
+    projectId: '12be9046-fac8-441c-aa03-f047cfed9f72',
+  });
+  
+  await updateUserProfile(userID, { fcmToken: token.data });
+}
+
+// Cloud Function: Triggered on message creation
+exports.onMessageCreated = onDocumentCreated(
+  "chats/{chatID}/messages/{messageID}",
+  async (event) => {
+    // Get recipient tokens from Firestore
+    // Detect token type
+    // Send via appropriate service
+    // Handle invalid tokens (remove from Firestore)
+  }
+);
+```
+
+**Notification Flow**:
+```
+[User A sends message]
+        ↓
+[Firestore: /chats/{chatID}/messages/{messageID} created]
+        ↓
+[Cloud Function triggered]
+        ↓
+[Get recipient FCM tokens from Firestore]
+        ↓
+[For each token: Detect type (Expo vs FCM)]
+        ↓
+    ┌───────┴───────┐
+    ↓               ↓
+[Expo Token]   [FCM Token]
+    ↓               ↓
+[exp.host API] [FCM API]
+    ↓               ↓
+[Device receives push]
+        ↓
+[App in foreground → Show banner]
+[App in background → System notification (Phase 2)]
+        ↓
+[User taps → Navigate to chat]
+```
+
+**Client-Side Listeners**:
+```javascript
+// Foreground notification listener
+Notifications.addNotificationReceivedListener((notification) => {
+  const {title, body, data} = notification.request.content;
+  
+  // Show in-app banner
+  showBanner({
+    title,
+    body,
+    onPress: () => router.push(`/chat/${data.chatID}`),
+  });
+});
+
+// Tap notification listener
+Notifications.addNotificationResponseReceivedListener((response) => {
+  const data = response.notification.request.content.data;
+  router.push(`/chat/${data.chatID}`);
+});
+```
+
+**Key Features**:
+- ✅ **Dual Support**: Works with both Expo Go (Expo tokens) and standalone builds (FCM tokens)
+- ✅ **Automatic Detection**: Token type detected by prefix check
+- ✅ **Graceful Fallback**: Invalid tokens removed from Firestore
+- ✅ **Duplicate Prevention**: Client tracks displayed notifications (Set with 60s TTL)
+- ✅ **In-App Banner**: Slide-in animation, auto-dismiss after 3s
+- ✅ **Tap-to-Navigate**: Opens specific chat when tapped
+- ✅ **Group Support**: Sends to all members except sender
+
+**Why Dual Support?**:
+- Expo Go uses Expo Push Service (can't use native FCM)
+- Standalone builds can use either (FCM is production-standard)
+- Automatic detection makes transition seamless
+- Same Cloud Function works for both environments
+
+### 6. Presence Tracking
 
 **Pattern**: Firestore with heartbeat + staleness detection
 
