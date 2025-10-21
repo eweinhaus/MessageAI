@@ -5,19 +5,25 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import useUserStore from '../store/userStore';
 import useChatStore from '../store/chatStore';
+import useUIStore from '../store/uiStore';
 import OfflineBanner from '../components/OfflineBanner';
 import NotificationBanner from '../components/NotificationBanner';
-import { initDatabase } from '../db/database';
+import ErrorBoundary from '../components/ErrorBoundary';
+import ErrorToast from '../components/ErrorToast';
+import { initDatabase, flushPendingWrites } from '../db/database';
 import { getAllChats } from '../db/messageDb';
 import { performFullSync } from '../utils/syncManager';
 import { addNetworkListener } from '../utils/networkStatus';
 import { processPendingMessages } from '../utils/offlineQueue';
 import { initializePresence, setUserOnline, setUserOffline, cleanupPresence } from '../services/presenceService';
 import { requestPermissions, registerToken, setupListeners } from '../services/notificationService';
+import { pauseAllListeners, resumeAllListeners, clearAllListeners } from '../utils/listenerManager';
+import { lifecycleLog, logAppStateChange } from '../utils/diagnosticUtils';
 
 export default function RootLayout() {
   const { isAuthenticated, isLoading, initialize, currentUser } = useUserStore();
   const { setChats } = useChatStore();
+  const { globalError, errorVisible, clearError } = useUIStore();
   const segments = useSegments();
   const router = useRouter();
   const [dbInitialized, setDbInitialized] = useState(false);
@@ -106,33 +112,74 @@ export default function RootLayout() {
     return cleanup;
   }, [isAuthenticated, currentUser, dbInitialized]);
 
-  // Set up presence tracking - update when app goes to foreground/background
+  // Set up presence tracking and enhanced app lifecycle handling
   useEffect(() => {
     if (!isAuthenticated || !currentUser) return;
 
     // Initialize presence tracking for this user
     initializePresence(currentUser.userID);
-    console.log('[App] Presence tracking initialized');
+    lifecycleLog('Presence tracking initialized', { userID: currentUser.userID });
+
+    // Enhanced app state change handler
+    const handleAppStateChange = async (nextAppState) => {
+      const prevState = appState.current;
+      logAppStateChange(prevState, nextAppState);
+      
+      // App coming to foreground
+      if (prevState.match(/inactive|background/) && nextAppState === 'active') {
+        lifecycleLog('App foregrounded - resuming operations');
+        
+        try {
+          // 1. Set user online (highest priority)
+          await setUserOnline(currentUser.userID);
+          
+          // 2. Resume Firestore listeners
+          const resumed = await resumeAllListeners();
+          lifecycleLog(`Resumed ${resumed} Firestore listeners`);
+          
+          // 3. Process pending messages queue
+          lifecycleLog('Processing pending messages after foreground...');
+          await processPendingMessages();
+          
+          lifecycleLog('Foreground operations complete');
+        } catch (error) {
+          lifecycleLog('Error during foreground operations', error);
+        }
+      } 
+      // App going to background
+      else if (prevState === 'active' && nextAppState.match(/inactive|background/)) {
+        lifecycleLog('App backgrounding - pausing operations');
+        
+        try {
+          // 1. Flush pending SQLite writes (ensure no data loss)
+          lifecycleLog('Flushing pending SQLite writes...');
+          await flushPendingWrites();
+          
+          // 2. Set user offline
+          await setUserOffline(currentUser.userID);
+          
+          // 3. Pause all Firestore listeners to save resources
+          pauseAllListeners();
+          lifecycleLog('Paused all Firestore listeners');
+          
+          lifecycleLog('Background operations complete');
+        } catch (error) {
+          lifecycleLog('Error during background operations', error);
+        }
+      }
+      
+      appState.current = nextAppState;
+    };
 
     // Listen for app state changes
-    const subscription = AppState.addEventListener('change', async (nextAppState) => {
-      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
-        // App has come to the foreground
-        console.log('[App] App foregrounded, setting user online');
-        await setUserOnline(currentUser.userID);
-      } else if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
-        // App has gone to the background
-        console.log('[App] App backgrounded, setting user offline');
-        await setUserOffline(currentUser.userID);
-      }
-      appState.current = nextAppState;
-    });
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
 
-    // Set user offline when component unmounts
+    // Cleanup on unmount
     return () => {
-      console.log('[App] Cleaning up presence tracking');
+      lifecycleLog('Cleaning up lifecycle handlers');
       setUserOffline(currentUser.userID);
       cleanupPresence();
+      clearAllListeners();
       subscription.remove();
     };
   }, [isAuthenticated, currentUser]);
@@ -225,7 +272,7 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
@@ -246,7 +293,13 @@ export default function RootLayout() {
           onDismiss={() => setNotificationBanner(null)}
         />
       )}
-    </>
+      <ErrorToast
+        error={globalError}
+        visible={errorVisible}
+        onDismiss={clearError}
+        type="error"
+      />
+    </ErrorBoundary>
   );
 }
 

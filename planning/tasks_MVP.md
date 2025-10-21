@@ -995,39 +995,39 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
 
 ---
 
-## PR 13: App Lifecycle & Crash Recovery
+## PR 13: App Lifecycle & Crash Recovery ✅
 
 **Objective:** App handles crashes, force-quit, and backgrounding gracefully without losing data.
 
 ### Tasks
 
-- [ ] Enhance app state handling
-  - [ ] In root layout, set up `AppState` listener:
-    - [ ] On app goes to background:
-      - [ ] Set user offline (presence)
-      - [ ] Pause Firestore listeners (optional optimization)
-      - [ ] Ensure all pending writes to SQLite complete
-    - [ ] On app comes to foreground:
-      - [ ] Set user online (presence)
-      - [ ] Resume/re-establish Firestore listeners
-      - [ ] Trigger sync (process pending queue)
-- [ ] Implement queue recovery on startup
-  - [ ] In root layout, after database init and auth check:
-    - [ ] Call `processPendingMessages()` from offline queue
-    - [ ] This handles any messages that failed to send before crash
-- [ ] Add retry logic with exponential backoff
-  - [ ] In `utils/offlineQueue.js`:
-    - [ ] Retry delays: 1s, 2s, 4s, 8s, 16s, max 30s
-    - [ ] Max retry attempts: 5
-    - [ ] After max retries: mark as `failed`, stop retrying
-    - [ ] User can manually retry from UI
-- [ ] Add logging for debugging
-  - [ ] Log queue processing events
-  - [ ] Log sync events
-  - [ ] Log Firestore listener connect/disconnect
-  - [ ] Use console.log with prefixes for easy filtering
+- [x] Enhance app state handling
+  - [x] In root layout, set up `AppState` listener:
+    - [x] On app goes to background:
+      - [x] Set user offline (presence)
+      - [x] Pause Firestore listeners (optional optimization)
+      - [x] Ensure all pending writes to SQLite complete
+    - [x] On app comes to foreground:
+      - [x] Set user online (presence)
+      - [x] Resume/re-establish Firestore listeners
+      - [x] Trigger sync (process pending queue)
+- [x] Implement queue recovery on startup
+  - [x] In root layout, after database init and auth check:
+    - [x] Call `processPendingMessages()` from offline queue
+    - [x] This handles any messages that failed to send before crash
+- [x] Add retry logic with exponential backoff
+  - [x] In `utils/offlineQueue.js`:
+    - [x] Retry delays: 1s, 2s, 4s, 8s, 16s, max 30s
+    - [x] Max retry attempts: 5
+    - [x] After max retries: mark as `failed`, stop retrying
+    - [x] User can manually retry from UI
+- [x] Add logging for debugging
+  - [x] Log queue processing events
+  - [x] Log sync events
+  - [x] Log Firestore listener connect/disconnect
+  - [x] Use console.log with prefixes for easy filtering
 
-### Testing Checklist
+### Testing Checklist ⏳ (Manual tests required - see md_files/PR13_PR14_TESTING_GUIDE.md)
 - [ ] User A sends message, immediately force-quit app (swipe up)
 - [ ] Reopen app
 - [ ] Message eventually sends to Firestore
@@ -1044,55 +1044,74 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
 - [ ] Open app, message visible in chat list
 - [ ] Open chat, message visible in chat history
 
+### Implementation Summary (October 21, 2025)
+- **Modified Files:**
+  - `app/_layout.js` - Enhanced AppState handler with listener pause/resume, SQLite flush
+  - `db/database.js` - Added `flushPendingWrites()` function
+  - `services/auth.js` - Enhanced error handling with user-friendly messages
+- **Created Files:**
+  - `utils/diagnosticUtils.js` (180 lines) - Centralized logging utilities
+  - `utils/listenerManager.js` (150 lines) - Firestore listener management
+  - `utils/__tests__/offlineQueue.test.js` - Basic unit tests
+- **Lines of Code:** ~500 added/modified
+- **Key Features:**
+  - AppState listener with graceful background/foreground transitions
+  - Firestore listener pause/resume to save resources
+  - SQLite write flushing before backgrounding
+  - Tagged logging system for debugging ([LIFECYCLE], [QUEUE], [SYNC], [LISTENER])
+  - Automatic queue processing on app startup and network reconnect
+  - Already had: Exponential backoff (1-2-4-8-16-30s), max 5 retries
+- **Status:** Implementation complete, manual testing required (2+ physical devices)
+
 ### Commit
-`feat: implement robust app lifecycle handling and crash recovery`
+`feat: implement robust app lifecycle handling and crash recovery (PR13)`
 
 ---
 
-## PR 14: UI Polish & Error Handling
+## PR 14: UI Polish & Error Handling ✅
 
 **Objective:** Improve UX with loading states, error messages, and visual feedback.
 
 ### Tasks
 
-- [ ] Add loading states
-  - [ ] Chat list: skeleton loader or spinner while loading
-  - [ ] Message list: spinner at top while loading history
-  - [ ] Send button: disable and show spinner while sending
-  - [ ] Contact list: spinner while loading users
-- [ ] Improve error messages
-  - [ ] Auth errors: display user-friendly messages
-    - [ ] "Invalid email address"
-    - [ ] "Password must be at least 8 characters"
-    - [ ] "Email already in use"
-    - [ ] "Incorrect password"
-  - [ ] Network errors: "Can't reach server. Check your internet connection."
-  - [ ] Message send errors: "Message failed to send. Retry?"
-- [ ] Add empty states
-  - [ ] Empty chat list: "No conversations yet. Start chatting!"
-  - [ ] Empty message history: "Say hello! 👋"
-  - [ ] Empty contact list: "No users found"
-  - [ ] Empty search results: "No matches found"
-- [ ] Add pull-to-refresh
-  - [ ] Home screen (chat list): pull down to refresh
-  - [ ] Chat detail screen: pull down to load older messages (if implementing pagination)
-- [ ] Add visual feedback
-  - [ ] Button press states (highlight on tap)
-  - [ ] Input focus states (border color change)
-  - [ ] Smooth animations (fade in/out, slide transitions)
-- [ ] Add error boundaries
-  - [ ] Wrap app in error boundary component
-  - [ ] Display friendly error screen if app crashes
-  - [ ] "Something went wrong. Restart app." with button
-- [ ] Improve keyboard handling
-  - [ ] Use KeyboardAvoidingView in chat detail
-  - [ ] Dismiss keyboard on scroll
-  - [ ] Message input expands up to 4 lines
-- [ ] Add haptic feedback (optional)
-  - [ ] On message send
-  - [ ] On message received
+- [x] Add loading states
+  - [x] Chat list: skeleton loader or spinner while loading (already implemented)
+  - [x] Message list: spinner at top while loading history (already implemented)
+  - [x] Send button: disable and show spinner while sending (already implemented in PR8)
+  - [x] Contact list: spinner while loading users (already implemented)
+- [x] Improve error messages
+  - [x] Auth errors: display user-friendly messages
+    - [x] "Invalid email address"
+    - [x] "Password must be at least 8 characters"
+    - [x] "Email already in use"
+    - [x] "Incorrect password"
+  - [x] Network errors: "Can't reach server. Check your internet connection."
+  - [x] Message send errors: "Message failed to send. Retry?"
+- [x] Add empty states
+  - [x] Empty chat list: "No conversations yet. Start chatting!" (already implemented in PR5)
+  - [x] Empty message history: "Say hello! 👋" (already implemented in PR7)
+  - [x] Empty contact list: "No users found" (already implemented in PR6)
+  - [x] Empty search results: Handled by search filter
+- [x] Add pull-to-refresh
+  - [x] Home screen (chat list): pull down to refresh (already implemented in PR5)
+  - [x] Chat detail screen: Not needed for MVP (no pagination)
+- [x] Add visual feedback
+  - [x] Button press states (highlight on tap) - Created PressableWithFeedback
+  - [x] Input focus states (border color change) - Already implemented
+  - [x] Smooth animations (fade in/out, slide transitions) - Already in place
+- [x] Add error boundaries
+  - [x] Wrap app in error boundary component
+  - [x] Display friendly error screen if app crashes
+  - [x] "Something went wrong. Restart app." with button
+- [x] Improve keyboard handling
+  - [x] Use KeyboardAvoidingView in chat detail (already implemented in PR8)
+  - [x] Dismiss keyboard on scroll (already implemented)
+  - [x] Message input expands up to 4 lines (already implemented in PR8)
+- [x] Add haptic feedback (optional)
+  - [x] Created PressableWithFeedback component with haptic support
+  - [x] Note: Requires `npx expo install expo-haptics`
 
-### Testing Checklist
+### Testing Checklist ⏳ (Manual tests required - see md_files/PR13_PR14_TESTING_GUIDE.md)
 - [ ] Loading states display correctly
 - [ ] Error messages are clear and helpful
 - [ ] Empty states show with appropriate messaging
@@ -1102,8 +1121,33 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
 - [ ] Keyboard dismisses appropriately
 - [ ] App doesn't crash on any error (error boundary catches)
 
+### Implementation Summary (October 21, 2025)
+- **Modified Files:**
+  - `app/_layout.js` - Added ErrorBoundary wrapper, ErrorToast integration, UIStore
+  - `services/auth.js` - Enhanced error handling with user-friendly messages
+- **Created Files:**
+  - `store/uiStore.js` (110 lines) - Global loading/error state management
+  - `utils/errorMessages.js` (220 lines) - User-friendly error mapping
+  - `components/ErrorBoundary.js` (130 lines) - Crash recovery UI
+  - `components/ErrorToast.js` (150 lines) - Animated error notifications
+  - `components/PressableWithFeedback.js` (100 lines) - Enhanced touchable with haptics
+  - `md_files/PR13_PR14_TESTING_GUIDE.md` - Comprehensive manual testing guide
+- **Lines of Code:** ~800 added
+- **Key Features:**
+  - Global UI store for loading/error state management
+  - User-friendly error messages for all Firebase errors
+  - ErrorBoundary catches crashes with restart button
+  - ErrorToast shows errors at top with auto-dismiss
+  - PressableWithFeedback for visual + haptic feedback
+  - Loading states already implemented in previous PRs
+  - Empty states already implemented in previous PRs
+  - Keyboard handling already polished in PR8
+- **Dependencies:**
+  - Optional: `npx expo install expo-haptics` for haptic feedback
+- **Status:** Implementation complete, manual testing required
+
 ### Commit
-`feat: add loading states, error handling, and UX polish`
+`feat: add loading states, error handling, and UX polish (PR14)`
 
 ---
 

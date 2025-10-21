@@ -14,6 +14,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../config/firebaseConfig';
 import { createUserProfile, getUserProfile } from './firestore';
+import { getErrorMessage } from '../utils/errorMessages';
 
 // Complete the web browser session
 WebBrowser.maybeCompleteAuthSession();
@@ -92,7 +93,10 @@ export async function signUpWithEmail(email, password, displayName) {
     return userCredential;
   } catch (error) {
     console.error('Error signing up with email:', error);
-    throw error;
+    const friendlyMessage = getErrorMessage(error);
+    const enhancedError = new Error(friendlyMessage);
+    enhancedError.code = error.code;
+    throw enhancedError;
   }
 }
 
@@ -105,7 +109,10 @@ export async function signInWithEmail(email, password) {
     return userCredential;
   } catch (error) {
     console.error('Error signing in with email:', error);
-    throw error;
+    const friendlyMessage = getErrorMessage(error);
+    const enhancedError = new Error(friendlyMessage);
+    enhancedError.code = error.code;
+    throw enhancedError;
   }
 }
 
@@ -117,7 +124,10 @@ export async function sendPasswordReset(email) {
     await firebaseSendPasswordResetEmail(auth, email);
   } catch (error) {
     console.error('Error sending password reset email:', error);
-    throw error;
+    const friendlyMessage = getErrorMessage(error);
+    const enhancedError = new Error(friendlyMessage);
+    enhancedError.code = error.code;
+    throw enhancedError;
   }
 }
 

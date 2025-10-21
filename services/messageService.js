@@ -1,11 +1,12 @@
 // Message Service - Client-side message sending and management
 import uuid from 'react-native-uuid';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../config/firebaseConfig';
 import { insertMessage, updateMessage, updateMessageSyncStatus } from '../db/messageDb';
 import { updateChatLastMessage } from './firestore';
 import useMessageStore from '../store/messageStore';
 import useChatStore from '../store/chatStore';
+import { getCurrentNetworkStatus } from '../utils/networkStatus';
 
 /**
  * Send a message with optimistic UI updates
@@ -21,13 +22,16 @@ export async function sendMessage(chatID, senderID, senderName, text) {
   const messageID = uuid.v4();
   const timestamp = Date.now();
   
+  // Clean text: trim whitespace and remove any trailing newlines
+  const cleanedText = text?.trim() || text;
+  
   // Create message object
   const message = {
     messageID,
     chatID,
     senderID,
     senderName,
-    text,
+    text: cleanedText,
     timestamp,
     deliveryStatus: 'sending',
     readBy: [],
@@ -46,29 +50,41 @@ export async function sendMessage(chatID, senderID, senderName, text) {
     // 2. Update Zustand store (UI updates instantly)
     useMessageStore.getState().addMessage(chatID, message);
     
-    // 3. Async: Write to Firestore
+    // 3. Async: Write to Firestore (only when online)
     try {
-      await writeToFirestore(message);
-      
-      // Success: Update sync status
-      await updateMessageSyncStatus(messageID, 'synced', 0);
-      
-      // Update delivery status to 'sent'
-      await updateMessage(messageID, { deliveryStatus: 'sent' });
-      
-      // Update Zustand store with new status
-      useMessageStore.getState().updateMessage(chatID, messageID, {
-        syncStatus: 'synced',
-        deliveryStatus: 'sent',
-      });
-      
-      console.log(`[MessageService] Message ${messageID} sent successfully`);
+      const networkStatus = await getCurrentNetworkStatus();
+
+      if (!networkStatus.isOnline) {
+        console.log('[MessageService] Device offline, skipping immediate Firestore write');
+        // Ensure message remains pending so queue can process later
+        await updateMessageSyncStatus(messageID, 'pending', 0);
+        useMessageStore.getState().updateMessage(chatID, messageID, {
+          syncStatus: 'pending',
+          deliveryStatus: 'sending',
+        });
+      } else {
+        await writeToFirestore(message);
+
+        // Success: Update sync status
+        await updateMessageSyncStatus(messageID, 'synced', 0);
+
+        // Update delivery status to 'sent'
+        await updateMessage(messageID, { deliveryStatus: 'sent' });
+
+        // Update Zustand store with new status
+        useMessageStore.getState().updateMessage(chatID, messageID, {
+          syncStatus: 'synced',
+          deliveryStatus: 'sent',
+        });
+
+        console.log(`[MessageService] Message ${messageID} sent successfully`);
+      }
     } catch (error) {
       console.error(`[MessageService] Failed to send message ${messageID}:`, error);
-      
+
       // Mark as pending (will be retried by queue processor)
       await updateMessageSyncStatus(messageID, 'pending', 1);
-      
+
       // Update UI to show pending state
       useMessageStore.getState().updateMessage(chatID, messageID, {
         syncStatus: 'pending',
@@ -93,16 +109,21 @@ async function writeToFirestore(message) {
     const messageRef = doc(db, 'chats', message.chatID, 'messages', message.messageID);
     
     // Prepare message data for Firestore
+    const timestampValue = Timestamp.fromMillis(message.timestamp);
+    const createdAtValue = message.createdAt ? Timestamp.fromMillis(message.createdAt) : serverTimestamp();
+
     const firestoreMessage = {
       messageID: message.messageID,
       chatID: message.chatID,
       senderID: message.senderID,
       senderName: message.senderName,
       text: message.text,
-      timestamp: serverTimestamp(), // Use server timestamp for consistency
+      // Preserve original client timestamp using Firestore Timestamp for cross-device ordering
+      timestamp: timestampValue,
       deliveryStatus: 'sent',
       readBy: [],
-      createdAt: serverTimestamp(),
+      createdAt: createdAtValue,
+      clientTimestamp: message.timestamp, // Additional safeguard for ordering/debugging
     };
     
     // Write to Firestore (merge to prevent overwrites if race condition)
@@ -112,7 +133,7 @@ async function writeToFirestore(message) {
     await updateChatLastMessage(
       message.chatID,
       message.text,
-      serverTimestamp(),
+      timestampValue,
       message.senderID
     );
     

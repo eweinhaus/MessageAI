@@ -16,6 +16,7 @@ import { getMessagesForChat, insertMessage, updateMessage } from '../../db/messa
 import { sendMessage } from '../../services/messageService';
 import { Ionicons } from '@expo/vector-icons';
 import { PRIMARY_GREEN } from '../../constants/colors';
+import { registerListener, unregisterListener } from '../../utils/listenerManager';
 
 export default function ChatDetailScreen() {
   const router = useRouter();
@@ -52,6 +53,7 @@ export default function ChatDetailScreen() {
     if (!chatId || !currentUser) return;
 
     let unsubscribe;
+    const listenerId = `chat-messages-${chatId}`;
 
     const setupChat = async () => {
       try {
@@ -124,6 +126,15 @@ export default function ChatDetailScreen() {
             console.error('[ChatDetail] Firestore listener error:', error);
           }
         );
+
+        // Register listener with manager for lifecycle handling
+        if (unsubscribe) {
+          registerListener(listenerId, unsubscribe, {
+            collection: `chats/${chatId}/messages`,
+            setupFn: setupChat, // Store setup function for resume
+          });
+          console.log(`[ChatDetail] Registered listener: ${listenerId}`);
+        }
       } catch (error) {
         console.error('[ChatDetail] Error setting up chat:', error);
         setIsLoading(false);
@@ -134,10 +145,8 @@ export default function ChatDetailScreen() {
 
     // Cleanup: unsubscribe from Firestore listener on unmount
     return () => {
-      if (unsubscribe) {
-        console.log(`[ChatDetail] Cleaning up Firestore listener for chat ${chatId}`);
-        unsubscribe();
-      }
+      console.log(`[ChatDetail] Cleaning up listener for chat ${chatId}`);
+      unregisterListener(listenerId);
     };
   }, [chatId, currentUser]);
 

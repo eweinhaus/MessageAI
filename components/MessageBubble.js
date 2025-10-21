@@ -73,7 +73,12 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
       )}
       
       {/* Message content */}
-      <View style={styles.messageContent}>
+      <View
+        style={[
+          styles.messageContent,
+          isOwn ? styles.messageContentOwn : styles.messageContentOther,
+        ]}
+      >
         {/* Sender name for other users in groups - show on FIRST message */}
         {shouldShowName && (
           <Text style={styles.senderName}>{senderName}</Text>
@@ -85,10 +90,11 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
             styles.bubble,
             isOwn ? styles.bubbleOwn : styles.bubbleOther,
             !isLastInGroup && styles.bubbleInGroup,
+            isOwn ? styles.bubbleAlignOwn : styles.bubbleAlignOther,
           ]}
         >
           <Text style={[styles.messageText, isOwn ? styles.messageTextOwn : styles.messageTextOther]}>
-            {text}
+            {text?.trim() || text}
           </Text>
         </View>
 
@@ -179,6 +185,14 @@ const styles = StyleSheet.create({
   messageContent: {
     maxWidth: '75%',
   },
+  messageContentOwn: {
+    alignSelf: 'flex-end',
+    alignItems: 'flex-end',
+  },
+  messageContentOther: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+  },
   senderName: {
     fontSize: 12,
     fontWeight: '600',
@@ -207,6 +221,12 @@ const styles = StyleSheet.create({
   },
   bubbleInGroup: {
     marginBottom: 1, // Tighter spacing for grouped messages (iMessage-style)
+  },
+  bubbleAlignOwn: {
+    alignSelf: 'flex-end',
+  },
+  bubbleAlignOther: {
+    alignSelf: 'flex-start',
   },
   messageText: {
     fontSize: 16,

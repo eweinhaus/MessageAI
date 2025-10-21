@@ -2,6 +2,43 @@
 import { create } from 'zustand';
 
 /**
+ * Remove trailing whitespace but preserve intentional leading spaces
+ * @param {string} text
+ * @returns {string}
+ */
+function sanitizeMessageText(text) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/\s+$/g, '');
+}
+
+/**
+ * Deduplicate messages by messageID and keep chronological order
+ * @param {Array} messages
+ * @returns {Array}
+ */
+function dedupeMessages(messages = []) {
+  const map = new Map();
+  const withoutId = [];
+
+  messages.forEach((msg) => {
+    if (msg?.messageID) {
+      map.set(msg.messageID, msg);
+    } else if (msg) {
+      withoutId.push(msg);
+    }
+  });
+
+  const deduped = Array.from(map.values());
+  deduped.sort((a, b) => {
+    const aTime = a?.timestamp ?? 0;
+    const bTime = b?.timestamp ?? 0;
+    return aTime - bTime;
+  });
+
+  return [...deduped, ...withoutId];
+}
+
+/**
  * Message Store
  * Manages all message-related state (messages organized by chat)
  */
@@ -34,20 +71,32 @@ const useMessageStore = create((set, get) => ({
     set((state) => {
       const existingMessages = state.messagesByChat[chatID] || [];
       
+      // Normalize message text to prevent trailing whitespace in rendering
+      const normalizedMessage = {
+        ...message,
+        text:
+          typeof message.text === 'string'
+            ? message.text.replace(/\s+$/g, '')
+            : message.text,
+      };
+
       // Check if message already exists (by messageID)
       const existingIndex = existingMessages.findIndex(
-        (m) => m.messageID === message.messageID
+        (m) => m.messageID === normalizedMessage.messageID
       );
       
       if (existingIndex >= 0) {
         // Update existing message
         const updatedMessages = [...existingMessages];
-        updatedMessages[existingIndex] = message;
+        updatedMessages[existingIndex] = {
+          ...existingMessages[existingIndex],
+          ...normalizedMessage,
+        };
         
         return {
           messagesByChat: {
             ...state.messagesByChat,
-            [chatID]: updatedMessages,
+            [chatID]: dedupeMessages(updatedMessages),
           },
         };
       } else {
@@ -55,7 +104,10 @@ const useMessageStore = create((set, get) => ({
         return {
           messagesByChat: {
             ...state.messagesByChat,
-            [chatID]: [...existingMessages, message],
+            [chatID]: dedupeMessages([
+              ...existingMessages,
+              normalizedMessage,
+            ]),
           },
         };
       }

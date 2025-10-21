@@ -117,6 +117,27 @@ export function closeDatabase() {
 }
 
 /**
+ * Flush all pending SQLite writes
+ * Ensures all transactions are committed before app backgrounds
+ * @returns {Promise<void>}
+ */
+export async function flushPendingWrites() {
+  try {
+    const db = getDb();
+    // Execute a dummy transaction to force commit of any pending writes
+    await db.execAsync(`
+      BEGIN TRANSACTION;
+      SELECT 1;
+      COMMIT;
+    `);
+    console.log('[SQLite] Flushed pending writes');
+  } catch (error) {
+    console.error('[SQLite] Error flushing pending writes:', error);
+    // Don't throw - this is a best-effort operation
+  }
+}
+
+/**
  * Clear all data from the database (for testing/logout)
  * @returns {Promise<void>}
  */

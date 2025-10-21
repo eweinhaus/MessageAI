@@ -18,6 +18,7 @@ import useChatStore from '../../store/chatStore';
 import ChatListItem from '../../components/ChatListItem';
 import { getAllChats, insertChat } from '../../db/messageDb';
 import { syncChatsFromFirestore } from '../../utils/syncManager';
+import { registerListener, unregisterListener } from '../../utils/listenerManager';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -51,46 +52,70 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!currentUser) return;
     
-    console.log('[HomeScreen] Setting up Firestore listener...');
+    const listenerId1 = `home-chats-participants-${currentUser.userID}`;
+    const listenerId2 = `home-chats-members-${currentUser.userID}`;
     
-    // Query chats where user is a participant (1:1 chats)
-    const chatsQuery1 = query(
-      collection(db, 'chats'),
-      where('participantIDs', 'array-contains', currentUser.userID)
-    );
+    const setupListeners = () => {
+      console.log('[HomeScreen] Setting up Firestore listeners...');
+      
+      // Query chats where user is a participant (1:1 chats)
+      const chatsQuery1 = query(
+        collection(db, 'chats'),
+        where('participantIDs', 'array-contains', currentUser.userID)
+      );
+      
+      // Query chats where user is a member (group chats)
+      const chatsQuery2 = query(
+        collection(db, 'chats'),
+        where('memberIDs', 'array-contains', currentUser.userID)
+      );
+      
+      // Subscribe to both queries
+      const unsubscribe1 = onSnapshot(
+        chatsQuery1,
+        (snapshot) => {
+          handleSnapshot(snapshot);
+        },
+        (error) => {
+          console.error('[HomeScreen] Firestore listener error (query 1):', error);
+        }
+      );
+      
+      const unsubscribe2 = onSnapshot(
+        chatsQuery2,
+        (snapshot) => {
+          handleSnapshot(snapshot);
+        },
+        (error) => {
+          console.error('[HomeScreen] Firestore listener error (query 2):', error);
+        }
+      );
+      
+      // Register listeners with manager
+      registerListener(listenerId1, unsubscribe1, {
+        collection: 'chats',
+        setupFn: setupListeners,
+      });
+      registerListener(listenerId2, unsubscribe2, {
+        collection: 'chats',
+        setupFn: setupListeners,
+      });
+      
+      console.log('[HomeScreen] Registered both chat listeners');
+      
+      return () => {
+        unsubscribe1();
+        unsubscribe2();
+      };
+    };
     
-    // Query chats where user is a member (group chats)
-    const chatsQuery2 = query(
-      collection(db, 'chats'),
-      where('memberIDs', 'array-contains', currentUser.userID)
-    );
-    
-    // Subscribe to both queries
-    const unsubscribe1 = onSnapshot(
-      chatsQuery1,
-      (snapshot) => {
-        handleSnapshot(snapshot);
-      },
-      (error) => {
-        console.error('[HomeScreen] Firestore listener error (query 1):', error);
-      }
-    );
-    
-    const unsubscribe2 = onSnapshot(
-      chatsQuery2,
-      (snapshot) => {
-        handleSnapshot(snapshot);
-      },
-      (error) => {
-        console.error('[HomeScreen] Firestore listener error (query 2):', error);
-      }
-    );
+    setupListeners();
     
     // Cleanup listeners on unmount
     return () => {
       console.log('[HomeScreen] Cleaning up Firestore listeners');
-      unsubscribe1();
-      unsubscribe2();
+      unregisterListener(listenerId1);
+      unregisterListener(listenerId2);
     };
   }, [currentUser]);
   
