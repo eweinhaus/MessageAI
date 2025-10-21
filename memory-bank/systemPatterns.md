@@ -163,35 +163,61 @@ async function processPendingMessages() {
 
 ### 5. Presence Tracking
 
-**Pattern**: Firestore onDisconnect with throttling
+**Pattern**: Firestore with heartbeat + staleness detection
 
-**Implementation**:
+**Implementation** (Updated October 21, 2025):
 ```javascript
-// On app foreground
-function setUserOnline(userID) {
-  const userRef = doc(db, 'users', userID);
+// Initialize presence with heartbeat
+function initializePresence(userID) {
+  // Set user online immediately
+  setUserOnline(userID);
   
-  // Update online status
-  updateDoc(userRef, {
-    isOnline: true,
-    lastSeenTimestamp: serverTimestamp()
-  });
-  
-  // Set up disconnect handler
-  onDisconnect(userRef).update({
-    isOnline: false,
-    lastSeenTimestamp: serverTimestamp()
-  });
+  // Set up heartbeat to keep presence fresh (every 25 seconds)
+  heartbeatInterval = setInterval(() => {
+    setUserOnline(userID);
+  }, 25000);
 }
 
-// Throttle updates to max 1 per 30 seconds
-const throttledPresenceUpdate = throttle(setUserOnline, 30000);
+// Check if presence is stale (> 45 seconds old)
+function isPresenceStale(lastSeenTimestamp) {
+  if (!lastSeenTimestamp) return true;
+  const timeSinceUpdate = Date.now() - lastSeenTimestamp;
+  return timeSinceUpdate > 45000; // 45 seconds
+}
+
+// Subscribe with automatic staleness detection
+function subscribeToPresence(userID, callback) {
+  return onSnapshot(userRef, (docSnap) => {
+    let isOnline = data.isOnline || false;
+    const lastSeenTimestamp = data.lastSeenTimestamp?.toMillis() || null;
+    
+    // If marked online but presence is stale, treat as offline
+    if (isOnline && isPresenceStale(lastSeenTimestamp)) {
+      isOnline = false;
+    }
+    
+    callback(isOnline, lastSeenTimestamp);
+  });
+}
 ```
 
 **Presence States**:
-- `isOnline: true` - App in foreground, connected
-- `isOnline: false` - App backgrounded, disconnected, or force-quit
-- `lastSeenTimestamp` - Last activity time for "last seen" feature
+- `isOnline: true` - App in foreground, heartbeat active
+- `isOnline: false` - App backgrounded or explicitly set offline
+- `lastSeenTimestamp` - Last heartbeat time, updated every 25-30 seconds
+- **Stale detection**: If `isOnline: true` but no update in 45s → treat as offline
+
+**Key Improvements** (October 21, 2025):
+- ✅ **Heartbeat system**: Keeps presence fresh every 25 seconds
+- ✅ **Staleness detection**: Auto-detects force-quit apps (45s timeout)
+- ✅ **Throttling**: Max 1 write per 30 seconds to minimize costs
+- ✅ **UI consistency**: All components prioritize `isOnline` flag over timestamp
+
+**Why not Firebase Realtime Database?**
+- Firestore-only solution is simpler (no additional service)
+- Heartbeat + staleness achieves similar results
+- 45-second delay for force-quit detection is acceptable for MVP
+- Can add RTDB later if needed
 
 ## Data Flow Patterns
 

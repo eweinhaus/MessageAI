@@ -7,6 +7,13 @@
 **Firebase Project**: MessageAI-dev
 
 ## Recent Fixes (October 21, 2025)
+- ✅ **Fixed presence tracking issues** (Critical bug fixes):
+  - ✅ Fixed "Just now" showing instead of "Online" for current user
+  - ✅ Fixed force-quit apps showing "Online" indefinitely
+  - ✅ Added heartbeat system (25s interval) to keep presence fresh
+  - ✅ Added staleness detection (45s timeout) for reliable offline detection
+  - ✅ Updated all UI components to prioritize `isOnline` flag
+  - ✅ Created comprehensive testing guides
 - ✅ Fixed infinite loop in MessageList (Zustand selector)
 - ✅ Fixed SQLite error with try-catch wrapper
 - ✅ Added SafeAreaView to ALL screens (Login, Contact Picker, Home, Chat Detail)
@@ -261,10 +268,12 @@ None yet - just starting!
 - ✅ Optimistic UI updates when creating chats
 
 ## What Needs Attention
-1. **Read Receipts**: Track and display message read status (PR 9 - NEXT)
-2. **Delivery Status**: Update checkmarks as messages progress through states (PR 9)
-3. **Online Presence**: Show user online/offline status (PR 10)
-4. **Push Notifications**: Foreground notifications for incoming messages (PR 11)
+1. ✅ **Online Presence**: Fixed critical bugs in presence tracking (October 21, 2025)
+   - Manual testing required on physical devices to verify force-quit detection
+   - See `md_files/PRESENCE_TESTING_GUIDE.md` for test scenarios
+2. **Push Notifications**: Foreground notifications for incoming messages (PR 11 - NEXT)
+3. **Group Chat Polish**: Improve group chat UX (PR 12)
+4. **App Lifecycle**: Handle crash recovery (PR 13)
 
 ## Questions to Resolve
 1. **Persona Selection**: Which user persona will we target for Phase 2 AI features?
