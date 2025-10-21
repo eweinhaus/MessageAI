@@ -32,6 +32,8 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
     senderName,
     senderID,
     deliveryStatus,
+    syncStatus,
+    readBy = [],
   } = message;
 
   // Validate and normalize timestamp
@@ -84,10 +86,11 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
             <Text
               style={[
                 styles.deliveryStatus,
-                deliveryStatus === 'failed' && styles.deliveryStatusFailed
+                deliveryStatus === 'failed' && styles.deliveryStatusFailed,
+                (deliveryStatus === 'read' || readBy.length > 0) && styles.deliveryStatusRead,
               ]}
             >
-              {getDeliveryStatusIcon(deliveryStatus)}
+              {getStatusText({ deliveryStatus, isRead: readBy.length > 0, syncStatus })}
             </Text>
           )}
         </View>
@@ -106,22 +109,26 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
 }
 
 /**
- * Get delivery status icon/text
- * @param {string} status - Delivery status
- * @returns {string} Icon or text representation
+ * Get status text considering syncStatus and read state
+ * @param {{ deliveryStatus: string, isRead: boolean, syncStatus?: string }} params
+ * @returns {string}
  */
-function getDeliveryStatusIcon(status) {
-  switch (status) {
+function getStatusText({ deliveryStatus, isRead, syncStatus }) {
+  // If read, always show Read
+  if (isRead || deliveryStatus === 'read') return 'Read';
+
+  // While not synced yet, prefer Showing Sending
+  if (syncStatus && syncStatus !== 'synced') return 'Sending';
+
+  switch (deliveryStatus) {
     case 'sending':
-      return '○'; // Circle (sending)
+      return 'Sending';
     case 'sent':
-      return '✓'; // Single check (sent)
+      return 'Sent';
     case 'delivered':
-      return '✓✓'; // Double check (delivered)
-    case 'read':
-      return '✓✓'; // Double check - will be blue in PR 9
+      return 'Delivered';
     case 'failed':
-      return '⚠'; // Warning symbol
+      return 'Failed';
     default:
       return '';
   }
@@ -201,11 +208,16 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   deliveryStatus: {
-    fontSize: 11,
+    fontSize: 10,
     color: TIMESTAMP_COLOR,
+    fontWeight: '500',
   },
   deliveryStatusFailed: {
     color: ERROR_COLOR || '#d32f2f',
+  },
+  deliveryStatusRead: {
+    color: '#2196F3', // Blue for read messages (PR9)
+    fontWeight: '600',
   },
   retryContainer: {
     alignItems: 'flex-end',

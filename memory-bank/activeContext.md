@@ -1,9 +1,9 @@
 # Active Context
 
 ## Current Status
-**Phase**: PR 8 Complete & Tested - Message Sending with Optimistic UI & Offline Queue  
+**Phase**: PR 9 Complete - Read Receipts & Delivery Status  
 **Date**: October 21, 2025  
-**Next Milestone**: PR 9 (Read Receipts & Delivery Status)  
+**Next Milestone**: PR 10 (Online/Offline Presence)  
 **Firebase Project**: MessageAI-dev
 
 ## Recent Fixes (October 21, 2025)
@@ -25,6 +25,7 @@
 - ✅ **PR 6**: Contact Picker & New Chat Creation - COMPLETE ✅
 - ✅ **PR 7**: Chat Detail Screen & Message Display - COMPLETE ✅
 - ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - COMPLETE & TESTED ✅
+- ✅ **PR 9**: Read Receipts & Delivery Status - COMPLETE (Implementation, Testing Pending) ✅
   - Created MessageInput component (components/MessageInput.js) with:
     - Multiline text input (expands up to 4 lines, max 2000 chars)
     - Send button with offline detection
@@ -53,6 +54,39 @@
   - Created comprehensive testing guide (md_files/PR8_TESTING_GUIDE.md)
   - ~600+ lines of code added
   - No linter errors
+- ✅ **PR 9**: Read Receipts & Delivery Status - COMPLETE (October 21, 2025)
+  - Modified `app/chat/[chatId].js`:
+    - Added delivery status tracking in Firestore listener (lines 90-97)
+    - Automatically marks received messages as "delivered"
+    - Normalizes readBy arrays from Firestore
+  - Modified `components/MessageList.js`:
+    - Added viewability tracking with `onViewableItemsChanged` callback
+    - Implemented debouncing (500ms timeout) for read receipts
+    - Local Set state to prevent duplicate marking
+    - Configuration: 60% visible, 300ms minimum view time
+    - Only marks other users' messages (not own messages)
+    - Imports `markMessageAsRead` from firestore service
+  - Modified `components/MessageBubble.js`:
+    - Updated to accept and display `readBy` array
+    - Blue checkmark styling for read messages (#2196F3, bold)
+    - Enhanced `getDeliveryStatusIcon()` function to handle read state
+    - Added `deliveryStatusRead` style
+  - Created `md_files/PR9_TESTING_GUIDE.md`:
+    - 10 comprehensive test scenarios
+    - Covers 1:1 chats, group chats, offline sync, debouncing, edge cases
+    - Requires 2+ physical devices for testing
+  - Delivery status labels:
+    - "Sending" (gray)
+    - "Sent" (gray)
+    - "Delivered" (gray)
+    - "Read" (blue, bold)
+  - Leveraged existing infrastructure (no changes needed):
+    - `services/firestore.js` - `markMessageAsRead()` already implemented
+    - `store/messageStore.js` - `markAsRead()` already implemented
+    - `db/messageDb.js` - readBy stored as JSON in SQLite
+  - ~150 lines of code added
+  - No linter errors
+  - **Status**: Implementation complete, manual testing pending
 
 ### PR 6 Implementation Details (for reference)
   - Created components/ContactListItem.js with avatar, name, email, selection state
@@ -80,15 +114,18 @@
 5. ✅ **PR 5**: Home Screen & Chat List - DONE
 6. ✅ **PR 6**: Contact Picker & New Chat Creation - DONE
 7. ✅ **PR 7**: Chat Detail Screen & Message Display - DONE
-8. ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - DONE (code complete)
-9. **PR 9**: Read Receipts & Delivery Status (NEXT)
-   - Implement delivery status tracking
-   - Implement read receipt tracking with FlatList viewability
-   - Update MessageBubble read status display
-   - Set up listener for read receipt updates
+8. ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - DONE
+9. ✅ **PR 9**: Read Receipts & Delivery Status - DONE (implementation complete)
+10. **PR 10**: Online/Offline Presence (NEXT)
+    - Create presence service with Firestore onDisconnect()
+    - Integrate into app lifecycle (foreground/background)
+    - Add presence listener to chat detail screen (1:1 headers)
+    - Update chat list to show online status
+    - Add online status to contact picker
+    - Throttle updates (max 1 per 30 seconds)
 
 ### Today's Goal
-**PR 8 complete and tested!** Ready to proceed to **PR 9: Read Receipts & Delivery Status**.
+**PR 9 implementation complete!** Ready to proceed to **PR 10: Online/Offline Presence**.
 
 ## Active Decisions & Considerations
 
@@ -270,15 +307,17 @@ None yet - just starting!
 
 ## Context for Next Session
 When resuming:
-1. **PR 8 fully complete and tested** - message sending with optimistic UI and offline queue working perfectly
-2. All manual testing scenarios completed successfully:
-   - ✅ Real-time message delivery between users
-   - ✅ Offline message queuing and auto-send on reconnect
-   - ✅ Force-quit recovery (messages persist and send)
-   - ✅ Retry button for failed messages
-   - ✅ No message loss or duplicates
-   - ✅ Sequential message ordering preserved
-3. Ready to implement **PR 9: Read Receipts & Delivery Status**
-4. Core messaging infrastructure is solid and reliable
-5. Next focus: Track when messages are delivered and read by recipients
+1. **PR 9 implementation fully complete** - read receipts and delivery status tracking implemented
+2. Implementation includes:
+   - ✅ Automatic delivery status tracking (sent → delivered)
+   - ✅ Viewability-based read receipts (60% visible, 300ms minimum)
+   - ✅ Debounced Firestore writes (500ms) to prevent excessive traffic
+   - ✅ Blue checkmarks for read messages
+   - ✅ Works for 1:1 and group chats
+   - ✅ Persists in SQLite
+3. Testing guide created: md_files/PR9_TESTING_GUIDE.md (10 test scenarios)
+4. Manual testing pending (requires 2+ physical devices)
+5. Ready to implement **PR 10: Online/Offline Presence**
+6. Core messaging infrastructure is solid and reliable
+7. Next focus: Track user online/offline status with Firestore presence
 

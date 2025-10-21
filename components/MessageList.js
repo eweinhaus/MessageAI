@@ -1,9 +1,10 @@
 // MessageList Component - Scrollable list of messages
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import MessageBubble from './MessageBubble';
 import useMessageStore from '../store/messageStore';
 import useUserStore from '../store/userStore';
+import { markMessageAsRead } from '../services/firestore';
 import { BACKGROUND_CHAT, TEXT_SECONDARY } from '../constants/colors';
 
 /**
@@ -35,6 +36,9 @@ export default function MessageList({
     }
   ) || [];
   const currentUser = useUserStore((state) => state.currentUser);
+  
+  // Track which messages have been marked as read to avoid duplicate writes
+  const [markedAsRead, setMarkedAsRead] = useState(new Set());
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -123,6 +127,58 @@ export default function MessageList({
   };
 
   /**
+   * Handle viewable items changed - mark messages as read (PR9)
+   * Debounced to prevent excessive Firestore writes
+   */
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }) => {
+      if (!currentUser?.userID || !chatID) return;
+
+      viewableItems.forEach(({ item }) => {
+        const message = item;
+        
+        // Only mark messages from other users as read
+        if (message.senderID === currentUser.userID) return;
+        
+        // Check if already marked as read by current user
+        const readBy = message.readBy || [];
+        if (readBy.includes(currentUser.userID)) return;
+        
+        // Check if we've already queued this message (debounce)
+        if (markedAsRead.has(message.messageID)) return;
+        
+        // Mark locally to prevent duplicate writes
+        setMarkedAsRead((prev) => new Set([...prev, message.messageID]));
+        
+        // Mark as read in Firestore (with debounce)
+        setTimeout(async () => {
+          try {
+            console.log(`[MessageList] Marking message ${message.messageID} as read`);
+            await markMessageAsRead(chatID, message.messageID, currentUser.userID);
+          } catch (error) {
+            console.error('[MessageList] Error marking message as read:', error);
+            // Remove from local set on error so it can be retried
+            setMarkedAsRead((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(message.messageID);
+              return newSet;
+            });
+          }
+        }, 500); // 500ms debounce
+      });
+    },
+    [currentUser, chatID, markedAsRead]
+  );
+
+  /**
+   * Viewability config - message must be 60% visible to be considered "read"
+   */
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 60,
+    minimumViewTime: 300, // Must be visible for 300ms
+  }).current;
+
+  /**
    * Key extractor for FlatList
    */
   const keyExtractor = (item) => item.messageID;
@@ -156,6 +212,9 @@ export default function MessageList({
       updateCellsBatchingPeriod={50}
       initialNumToRender={20}
       windowSize={21}
+      // PR9: Viewability tracking for read receipts
+      onViewableItemsChanged={onViewableItemsChanged}
+      viewabilityConfig={viewabilityConfig}
       // Note: getItemLayout commented out for now as message heights vary
       // Will optimize in future if needed
       // getItemLayout={getItemLayout}

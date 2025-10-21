@@ -4,7 +4,7 @@ import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } fr
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebaseConfig';
 import useChatStore from '../../store/chatStore';
 import useMessageStore from '../../store/messageStore';
@@ -77,17 +77,37 @@ export default function ChatDetailScreen() {
               };
 
               if (change.type === 'added' || change.type === 'modified') {
+                // Normalize Firestore Timestamp to milliseconds if needed
+                const normalized = {
+                  ...messageData,
+                  timestamp:
+                    messageData?.timestamp?.toMillis?.() ?? messageData?.timestamp ?? Date.now(),
+                  createdAt:
+                    messageData?.createdAt?.toMillis?.() ?? messageData?.createdAt ?? Date.now(),
+                  readBy: messageData?.readBy || [],
+                };
+
+                // DELIVERY STATUS TRACKING (PR9)
+                // If this is someone else's message and it was just added or modified, mark as delivered
+                if ((change.type === 'added' || change.type === 'modified') && normalized.senderID !== currentUser?.userID) {
+                  // Update delivery status to 'delivered' for received messages
+                  if (normalized.deliveryStatus === 'sent') {
+                    console.log(`[ChatDetail] Marking message ${normalized.messageID} as delivered`);
+                    normalized.deliveryStatus = 'delivered';
+                    
+                    // Write back to Firestore so sender can see delivered status
+                    try {
+                      const messageRef = doc(db, `chats/${chatId}/messages`, normalized.messageID);
+                      await updateDoc(messageRef, { deliveryStatus: 'delivered' });
+                    } catch (error) {
+                      console.error('[ChatDetail] Error updating delivery status in Firestore:', error);
+                      // Continue anyway - will be delivered locally
+                    }
+                  }
+                }
+
                 // Write to SQLite (wrapped in try-catch to prevent crashes)
                 try {
-                  // Normalize Firestore Timestamp to milliseconds if needed
-                  const normalized = {
-                    ...messageData,
-                    timestamp:
-                      messageData?.timestamp?.toMillis?.() ?? messageData?.timestamp ?? Date.now(),
-                    createdAt:
-                      messageData?.createdAt?.toMillis?.() ?? messageData?.createdAt ?? Date.now(),
-                  };
-
                   await insertMessage({ ...normalized, syncStatus: 'synced' });
                 } catch (error) {
                   console.error('[ChatDetail] Error inserting message to SQLite:', error);
@@ -95,11 +115,7 @@ export default function ChatDetailScreen() {
                 }
 
                 // Update Zustand store (UI updates automatically)
-                addMessage(chatId, {
-                  ...messageData,
-                  timestamp:
-                    messageData?.timestamp?.toMillis?.() ?? messageData?.timestamp ?? Date.now(),
-                });
+                addMessage(chatId, normalized);
               }
             }
           },
