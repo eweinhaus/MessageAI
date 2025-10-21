@@ -1,6 +1,6 @@
 // Root Layout - Handles authentication flow and navigation
-import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, ActivityIndicator, StyleSheet, Text, AppState } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import useUserStore from '../store/userStore';
@@ -11,6 +11,7 @@ import { getAllChats } from '../db/messageDb';
 import { performFullSync } from '../utils/syncManager';
 import { addNetworkListener } from '../utils/networkStatus';
 import { processPendingMessages } from '../utils/offlineQueue';
+import { setUserOnline, setUserOffline } from '../services/presenceService';
 
 export default function RootLayout() {
   const { isAuthenticated, isLoading, initialize, currentUser } = useUserStore();
@@ -19,6 +20,7 @@ export default function RootLayout() {
   const router = useRouter();
   const [dbInitialized, setDbInitialized] = useState(false);
   const [dbError, setDbError] = useState(null);
+  const appState = useRef(AppState.currentState);
 
   // Initialize database on app startup (before anything else)
   useEffect(() => {
@@ -99,6 +101,36 @@ export default function RootLayout() {
 
     return cleanup;
   }, [isAuthenticated, currentUser, dbInitialized]);
+
+  // Set up presence tracking - update when app goes to foreground/background
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+
+    // Set user online when authenticated
+    setUserOnline(currentUser.userID);
+    console.log('[App] User set to online');
+
+    // Listen for app state changes
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        // App has come to the foreground
+        console.log('[App] App foregrounded, setting user online');
+        await setUserOnline(currentUser.userID);
+      } else if (appState.current === 'active' && nextAppState.match(/inactive|background/)) {
+        // App has gone to the background
+        console.log('[App] App backgrounded, setting user offline');
+        await setUserOffline(currentUser.userID);
+      }
+      appState.current = nextAppState;
+    });
+
+    // Set user offline when component unmounts
+    return () => {
+      console.log('[App] Cleaning up presence tracking');
+      setUserOffline(currentUser.userID);
+      subscription.remove();
+    };
+  }, [isAuthenticated, currentUser]);
 
   // Handle navigation based on auth state
   useEffect(() => {

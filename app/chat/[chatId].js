@@ -11,6 +11,7 @@ import useMessageStore from '../../store/messageStore';
 import useUserStore from '../../store/userStore';
 import MessageList from '../../components/MessageList';
 import MessageInput from '../../components/MessageInput';
+import ChatHeader from '../../components/ChatHeader';
 import { getMessagesForChat, insertMessage, updateMessage } from '../../db/messageDb';
 import { sendMessage } from '../../services/messageService';
 import { Ionicons } from '@expo/vector-icons';
@@ -140,9 +141,15 @@ export default function ChatDetailScreen() {
     };
   }, [chatId, currentUser]);
 
-  // Navigate to member list for groups
+  // Navigate to member list
   const handleHeaderPress = () => {
+    // For groups, navigate to member list
+    // For 1:1, could navigate to user profile (future feature)
     if (isGroup) {
+      router.push(`/chat/members/${chatId}`);
+    } else {
+      // For 1:1 chats, could open user profile
+      // For now, just navigate to member list as well
       router.push(`/chat/members/${chatId}`);
     }
   };
@@ -167,34 +174,28 @@ export default function ChatDetailScreen() {
     <>
       <Stack.Screen
         options={{
-          title: chatName,
-          headerStyle: {
-            backgroundColor: PRIMARY_GREEN,
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: '600',
-          },
-          // For groups, make header tappable to view members
-          headerRight: isGroup ? () => (
-            <TouchableOpacity onPress={handleHeaderPress}>
-              <Ionicons name="people-outline" size={24} color="#fff" style={{ marginRight: 8 }} />
-            </TouchableOpacity>
-          ) : null,
+          headerShown: false, // Hide default header, use custom ChatHeader
         }}
       />
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        {/* Custom Header */}
+        <ChatHeader
+          chat={chat}
+          currentUserID={currentUser?.userID}
+          onPress={handleHeaderPress}
+        />
+        
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+          keyboardVerticalOffset={0}
         >
           <View style={styles.container}>
             <MessageList
               chatID={chatId}
               isGroup={isGroup}
               isLoading={isLoading}
-              topInset={topInset}
+              topInset={0}
               bottomInset={bottomInset}
             />
             <MessageInput

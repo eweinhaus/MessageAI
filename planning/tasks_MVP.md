@@ -533,18 +533,18 @@
 - [x] Create constants/colors.js with consistent color palette
 
 ### Testing Checklist
-- [ ] Chat detail screen loads for 1:1 chat
-- [ ] Chat detail screen loads for group chat
-- [ ] Messages display in correct order (oldest to newest)
-- [ ] Own messages align right with blue bubble
-- [ ] Other messages align left with gray bubble
-- [ ] In groups, sender name and avatar show correctly
-- [ ] Message grouping works (consecutive messages from same sender)
-- [ ] Online status shows in header (1:1)
-- [ ] Member count shows in header (groups)
-- [ ] Tap group header navigates to member list
-- [ ] Member list displays all members
-- [ ] Empty state shows when no messages
+- [x] Chat detail screen loads for 1:1 chat
+- [x] Chat detail screen loads for group chat
+- [x] Messages display in correct order (oldest to newest)
+- [x] Own messages align right with blue bubble
+- [x] Other messages align left with gray bubble
+- [x] In groups, sender name and avatar show correctly
+- [x] Message grouping works (consecutive messages from same sender)
+- [x] Online status shows in header (1:1) ✨ NEW: Custom ChatHeader implemented
+- [x] Member count shows in header (groups) ✨ NEW: Shows member count and group icon
+- [x] Tap group header navigates to member list ✨ NEW: Header fully tappable
+- [x] Member list displays all members
+- [x] Empty state shows when no messages
 
 ### Commit
 `feat: implement chat detail screen with message display and real-time sync`

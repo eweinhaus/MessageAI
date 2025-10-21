@@ -1,0 +1,210 @@
+// ChatHeader Component - Custom Header for Chat Screens
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import Avatar from './Avatar';
+import { PRIMARY_GREEN, STATUS_ONLINE, TEXT_SECONDARY } from '../constants/colors';
+import { usePresence } from '../hooks/usePresence';
+
+/**
+ * ChatHeader Component
+ * Custom header for chat screens that displays:
+ * - 1:1 chats: Avatar, name, online status
+ * - Group chats: Group icon, name, member count
+ * 
+ * Tappable to navigate to member list
+ * 
+ * @param {Object} props
+ * @param {Object} props.chat - Chat object from store
+ * @param {string} props.currentUserID - Current user's ID
+ * @param {Function} props.onPress - Callback when header is tapped
+ */
+export default function ChatHeader({ chat, currentUserID, onPress }) {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  
+  // Determine if it's a group chat
+  const isGroup = chat?.type === 'group';
+  
+  // For 1:1 chats, get the other user's info
+  let otherUserID = null;
+  let displayName = 'Chat';
+  let memberCount = 0;
+  
+  if (!chat) {
+    return null;
+  }
+  
+  if (isGroup) {
+    displayName = chat.groupName || 'Group Chat';
+    memberCount = chat.memberIDs?.length || 0;
+  } else {
+    // 1:1 chat
+    const otherUserIndex = chat.participantIDs?.[0] === currentUserID ? 1 : 0;
+    otherUserID = chat.participantIDs?.[otherUserIndex];
+    displayName = chat.participantNames?.[otherUserIndex] || 'Chat';
+  }
+  
+  // Get presence data for 1:1 chats
+  const { isOnline, lastSeen } = usePresence(isGroup ? null : otherUserID);
+  
+  // Format last seen time
+  const getLastSeenText = () => {
+    if (isOnline) return 'Online';
+    if (!lastSeen) return 'Offline';
+    
+    const now = Date.now();
+    const diff = now - lastSeen;
+    
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return 'Offline';
+  };
+  
+  const handleBackPress = () => {
+    router.back();
+  };
+  
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.content}>
+        {/* Back button */}
+        <TouchableOpacity
+          onPress={handleBackPress}
+          style={styles.backButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
+            size={28}
+            color="#fff"
+          />
+        </TouchableOpacity>
+        
+        {/* Header content - tappable */}
+        <TouchableOpacity
+          style={styles.headerContent}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          {/* Avatar or Group Icon */}
+          <View style={styles.avatarContainer}>
+            {isGroup ? (
+              <View style={styles.groupIcon}>
+                <Ionicons name="people" size={24} color="#fff" />
+              </View>
+            ) : (
+              <>
+                <Avatar
+                  displayName={displayName}
+                  userID={otherUserID}
+                  size={36}
+                />
+                {/* Online status indicator */}
+                {isOnline && (
+                  <View style={styles.onlineIndicator} />
+                )}
+              </>
+            )}
+          </View>
+          
+          {/* Name and status/count */}
+          <View style={styles.textContainer}>
+            <Text style={styles.name} numberOfLines={1}>
+              {displayName}
+            </Text>
+            <Text style={styles.status} numberOfLines={1}>
+              {isGroup ? `${memberCount} members` : getLastSeenText()}
+            </Text>
+          </View>
+        </TouchableOpacity>
+        
+        {/* Right action - Info button */}
+        <TouchableOpacity
+          onPress={onPress}
+          style={styles.infoButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons
+            name={isGroup ? 'people-outline' : 'information-circle-outline'}
+            size={26}
+            color="#fff"
+          />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: PRIMARY_GREEN,
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    minHeight: 56,
+  },
+  backButton: {
+    padding: 4,
+    marginRight: 4,
+  },
+  headerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44, // Minimum touch target
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  groupIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: STATUS_ONLINE,
+    borderWidth: 2,
+    borderColor: PRIMARY_GREEN,
+  },
+  textContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  name: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  status: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.85)',
+  },
+  infoButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+});
+
