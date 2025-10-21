@@ -6,12 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import useUserStore from '../store/userStore';
 import useChatStore from '../store/chatStore';
 import OfflineBanner from '../components/OfflineBanner';
+import NotificationBanner from '../components/NotificationBanner';
 import { initDatabase } from '../db/database';
 import { getAllChats } from '../db/messageDb';
 import { performFullSync } from '../utils/syncManager';
 import { addNetworkListener } from '../utils/networkStatus';
 import { processPendingMessages } from '../utils/offlineQueue';
 import { setUserOnline, setUserOffline } from '../services/presenceService';
+import { initializeNotifications } from '../services/notificationService';
 
 export default function RootLayout() {
   const { isAuthenticated, isLoading, initialize, currentUser } = useUserStore();
@@ -21,6 +23,16 @@ export default function RootLayout() {
   const [dbInitialized, setDbInitialized] = useState(false);
   const [dbError, setDbError] = useState(null);
   const appState = useRef(AppState.currentState);
+  const notificationListeners = useRef(null);
+  
+  // Notification banner state
+  const [notificationVisible, setNotificationVisible] = useState(false);
+  const [notificationData, setNotificationData] = useState({
+    senderName: '',
+    messageText: '',
+    senderID: '',
+    chatID: '',
+  });
 
   // Initialize database on app startup (before anything else)
   useEffect(() => {
@@ -132,6 +144,66 @@ export default function RootLayout() {
     };
   }, [isAuthenticated, currentUser]);
 
+  // Initialize push notifications
+  useEffect(() => {
+    if (!isAuthenticated || !currentUser) return;
+
+    async function setupNotifications() {
+      console.log('[App] Initializing push notifications...');
+
+      // Callbacks for notification events
+      const onNotificationReceived = (notification) => {
+        console.log('[App] Notification received:', notification);
+        
+        // Extract data from notification
+        const { title, body, data } = notification;
+        const { chatID, senderID } = data || {};
+        
+        // Show in-app notification banner
+        setNotificationData({
+          senderName: title || 'New Message',
+          messageText: body || '',
+          senderID: senderID || 'unknown',
+          chatID: chatID || '',
+        });
+        setNotificationVisible(true);
+      };
+
+      const onNotificationTapped = (data) => {
+        console.log('[App] Notification tapped:', data);
+        
+        // Navigate to chat if chatID is present
+        if (data.chatID) {
+          router.push(`/chat/${data.chatID}`);
+        }
+      };
+
+      // Initialize notifications
+      try {
+        const listeners = await initializeNotifications(
+          currentUser.userID,
+          onNotificationReceived,
+          onNotificationTapped
+        );
+        notificationListeners.current = listeners;
+        console.log('[App] Push notifications initialized successfully');
+      } catch (error) {
+        console.error('[App] Error initializing push notifications:', error);
+      }
+    }
+
+    setupNotifications();
+
+    // Cleanup listeners on unmount
+    return () => {
+      if (notificationListeners.current) {
+        console.log('[App] Cleaning up notification listeners');
+        notificationListeners.current.removeListeners();
+        notificationListeners.current = null;
+      }
+    };
+  }, [isAuthenticated, currentUser]);
+
   // Handle navigation based on auth state
   useEffect(() => {
     if (isLoading) {
@@ -168,6 +240,19 @@ export default function RootLayout() {
     );
   }
 
+  // Handle notification banner dismiss
+  const handleNotificationDismiss = () => {
+    setNotificationVisible(false);
+  };
+
+  // Handle notification banner tap
+  const handleNotificationTap = (chatID) => {
+    setNotificationVisible(false);
+    if (chatID) {
+      router.push(`/chat/${chatID}`);
+    }
+  };
+
   return (
     <>
       <StatusBar style="auto" />
@@ -182,6 +267,15 @@ export default function RootLayout() {
         <Stack.Screen name="contacts" options={{ headerShown: false }} />
       </Stack>
       <OfflineBanner />
+      <NotificationBanner
+        visible={notificationVisible}
+        senderName={notificationData.senderName}
+        messageText={notificationData.messageText}
+        senderID={notificationData.senderID}
+        chatID={notificationData.chatID}
+        onDismiss={handleNotificationDismiss}
+        onTap={handleNotificationTap}
+      />
     </>
   );
 }

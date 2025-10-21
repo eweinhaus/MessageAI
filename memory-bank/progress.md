@@ -1,9 +1,9 @@
 # Progress Tracker
 
 ## Current Status
-**Project Phase**: PR 9 Complete - Read Receipts & Delivery Status (Testing Pending)  
+**Project Phase**: PR 11 Complete - Foreground Push Notifications (Deployment & Testing Pending)  
 **Last Updated**: October 21, 2025  
-**Overall Completion**: 60% (PR 9/15)
+**Overall Completion**: 73% (PR 11/15)
 
 ## What's Working ✅
 - Expo project runs on physical device (Expo Go)
@@ -120,14 +120,15 @@
 None currently. PR 9 implementation complete. Requires manual testing on physical devices.
 
 ## Next Milestone
-**Target**: Complete PR 10 (Online/Offline Presence)  
+**Target**: Complete PR 12 (Basic Group Chat Polish)  
 **ETA**: October 22, 2025  
 **Success Criteria**:
-- User presence tracked on app foreground/background
-- Online status shows in chat headers (1:1)
-- Online status shows in contact picker
-- Presence updates within 5 seconds
-- Uses Firestore onDisconnect() handlers
+- Group messages display with proper sender attribution
+- Group member list shows all members with online status
+- Group chat header shows member count
+- Tap header navigates to member list
+- Consecutive messages from same sender group properly
+- All group chat scenarios tested
 
 ## MVP Completion Checklist
 
@@ -141,8 +142,8 @@ None currently. PR 9 implementation complete. Requires manual testing on physica
 - [x] Messages sync in real-time (Chat list tested in PR 5, Messages in PR 7)
 - [x] Offline messages queue and send when online (PR 8 - TESTED ✅)
 - [x] Read receipts work (PR 9 - implementation complete, testing pending)
-- [ ] Online/offline status displays correctly (PR 10)
-- [ ] Foreground push notifications work (PR 11)
+- [x] Online/offline status displays correctly (PR 10 - service implemented)
+- [x] Foreground push notifications work (PR 11 - implementation complete, deployment & testing pending)
 - [x] No message loss across 100+ test messages (PR 8 - TESTED ✅)
 - [x] App handles force-quit gracefully (PR 8 - TESTED ✅)
 - [x] App handles network transitions (PR 8 - TESTED ✅)
@@ -220,6 +221,16 @@ None currently. PR 9 implementation complete. Requires manual testing on physica
   - Target: > 90%
 
 ## Recent Changes
+- October 21, 2025: PR11 - Foreground push notifications implemented
+  - Created Cloud Functions infrastructure (functions/ directory with package.json, dependencies)
+  - Implemented onMessageCreated Cloud Function trigger
+  - Created notification service (services/notificationService.js) with permission handling and FCM token management
+  - Created NotificationBanner component with animations and auto-dismiss
+  - Integrated notifications into root layout with listener management
+  - Created comprehensive documentation (DEPLOYMENT_GUIDE.md, PR11_TESTING_GUIDE.md)
+  - ~700+ lines of code added
+  - Ready for deployment: `firebase deploy --only functions`
+  - Requires physical devices for testing (notifications don't work in simulators)
 - October 21, 2025: PR9 - Read receipts and delivery status tracking implemented
   - Modified app/chat/[chatId].js: Added delivery status tracking in Firestore listener
   - Modified components/MessageList.js: Added viewability tracking with debouncing (500ms)
@@ -307,6 +318,19 @@ None currently. PR 9 implementation complete. Requires manual testing on physica
 3. **Demo recording approach?** (Split-screen or sequential?)
 
 ## Notes for Next Session
+- **PR 11 implementation complete!** 🎉
+- Push notification infrastructure fully implemented:
+  - Cloud Functions ready for deployment
+  - Client-side notification service integrated
+  - In-app notification banner with animations
+  - FCM token management
+  - Foreground notification handling
+- **Next steps:**
+  1. Deploy Cloud Functions: `firebase deploy --only functions`
+  2. Test with 2+ physical devices (see md_files/PR11_TESTING_GUIDE.md)
+  3. Verify Cloud Function execution in Firebase Console logs
+  4. Check FCM token storage in Firestore
+  5. Test all 12 scenarios from testing guide
 - **PR 9 implementation complete!** 🎉
 - Read receipts and delivery status tracking working:
   - Automatic delivery status tracking (sent → delivered)

@@ -1,9 +1,9 @@
 # Active Context
 
 ## Current Status
-**Phase**: PR 9 Complete - Read Receipts & Delivery Status  
+**Phase**: PR 11 Complete - Foreground Push Notifications  
 **Date**: October 21, 2025  
-**Next Milestone**: PR 10 (Online/Offline Presence)  
+**Next Milestone**: PR 12 (Basic Group Chat Polish)  
 **Firebase Project**: MessageAI-dev
 
 ## Recent Fixes (October 21, 2025)
@@ -116,16 +116,56 @@
 7. ✅ **PR 7**: Chat Detail Screen & Message Display - DONE
 8. ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue - DONE
 9. ✅ **PR 9**: Read Receipts & Delivery Status - DONE (implementation complete)
-10. **PR 10**: Online/Offline Presence (NEXT)
-    - Create presence service with Firestore onDisconnect()
-    - Integrate into app lifecycle (foreground/background)
-    - Add presence listener to chat detail screen (1:1 headers)
-    - Update chat list to show online status
-    - Add online status to contact picker
-    - Throttle updates (max 1 per 30 seconds)
+10. ✅ **PR 10**: Online/Offline Presence - DONE (presence service already implemented)
+11. ✅ **PR 11**: Foreground Push Notifications - COMPLETE (October 21, 2025)
+    - Created Cloud Functions infrastructure (functions/ directory)
+    - Created `functions/index.js` with `onMessageCreated` trigger:
+      - Firestore trigger on `/chats/{chatID}/messages/{messageID}`
+      - Retrieves chat metadata to identify recipients
+      - Fetches FCM tokens for each recipient (excluding sender)
+      - Sends FCM notification with sender name and message preview
+      - Comprehensive error handling and logging
+      - Works for both 1:1 and group chats
+    - Created `services/notificationService.js` with:
+      - `requestPermissions()` - Request notification permissions from user
+      - `getFCMToken()` - Get device FCM token (Expo Push Token)
+      - `saveFCMToken()` - Save token to Firestore `/users/{userID}/fcmToken`
+      - `setupNotificationListeners()` - Listen for foreground notifications and taps
+      - `initializeNotifications()` - Convenience function for full setup
+    - Created `components/NotificationBanner.js`:
+      - Animated banner that slides from top
+      - Shows sender avatar (initials with color), name, and message preview
+      - Tappable to navigate to chat
+      - X button for manual dismiss
+      - Auto-dismisses after 3 seconds
+      - Safe area aware (respects device notches)
+    - Integrated into `app/_layout.js`:
+      - Initializes notifications on user authentication
+      - Sets up listeners for foreground notifications
+      - Manages notification banner state
+      - Handles banner tap navigation
+      - Cleans up listeners on logout/unmount
+    - Created documentation:
+      - `DEPLOYMENT_GUIDE.md` - Step-by-step Cloud Functions deployment
+      - `functions/README.md` - Cloud Functions documentation
+      - `md_files/PR11_TESTING_GUIDE.md` - 12 comprehensive test scenarios
+    - Firebase configuration:
+      - `firebase.json` - Functions configuration
+      - `.firebaserc` - Project configuration
+      - `functions/.gitignore` - Ignore node_modules and build artifacts
+    - ~700+ lines of code added
+    - No linter errors
+    - **Status**: Implementation complete, requires deployment and testing
+    - **Deployment**: Run `firebase deploy --only functions` (see DEPLOYMENT_GUIDE.md)
+    - **Testing**: Requires 2+ physical devices (see md_files/PR11_TESTING_GUIDE.md)
+12. **PR 12**: Basic Group Chat Polish (NEXT)
+    - Enhance group message display
+    - Polish group member list
+    - Update group chat header
+    - Test group chat scenarios
 
 ### Today's Goal
-**PR 9 implementation complete!** Ready to proceed to **PR 10: Online/Offline Presence**.
+**PR 11 implementation complete!** Ready to deploy Cloud Functions and test, then proceed to **PR 12: Basic Group Chat Polish**.
 
 ## Active Decisions & Considerations
 
