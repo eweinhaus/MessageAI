@@ -60,6 +60,7 @@ export default function GroupNameModal({ visible, onCancel, onCreate, memberCoun
       transparent
       animationType="fade"
       onRequestClose={handleCancel}
+      testID="group-name-modal"
     >
       <KeyboardAvoidingView
         style={styles.overlay}
@@ -74,11 +75,12 @@ export default function GroupNameModal({ visible, onCancel, onCreate, memberCoun
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.title}>Create Group Chat</Text>
-            <Text style={styles.subtitle}>
+            <Text testID="group-member-count" style={styles.subtitle}>
               {memberCount} {memberCount === 1 ? 'member' : 'members'} selected
             </Text>
             
             <TextInput
+              testID="group-name-input"
               style={[styles.input, error && styles.inputError]}
               placeholder="Enter group name..."
               placeholderTextColor="#999"
@@ -94,11 +96,12 @@ export default function GroupNameModal({ visible, onCancel, onCreate, memberCoun
             />
             
             {error ? (
-              <Text style={styles.errorText}>{error}</Text>
+              <Text testID="group-name-error" style={styles.errorText}>{error}</Text>
             ) : null}
             
             <View style={styles.buttonContainer}>
               <TouchableOpacity
+                testID="group-cancel-button"
                 style={[styles.button, styles.cancelButton]}
                 onPress={handleCancel}
               >
@@ -106,6 +109,7 @@ export default function GroupNameModal({ visible, onCancel, onCreate, memberCoun
               </TouchableOpacity>
               
               <TouchableOpacity
+                testID="group-create-button"
                 style={[styles.button, styles.createButton]}
                 onPress={handleCreate}
               >

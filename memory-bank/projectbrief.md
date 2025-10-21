@@ -45,10 +45,6 @@ Build a reliable, real-time messaging app that handles online/offline scenarios 
 - Message reactions
 - All AI features
 
-## Project Timeline
-- **MVP Deadline**: Tuesday EOD (24 hours from start)
-- **Early Submission**: Friday (4 days)
-- **Final Submission**: Sunday (7 days)
 
 ## Target Metrics (MVP)
 - **Message Delivery Rate**: 100% (no lost messages)

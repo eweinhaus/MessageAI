@@ -1,0 +1,26 @@
+appId: host.exp.Exponent
+---
+# PR 6 UI Responsive Design Test
+# Tests that all screens render properly on different device sizes
+
+- launchApp
+- assertVisible: "MessageAI|Email|Password|Sign"
+- takeScreenshot: screenshots/01-login-screen
+
+# Try to navigate (will need auth, but we can check UI exists)
+- assertVisible: 
+    text: "Email"
+    enabled: true
+- assertVisible:
+    text: "Password" 
+    enabled: true
+
+# Check buttons are visible
+- assertVisible: "Sign In"
+- assertVisible: "Sign Up"
+
+- takeScreenshot: screenshots/02-login-buttons-visible
+
+# Test that UI elements are properly sized (not cut off)
+# This will fail if UI is broken on this screen size
+

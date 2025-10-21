@@ -145,7 +145,7 @@ Receive Flow:
 None yet - just starting!
 
 ### Potential Risks
-1. **Time Constraint**: MVP deadline is aggressive (24 hours)
+1. **Time Constraint**: Somewhat constrained for MVP
    - Mitigation: Follow task list strictly, no scope creep
    - Priority: Core messaging over polish
 

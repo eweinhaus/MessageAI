@@ -1,0 +1,7 @@
+appId: host.exp.Exponent
+---
+- launchApp
+- tapOn: "New Chat"
+- assertVisible: "Search contacts..."
+- inputText: "test"
+- takeScreenshot: "contact-search"

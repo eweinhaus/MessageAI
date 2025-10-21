@@ -24,11 +24,7 @@ The future of messaging isn't just about sending texts—it's about intelligent 
 
 ## Project Overview
 
-This is a one-week sprint with three key deadlines:
-
-- **MVP**: Tuesday (24 hours)
-- **Early Submission**: Friday (4 days)
-- **Final**: Sunday (7 days)
+This is a one-week sprint with three key deadlines: MVP, Early and Final
 
 You'll build in two phases: first the core messaging infrastructure with real-time sync and offline support, then AI features tailored to a specific user persona.
 

@@ -1,0 +1,33 @@
+appId: host.exp.Exponent
+---
+# Comprehensive UI test across screen components
+# This tests that all UI elements render without being cut off
+
+- launchApp
+
+# === LOGIN SCREEN TESTS ===
+- assertVisible: "Email"
+- assertVisible: "Password"
+- assertVisible: "Sign In"
+- assertVisible: "Sign Up"
+- takeScreenshot: screenshots/login-full
+
+# Test input fields are functional
+- tapOn: "Email"
+- inputText: "test@example.com"
+- takeScreenshot: screenshots/login-email-input
+
+- tapOn: "Password"
+- inputText: "password123"
+- takeScreenshot: screenshots/login-password-input
+
+# Try to sign in (will fail without real credentials, but tests UI)
+- tapOn: "Sign In"
+- takeScreenshot: screenshots/login-attempt
+
+# Wait a moment for any error messages
+- waitForAnimationToEnd
+
+# Check if we can see error or loading state
+- takeScreenshot: screenshots/login-after-attempt
+

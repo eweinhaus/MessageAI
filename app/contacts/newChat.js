@@ -304,11 +304,12 @@ export default function NewChatScreen() {
         }}
       />
       
-      <View style={styles.container}>
+      <View style={styles.container} testID="new-chat-screen">
         {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
           <TextInput
+            testID="contact-search-input"
             style={styles.searchInput}
             placeholder="Search contacts..."
             placeholderTextColor="#999"
@@ -319,6 +320,7 @@ export default function NewChatScreen() {
           />
           {searchText.length > 0 && (
             <TouchableOpacity
+              testID="search-clear-button"
               onPress={() => setSearchText('')}
               style={styles.clearButton}
             >
@@ -329,12 +331,12 @@ export default function NewChatScreen() {
         
         {/* Selection Info */}
         {selectedUsers.size > 0 && (
-          <View style={styles.selectionInfo}>
-            <Text style={styles.selectionText}>
+          <View style={styles.selectionInfo} testID="selection-info">
+            <Text testID="selection-count" style={styles.selectionText}>
               {selectedUsers.size} {selectedUsers.size === 1 ? 'contact' : 'contacts'} selected
             </Text>
             {selectedUsers.size >= 2 && (
-              <Text style={styles.selectionHint}>
+              <Text testID="group-chat-hint" style={styles.selectionHint}>
                 Creating a group chat
               </Text>
             )}
@@ -343,7 +345,7 @@ export default function NewChatScreen() {
         
         {/* Loading Indicator */}
         {isLoading && (
-          <View style={styles.loadingContainer}>
+          <View style={styles.loadingContainer} testID="loading-contacts">
             <ActivityIndicator size="large" color="#4CAF50" />
             <Text style={styles.loadingText}>Loading contacts...</Text>
           </View>
@@ -352,6 +354,7 @@ export default function NewChatScreen() {
         {/* Contact List */}
         {!isLoading && (
           <FlatList
+            testID="contact-list"
             data={filteredUsers}
             renderItem={renderItem}
             keyExtractor={(item) => item.userID}

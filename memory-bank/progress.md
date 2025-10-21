@@ -268,5 +268,5 @@ None currently. PR 6 implementation complete, awaiting manual testing.
 - Create group name modal for group chats
 - Test on physical device to verify end-to-end flow
 - Follow task list strictly to stay on schedule
-- MVP deadline is aggressive - no scope creep!
+- No scope creep
 

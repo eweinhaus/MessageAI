@@ -16,6 +16,7 @@ import Avatar from './Avatar';
 export default function ContactListItem({ user, isSelected, onSelect }) {
   return (
     <TouchableOpacity
+      testID={`contact-item-${user.userID}`}
       style={[styles.container, isSelected && styles.containerSelected]}
       onPress={() => onSelect(user)}
       activeOpacity={0.7}
@@ -27,16 +28,16 @@ export default function ContactListItem({ user, isSelected, onSelect }) {
       />
       
       <View style={styles.info}>
-        <Text style={styles.name}>{user.displayName}</Text>
+        <Text testID="contact-name" style={styles.name}>{user.displayName}</Text>
         {user.email && (
-          <Text style={styles.email} numberOfLines={1}>
+          <Text testID="contact-email" style={styles.email} numberOfLines={1}>
             {user.email}
           </Text>
         )}
       </View>
       
       {isSelected && (
-        <View style={styles.checkmarkContainer}>
+        <View style={styles.checkmarkContainer} testID="contact-checkmark">
           <Ionicons name="checkmark-circle" size={28} color="#4CAF50" />
         </View>
       )}
@@ -46,7 +47,7 @@ export default function ContactListItem({ user, isSelected, onSelect }) {
       )}
       
       {user.isOnline && !isSelected && (
-        <View style={styles.onlineIndicator} />
+        <View style={styles.onlineIndicator} testID="contact-online-indicator" />
       )}
     </TouchableOpacity>
   );
