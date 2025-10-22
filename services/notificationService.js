@@ -97,6 +97,7 @@ export async function getDevicePushToken() {
 
 /**
  * Register the device token with Firestore for this user
+ * IMPORTANT: Clears token from other users to prevent cross-user notifications
  * @param {string} userID - The user ID
  * @returns {Promise<boolean>} - true if token was saved successfully
  */
@@ -114,11 +115,42 @@ export async function registerToken(userID) {
       return false;
     }
 
-    console.log('[NotificationService] Saving FCM token to Firestore...');
+    console.log('[NotificationService] Registering FCM token for user:', userID);
     
+    // SECURITY: Clear this token from any other user who might have it
+    // This handles the case where previous user didn't properly log out
+    try {
+      const { getFirestore, collection, query, where, getDocs, updateDoc, doc } = await import('firebase/firestore');
+      const db = getFirestore();
+      
+      // Find all users with this token (excluding current user)
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('fcmToken', '==', token));
+      const querySnapshot = await getDocs(q);
+      
+      const clearPromises = [];
+      querySnapshot.forEach((userDoc) => {
+        if (userDoc.id !== userID) {
+          console.log('[NotificationService] Clearing stale token from user:', userDoc.id);
+          clearPromises.push(
+            updateDoc(doc(db, 'users', userDoc.id), { fcmToken: null })
+          );
+        }
+      });
+      
+      if (clearPromises.length > 0) {
+        await Promise.all(clearPromises);
+        console.log(`[NotificationService] Cleared token from ${clearPromises.length} other user(s)`);
+      }
+    } catch (cleanupError) {
+      console.error('[NotificationService] Error cleaning up stale tokens:', cleanupError);
+      // Continue with registration even if cleanup fails
+    }
+    
+    // Register token for current user
     await updateUserProfile(userID, { fcmToken: token });
     
-    console.log('[NotificationService] FCM token saved successfully');
+    console.log('[NotificationService] FCM token registered successfully');
     return true;
   } catch (error) {
     console.error('[NotificationService] Error registering token:', error);
@@ -130,32 +162,78 @@ export async function registerToken(userID) {
  * Set up notification listeners for foreground and tap events
  * @param {object} router - Expo Router instance
  * @param {function} showBanner - Function to show in-app notification banner
+ * @param {string} currentUserID - Current logged-in user ID for validation
  * @returns {function} - Cleanup function to remove listeners
  */
-export function setupListeners(router, showBanner) {
-  console.log('[NotificationService] Setting up notification listeners...');
+export function setupListeners(router, showBanner, currentUserID) {
+  console.log('[NotificationService] Setting up notification listeners...', { currentUserID });
 
   // Track displayed notifications to prevent duplicates
   const displayedNotifications = new Set();
 
   // Listener for notifications received while app is in foreground
-  const receivedSubscription = Notifications.addNotificationReceivedListener((notification) => {
+  const receivedSubscription = Notifications.addNotificationReceivedListener(async (notification) => {
     try {
       const { title, body } = notification.request.content;
       const data = notification.request.content.data;
       const messageID = data?.messageID;
+      const chatID = data?.chatID;
 
       console.log('[NotificationService] Notification received in foreground:', {
         title,
         body: body?.substring(0, 50),
         data,
+        currentUserID,
       });
 
+      // ===== VALIDATION: Only show notifications for user's chats =====
+      
       // Prevent duplicate banners for the same message
       if (messageID && displayedNotifications.has(messageID)) {
         console.log('[NotificationService] Skipping duplicate notification for message:', messageID);
         return;
       }
+
+      // Validate that this notification is for a chat the user participates in
+      if (!chatID) {
+        console.warn('[NotificationService] No chatID in notification data, ignoring');
+        return;
+      }
+
+      if (!currentUserID) {
+        console.warn('[NotificationService] No currentUserID available, ignoring notification');
+        return;
+      }
+
+      // Check if this chat exists in the user's local database
+      // If it exists locally, it means the user is a participant
+      try {
+        const { getChatByID } = await import('../db/messageDb');
+        const chat = await getChatByID(chatID);
+        
+        if (!chat) {
+          console.warn('[NotificationService] Chat not found in local database, user is not a participant:', chatID);
+          return;
+        }
+
+        // Additional validation: Check if current user is in participantIDs/memberIDs
+        const isParticipant = 
+          (chat.participantIDs && chat.participantIDs.includes(currentUserID)) ||
+          (chat.memberIDs && chat.memberIDs.includes(currentUserID));
+
+        if (!isParticipant) {
+          console.warn('[NotificationService] User is not a participant in this chat:', chatID);
+          return;
+        }
+
+        console.log('[NotificationService] Notification validated for user chat:', chatID);
+      } catch (dbError) {
+        console.error('[NotificationService] Error validating chat membership:', dbError);
+        // Fail closed: don't show notification if we can't validate
+        return;
+      }
+
+      // ===== END VALIDATION =====
 
       if (messageID) {
         displayedNotifications.add(messageID);
@@ -166,7 +244,7 @@ export function setupListeners(router, showBanner) {
         }, 60000);
       }
 
-      // Show in-app banner
+      // Show in-app banner (only if validation passed)
       if (showBanner) {
         showBanner({
           title: title || 'New message',

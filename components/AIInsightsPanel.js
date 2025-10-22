@@ -23,6 +23,7 @@ import {
   Dimensions,
 } from "react-native";
 import PressableWithFeedback from "./PressableWithFeedback";
+import Icon from "./Icon";
 import colors from "../constants/colors";
 
 const {height: SCREEN_HEIGHT} = Dimensions.get("window");
@@ -30,15 +31,17 @@ const {height: SCREEN_HEIGHT} = Dimensions.get("window");
 /**
  * Individual AI feature button
  */
-function AIFeatureButton({icon, title, description, onPress, disabled, loading}) {
+function AIFeatureButton({iconName, title, description, onPress, disabled, loading}) {
   return (
     <PressableWithFeedback
       onPress={onPress}
       disabled={disabled || loading}
       style={[styles.featureButton, (disabled || loading) && styles.featureButtonDisabled]}
     >
-      <View style={styles.featureIcon}>
-        <Text style={styles.featureIconText}>{icon}</Text>
+      <View style={styles.featureIconWrapper}>
+        <View style={styles.featureIconBg}>
+          <Icon name={iconName} size={20} color={colors.primary} />
+        </View>
       </View>
 
       <View style={styles.featureContent}>
@@ -51,7 +54,7 @@ function AIFeatureButton({icon, title, description, onPress, disabled, loading})
       )}
 
       {!loading && (
-        <Text style={styles.featureArrow}>›</Text>
+        <Icon name="chevronRight" size={24} color={colors.mediumGray} />
       )}
     </PressableWithFeedback>
   );
@@ -89,7 +92,7 @@ export default function AIInsightsPanel({
           <View style={styles.header}>
             <View style={styles.dragHandle} />
             <View style={styles.headerContent}>
-              <Text style={styles.headerIcon}>🧠</Text>
+              <View style={styles.headerStatusDot} />
               <Text style={styles.headerTitle}>AI Insights</Text>
             </View>
             <TouchableOpacity
@@ -97,7 +100,7 @@ export default function AIInsightsPanel({
               style={styles.closeButton}
               hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
             >
-              <Text style={styles.closeButtonText}>✕</Text>
+              <Icon name="close" size="medium" color={colors.mediumGray} />
             </TouchableOpacity>
           </View>
 
@@ -108,7 +111,7 @@ export default function AIInsightsPanel({
             showsVerticalScrollIndicator={false}
           >
             <AIFeatureButton
-              icon="🛑"
+              iconName="alert"
               title="Priority Detection"
               description="Flag urgent messages that need attention"
               onPress={onAnalyzePriorities}
@@ -116,7 +119,7 @@ export default function AIInsightsPanel({
             />
 
             <AIFeatureButton
-              icon="📝"
+              iconName="document"
               title="Summarize Thread"
               description="Get key points, decisions, and action items"
               onPress={onSummarizeThread}
@@ -124,7 +127,7 @@ export default function AIInsightsPanel({
             />
 
             <AIFeatureButton
-              icon="✅"
+              iconName="checkCircle"
               title="Find Action Items"
               description="See tasks, commitments, and questions"
               onPress={onExtractActionItems}
@@ -132,7 +135,7 @@ export default function AIInsightsPanel({
             />
 
             <AIFeatureButton
-              icon="🔍"
+              iconName="search"
               title="Smart Search"
               description="Find messages by meaning, not just keywords"
               onPress={onSmartSearch}
@@ -140,20 +143,13 @@ export default function AIInsightsPanel({
             />
 
             <AIFeatureButton
-              icon="🎯"
+              iconName="target"
               title="Track Decisions"
               description="See what the team has agreed on"
               onPress={onTrackDecisions}
               loading={loading.decisions}
             />
           </ScrollView>
-
-          {/* Footer Note */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              AI features use GPT-4 and are cached for 24 hours
-            </Text>
-          </View>
         </View>
       </View>
     </Modal>
@@ -171,37 +167,43 @@ const styles = StyleSheet.create({
   },
   bottomSheet: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: SCREEN_HEIGHT * 0.8,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: SCREEN_HEIGHT * 0.7,
     shadowColor: "#000",
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: {width: 0, height: -6},
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
   header: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.lightGray,
     alignItems: "center",
   },
   dragHandle: {
-    width: 40,
+    width: 44,
     height: 4,
     backgroundColor: colors.mediumGray,
     borderRadius: 2,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   headerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
   },
-  headerIcon: {
-    fontSize: 24,
+  headerStatusDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.primaryLight,
     marginRight: 8,
   },
   headerTitle: {
@@ -219,11 +221,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lightGray,
     alignItems: "center",
     justifyContent: "center",
-  },
-  closeButtonText: {
-    fontSize: 18,
-    color: colors.mediumGray,
-    fontWeight: "600",
   },
   featureList: {
     flex: 1,
@@ -249,17 +246,18 @@ const styles = StyleSheet.create({
   featureButtonDisabled: {
     opacity: 0.6,
   },
-  featureIcon: {
+  featureIconWrapper: {
     width: 48,
-    height: 48,
-    borderRadius: 24,
+    alignItems: "center",
+    marginRight: 12,
+  },
+  featureIconBg: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: colors.primaryLight,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
-  },
-  featureIconText: {
-    fontSize: 24,
   },
   featureContent: {
     flex: 1,
@@ -273,22 +271,6 @@ const styles = StyleSheet.create({
   featureDescription: {
     fontSize: 14,
     color: colors.mediumGray,
-  },
-  featureArrow: {
-    fontSize: 28,
-    color: colors.mediumGray,
-    marginLeft: 8,
-  },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.lightGray,
-    backgroundColor: colors.background,
-  },
-  footerText: {
-    fontSize: 12,
-    color: colors.mediumGray,
-    textAlign: "center",
   },
 });
 

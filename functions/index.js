@@ -182,11 +182,77 @@ exports.onMessageCreated = onDocumentCreated(
 
         // Get the chat document to find all participants
         const chatRef = admin.firestore().collection("chats").doc(chatID);
-        const chatDoc = await chatRef.get();
+        let chatDoc = await chatRef.get();
 
+        // AUTO-CREATE CHAT FAILSAFE
+        // If chat doesn't exist but message was created, auto-create the chat
+        // This prevents the "notification received but chat not appearing" bug
         if (!chatDoc.exists) {
-          logger.warn(`Chat ${chatID} not found`);
-          return null;
+          logger.warn(`Chat ${chatID} not found, attempting auto-create...`);
+
+          try {
+            // Check if this is a 1:1 chat (format: userA_userB)
+            if (chatID.includes("_")) {
+              const userIDs = chatID.split("_");
+
+              if (userIDs.length === 2) {
+                const [userA, userB] = userIDs;
+
+                // Get user documents
+                const userADoc = await admin.firestore()
+                    .collection("users").doc(userA).get();
+                const userBDoc = await admin.firestore()
+                    .collection("users").doc(userB).get();
+
+                if (userADoc.exists && userBDoc.exists) {
+                  const userAData = userADoc.data();
+                  const userBData = userBDoc.data();
+
+                  // Create the missing chat document
+                  const chatData = {
+                    chatID,
+                    type: "1:1",
+                    participantIDs: [userA, userB],
+                    participantNames: [
+                      userAData.displayName,
+                      userBData.displayName,
+                    ],
+                    lastMessageText: text || "",
+                    lastMessageTimestamp: timestamp ||
+                      admin.firestore.FieldValue.serverTimestamp(),
+                    lastMessageSenderID: senderID,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                  };
+
+                  await chatRef.set(chatData);
+                  logger.info(`✅ Auto-created missing 1:1 chat: ${chatID}`);
+
+                  // Re-fetch the chat document
+                  chatDoc = await chatRef.get();
+                } else {
+                  logger.error("Cannot auto-create chat: user(s) not found", {
+                    userAExists: userADoc.exists,
+                    userBExists: userBDoc.exists,
+                  });
+                }
+              }
+            } else {
+              logger.warn(
+                  "Chat ID format not recognized for auto-create: " + chatID,
+              );
+            }
+          } catch (autoCreateError) {
+            logger.error("Failed to auto-create chat:", autoCreateError);
+          }
+
+          // If still doesn't exist after auto-create attempt, bail out
+          if (!chatDoc.exists) {
+            logger.error(
+                `Chat ${chatID} still doesn't exist after auto-create attempt`,
+            );
+            return null;
+          }
         }
 
         const chatData = chatDoc.data();

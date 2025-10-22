@@ -54,7 +54,7 @@ exports.analyzePriorities = onCall(async (request) => {
 
   try {
     // Extract data and context
-    const {chatId, messageCount = 30} = request.data;
+    const {chatId, messageCount = 30, forceRefresh = false} = request.data;
     const userId = request.auth?.uid;
 
     // 1. Authentication check
@@ -106,21 +106,25 @@ exports.analyzePriorities = onCall(async (request) => {
       );
     }
 
-    // 5. Check cache (24 hour TTL)
-    const cached = await getCachedResult(chatId, "priorities", {
-      maxAge: 24 * 60 * 60 * 1000,
-    });
+    // 5. Check cache (24 hour TTL) - skip if forceRefresh is true
+    if (!forceRefresh) {
+      const cached = await getCachedResult(chatId, "priorities", {
+        maxAge: 24 * 60 * 60 * 1000,
+      });
 
-    if (cached && cached.result) {
-      logger.info(`[Priority] Cache hit for chat ${chatId}`);
-      const duration = Date.now() - startTime;
-      logger.info(`[Priority] Completed in ${duration}ms (cached)`);
+      if (cached && cached.result) {
+        logger.info(`[Priority] Cache hit for chat ${chatId}`);
+        const duration = Date.now() - startTime;
+        logger.info(`[Priority] Completed in ${duration}ms (cached)`);
 
-      return {
-        ...cached.result,
-        cached: true,
-        cacheAge: cached.age,
-      };
+        return {
+          ...cached.result,
+          cached: true,
+          cacheAge: cached.age,
+        };
+      }
+    } else {
+      logger.info("[Priority] Force refresh requested, skipping cache");
     }
 
     logger.info(`[Priority] Cache miss, analyzing chat ${chatId}`);
@@ -163,7 +167,7 @@ exports.analyzePriorities = onCall(async (request) => {
       const openai = getOpenAIClient();
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4-turbo-preview",
+        model: "gpt-4o-mini",
         messages: [
           {role: "system", content: prompt},
           {
@@ -173,7 +177,7 @@ exports.analyzePriorities = onCall(async (request) => {
           },
         ],
         temperature: 0.3,
-        max_tokens: 1500,
+        max_tokens: 500,
         response_format: {type: "json_object"},
       });
 
@@ -227,38 +231,43 @@ exports.analyzePriorities = onCall(async (request) => {
 
     // Write new priorities
     priorityData.priorities.forEach((priority) => {
-      // Find the actual message ID from our numbered list
-      const messageIndex = parseInt(priority.messageId);
-      const actualMessageId = messages[messageIndex]?.messageID;
+      // GPT returns the messageId directly, not an index
+      // Try to find it in our messages array to validate
+      const messageId = priority.messageId;
+      const foundMessage = messages.find((m) => m.messageID === messageId);
 
-      if (actualMessageId) {
-        const docRef = prioritiesCollection.doc(actualMessageId);
-        batch.set(docRef, {
-          messageId: actualMessageId,
+      if (foundMessage) {
+        const docRef = prioritiesCollection.doc(messageId);
+        const dataToWrite = {
+          messageId: messageId,
           priority: priority.priority,
           reason: priority.reason,
           confidence: priority.confidence || 0.5,
           analyzedAt:
             admin.firestore.FieldValue.serverTimestamp(),
           analyzedBy: userId,
-        });
+        };
+        logger.info(
+            `[Priority] Writing ${messageId} ` +
+            `with priority: ${priority.priority}`,
+        );
+        batch.set(docRef, dataToWrite);
+      } else {
+        logger.warn(
+            `[Priority] Message ID ${messageId} not found in messages`,
+        );
       }
     });
 
     await batch.commit();
     logger.info(
-        `[Priority] Stored ${priorityData.priorities.length} in Firestore`,
+        "[Priority] Batch committed: " +
+        `stored ${priorityData.priorities.length} in Firestore`,
     );
 
     // 12. Cache the result
     const resultToCache = {
-      priorities: priorityData.priorities.map((p, index) => {
-        const msgId = messages[parseInt(p.messageId)]?.messageID;
-        return {
-          ...p,
-          messageId: msgId || p.messageId,
-        };
-      }),
+      priorities: priorityData.priorities,
       messageCount: messages.length,
       analyzedAt: Date.now(),
     };
@@ -270,7 +279,7 @@ exports.analyzePriorities = onCall(async (request) => {
         messageCount: messages.length,
         urgentCount: priorityData.priorities
             .filter((p) => p.priority === "urgent").length,
-        model: "gpt-4-turbo-preview",
+        model: "gpt-4o-mini",
         tokenCount: contextData.estimatedTokens,
       },
     });

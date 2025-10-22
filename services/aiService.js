@@ -40,6 +40,7 @@ function getErrorMessage(error) {
  * @param {string} chatId - Chat ID to analyze
  * @param {Object} [options] - Options
  * @param {number} [options.messageCount=30] - Number of messages to analyze
+ * @param {boolean} [options.forceRefresh=false] - Skip cache and force fresh analysis
  * @return {Promise<Object>} Result with success status and data/error
  *
  * @example
@@ -58,6 +59,7 @@ export async function analyzePriorities(chatId, options = {}) {
     const result = await callable({
       chatId,
       messageCount: options.messageCount || 30,
+      forceRefresh: options.forceRefresh || false,
     });
 
     return {

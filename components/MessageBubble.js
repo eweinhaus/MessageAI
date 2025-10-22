@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { formatMessageTime } from '../utils/timeUtils';
 import { retryFailedMessage } from '../services/messageService';
 import Avatar from './Avatar';
-import PriorityBadge from './PriorityBadge';
 import {
   BUBBLE_OWN,
   BUBBLE_OTHER,
@@ -104,21 +103,17 @@ function MessageBubble({
             isOwn ? styles.bubbleOwn : styles.bubbleOther,
             !isLastInGroup && styles.bubbleInGroup,
             isOwn ? styles.bubbleAlignOwn : styles.bubbleAlignOther,
+            priority === 'urgent' && styles.urgentBubble,
           ]}
         >
-          <Text style={[styles.messageText, isOwn ? styles.messageTextOwn : styles.messageTextOther]}>
+          <Text style={[
+            styles.messageText, 
+            isOwn ? styles.messageTextOwn : styles.messageTextOther,
+            priority === 'urgent' && styles.urgentText,
+          ]}>
             {text?.trim() || text}
           </Text>
         </View>
-
-        {/* Priority Badge */}
-        {priority && (
-          <PriorityBadge
-            priority={priority}
-            reason={priorityReason}
-            confidence={priorityConfidence}
-          />
-        )}
 
         {/* Timestamp and delivery status - only show for last message in group */}
         {isLastInGroup && (
@@ -259,6 +254,13 @@ const styles = StyleSheet.create({
   },
   messageTextOther: {
     color: TEXT_PRIMARY,
+  },
+  urgentBubble: {
+    backgroundColor: '#DC2626', // Red-600 for urgent messages
+  },
+  urgentText: {
+    color: '#FFFFFF', // White text for contrast on red background
+    fontWeight: '600',
   },
   metaContainer: {
     flexDirection: 'row',

@@ -13,6 +13,8 @@ import {
 import { useRouter } from 'expo-router';
 import { signInWithEmail, signUpWithEmail } from '../../services/auth';
 import useUserStore from '../../store/userStore';
+import Icon from '../../components/Icon';
+import colors from '../../constants/colors';
 
 // Simple email validation
 const isValidEmail = (email) => {
@@ -88,7 +90,7 @@ export default function LoginScreen() {
       {/* App Branding */}
       <View style={styles.header}>
         <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>💬</Text>
+          <Icon name="message" size={48} color={colors.white} />
         </View>
         <Text style={styles.appName}>MessageAI</Text>
         <Text style={styles.tagline}>Simple messaging, powered by AI</Text>
@@ -186,7 +188,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  logoEmoji: { fontSize: 40 },
   appName: { fontSize: 28, fontWeight: 'bold', color: '#000', marginBottom: 6 },
   tagline: { fontSize: 14, color: '#666' },
 

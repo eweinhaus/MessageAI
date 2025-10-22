@@ -15,6 +15,7 @@ import {
   Modal,
   Animated,
 } from "react-native";
+import Icon from "./Icon";
 import colors from "../constants/colors";
 
 /**
@@ -35,14 +36,14 @@ function PriorityTooltip({visible, onClose, reason, confidence}) {
       >
         <View style={styles.tooltipContainer}>
           <View style={styles.tooltipHeader}>
-            <Text style={styles.tooltipIcon}>⚠️</Text>
+            <Icon name="warning" size="large" color="#FF3B30" style={styles.tooltipIcon} />
             <Text style={styles.tooltipTitle}>Priority Message</Text>
             <TouchableOpacity
               onPress={onClose}
               style={styles.tooltipClose}
               hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
             >
-              <Text style={styles.tooltipCloseText}>✕</Text>
+              <Icon name="close" size="medium" color={colors.mediumGray} />
             </TouchableOpacity>
           </View>
 
@@ -121,7 +122,7 @@ export default function PriorityBadge({
             onPress={handleDismiss}
             hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
           >
-            <Text style={styles.dismissText}>✕</Text>
+            <Icon name="close" size="small" color={colors.mediumGray} />
           </TouchableOpacity>
         )}
       </View>
@@ -175,11 +176,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  dismissText: {
-    fontSize: 12,
-    color: colors.mediumGray,
-    fontWeight: "bold",
-  },
   // Tooltip Modal Styles
   tooltipOverlay: {
     flex: 1,
@@ -206,7 +202,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tooltipIcon: {
-    fontSize: 24,
     marginRight: 8,
   },
   tooltipTitle: {
@@ -222,11 +217,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.lightGray,
     alignItems: "center",
     justifyContent: "center",
-  },
-  tooltipCloseText: {
-    fontSize: 16,
-    color: colors.mediumGray,
-    fontWeight: "600",
   },
   tooltipReason: {
     fontSize: 15,

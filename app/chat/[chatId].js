@@ -162,7 +162,6 @@ export default function ChatDetailScreen() {
     if (!chatId) return;
 
     const listenerId = `chat-priorities-${chatId}`;
-    console.log(`[ChatDetail] Setting up priorities listener for chat ${chatId}`);
 
     const prioritiesRef = collection(db, `chats/${chatId}/priorities`);
     const unsubscribe = onSnapshot(
@@ -178,7 +177,6 @@ export default function ChatDetailScreen() {
           };
         });
         setPriorities(newPriorities);
-        console.log(`[ChatDetail] Loaded ${Object.keys(newPriorities).length} priorities`);
       },
       (error) => {
         console.error('[ChatDetail] Priorities listener error:', error);
@@ -201,13 +199,17 @@ export default function ChatDetailScreen() {
     setError(null);
 
     try {
-      console.log('[ChatDetail] Analyzing priorities...');
-      const result = await analyzePriorities(chatId, { messageCount: 30 });
+      const result = await analyzePriorities(chatId, { 
+        messageCount: 30,
+        forceRefresh: true, // Always get fresh results
+      });
 
       if (result.success) {
-        console.log('[ChatDetail] Priority analysis complete:', result.data);
-        // Priorities will be updated via Firestore listener
-        setError({ type: 'success', message: 'Priority analysis complete!' });
+        const urgentCount = result.data.priorities.filter(p => p.priority === 'urgent').length;
+        const message = urgentCount > 0 
+          ? `Found ${urgentCount} urgent message${urgentCount > 1 ? 's' : ''}!`
+          : 'No urgent messages found.';
+        setError({ type: 'success', message });
       } else {
         console.error('[ChatDetail] Priority analysis failed:', result.error);
         setError({ type: 'error', message: result.message });
@@ -279,21 +281,14 @@ export default function ChatDetailScreen() {
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         {/* Custom Header with AI Button */}
-        <View style={styles.headerContainer}>
-          <ChatHeader
-            chat={chat}
-            currentUserID={currentUser?.userID}
-            onPress={handleHeaderPress}
-            chatId={chatId}
-          />
-          <TouchableOpacity
-            style={styles.aiButton}
-            onPress={() => setShowAIPanel(true)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="sparkles" size={24} color={PRIMARY_GREEN} />
-          </TouchableOpacity>
-        </View>
+        <ChatHeader
+          chat={chat}
+          currentUserID={currentUser?.userID}
+          onPress={handleHeaderPress}
+          chatId={chatId}
+          showAIButton={true}
+          onAIPress={() => setShowAIPanel(true)}
+        />
         
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
@@ -347,26 +342,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FAFAFA',
-  },
-  headerContainer: {
-    position: 'relative',
-  },
-  aiButton: {
-    position: 'absolute',
-    right: 16,
-    top: 8,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 10,
   },
   keyboardAvoid: {
     flex: 1,

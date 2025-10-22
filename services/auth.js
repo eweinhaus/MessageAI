@@ -222,10 +222,30 @@ export async function signInGuest() {
 
 /**
  * Sign out current user
+ * IMPORTANT: Clears FCM token to prevent notifications to wrong user
  */
 export async function logout() {
   try {
+    const user = auth.currentUser;
+    
+    // Clear FCM token BEFORE signing out to prevent token reuse
+    if (user) {
+      console.log('[Auth] Clearing FCM token for user:', user.uid);
+      try {
+        const { updateUserProfile } = require('./firestore');
+        await updateUserProfile(user.uid, { 
+          fcmToken: null,
+          isOnline: false 
+        });
+        console.log('[Auth] FCM token cleared successfully');
+      } catch (tokenError) {
+        console.error('[Auth] Failed to clear FCM token:', tokenError);
+        // Continue with logout even if token clearing fails
+      }
+    }
+    
     await firebaseSignOut(auth);
+    console.log('[Auth] User signed out successfully');
   } catch (error) {
     console.error('Error signing out:', error);
     throw error;

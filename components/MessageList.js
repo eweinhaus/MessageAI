@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import MessageBubble from './MessageBubble';
+import Icon from './Icon';
 import useMessageStore from '../store/messageStore';
 import useUserStore from '../store/userStore';
 import { markMessageAsRead } from '../services/firestore';
@@ -26,6 +27,7 @@ export default function MessageList({
   priorities = {},
 }) {
   const flatListRef = useRef(null);
+  
   // Use a stable selector to avoid infinite loops
   const messages = useMessageStore(
     (state) => state.messagesByChat[chatID],
@@ -167,7 +169,7 @@ export default function MessageList({
 
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.emptyEmoji}>👋</Text>
+        <Icon name="wave" size="xxlarge" color={TEXT_SECONDARY} style={styles.emptyIcon} />
         <Text style={styles.emptyText}>Say hello!</Text>
       </View>
     );
@@ -285,8 +287,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 40,
   },
-  emptyEmoji: {
-    fontSize: 48,
+  emptyIcon: {
     marginBottom: 12,
   },
   emptyText: {

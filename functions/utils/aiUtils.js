@@ -74,7 +74,7 @@ class ValidationError extends Error {
  * Returns cached singleton to avoid multiple initializations
  *
  * @param {Object} [options] - Configuration options
- * @param {string} [options.model='gpt-4-turbo-preview'] - Default model
+ * @param {string} [options.model='gpt-4o-mini'] - Default model
  * @param {number} [options.temperature=0.3] - Default temperature
  * @param {number} [options.maxTokens=2000] - Default max tokens
  * @return {OpenAI} Configured OpenAI client instance
@@ -123,7 +123,7 @@ function getOpenAIClient(options = {}) {
 
   // Store default options for reference
   openaiClient.defaultOptions = {
-    model: options.model || "gpt-4-turbo-preview",
+    model: options.model || "gpt-4o-mini",
     temperature: options.temperature !== undefined ? options.temperature : 0.3,
     maxTokens: options.maxTokens || 2000,
   };

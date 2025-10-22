@@ -220,12 +220,16 @@ export default function RootLayout() {
           return;
         }
 
-        // Set up notification listeners
-        const cleanup = setupListeners(router, (notificationData) => {
-          // Show notification banner
-          console.log('[App] Showing notification banner:', notificationData.title);
-          setNotificationBanner(notificationData);
-        });
+        // Set up notification listeners with currentUserID for validation
+        const cleanup = setupListeners(
+          router, 
+          (notificationData) => {
+            // Show notification banner
+            console.log('[App] Showing notification banner:', notificationData.title);
+            setNotificationBanner(notificationData);
+          },
+          currentUser.userID // Pass currentUserID for chat membership validation
+        );
 
         notificationCleanup.current = cleanup;
         console.log('[App] Push notifications initialized successfully');
@@ -293,7 +297,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="chat" options={{ headerShown: true }} />
+        <Stack.Screen name="chat" options={{ headerShown: false }} />
         <Stack.Screen name="contacts" options={{ headerShown: false }} />
       </Stack>
       <OfflineBanner />

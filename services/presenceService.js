@@ -33,7 +33,7 @@ async function updatePresence(userID, isOnline, force = false) {
       const lastUpdate = lastUpdateTime[userID] || 0;
       
       if (now - lastUpdate < THROTTLE_DELAY) {
-        console.log(`[Presence] Throttled update for ${userID} (${Math.round((THROTTLE_DELAY - (now - lastUpdate)) / 1000)}s remaining)`);
+        //console.log(`[Presence] Throttled update for ${userID} (${Math.round((THROTTLE_DELAY - (now - lastUpdate)) / 1000)}s remaining)`);
         return;
       }
       
@@ -65,7 +65,7 @@ async function updatePresence(userID, isOnline, force = false) {
       lastSeenTimestamp: serverTimestamp(),
     });
     
-    console.log(`[Presence] Updated status for ${userID}: ${isOnline ? 'online' : 'offline'}`);
+    //console.log(`[Presence] Updated status for ${userID}: ${isOnline ? 'online' : 'offline'}`);
   } catch (error) {
     // Handle permission errors gracefully (common during logout)
     const isPermissionError = 
@@ -108,7 +108,7 @@ export function initializePresence(userID) {
   
   heartbeatInterval = setInterval(() => {
     if (currentUserID) {
-      console.log('[Presence] Heartbeat - updating presence');
+      //console.log('[Presence] Heartbeat - updating presence');
       setUserOnline(currentUserID);
     }
   }, 8000); // 8 seconds - within the 10s throttle window (3x faster updates)

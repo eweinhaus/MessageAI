@@ -113,6 +113,7 @@ export async function getUserProfile(userID) {
 
 /**
  * Update a user profile in Firestore
+ * Creates the document if it doesn't exist (useful after database reset)
  * @param {string} userID - Firebase Auth UID
  * @param {Object} updates - Fields to update
  * @returns {Promise<void>}
@@ -121,13 +122,41 @@ export async function updateUserProfile(userID, updates) {
   try {
     const userRef = doc(db, 'users', userID);
     
-    const updateData = {
-      ...updates,
-      updatedAt: serverTimestamp(),
-    };
+    // Check if document exists
+    const docSnap = await getDoc(userRef);
     
-    await updateDoc(userRef, updateData);
-    console.log('User profile updated:', userID);
+    if (!docSnap.exists()) {
+      // Document doesn't exist - create it with required fields
+      console.warn(`[Firestore] User document doesn't exist for ${userID}, creating...`);
+      
+      // Get current user info from Firebase Auth if available
+      const { auth } = require('../config/firebaseConfig');
+      const currentUser = auth.currentUser;
+      
+      const userData = {
+        userID,
+        displayName: updates.displayName || currentUser?.displayName || 'User',
+        email: updates.email || currentUser?.email || '',
+        isOnline: updates.isOnline !== undefined ? updates.isOnline : true,
+        lastSeenTimestamp: serverTimestamp(),
+        fcmToken: updates.fcmToken || null,
+        ...updates, // Apply any other fields from updates
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      
+      await setDoc(userRef, userData);
+      console.log('[Firestore] User document created:', userID);
+    } else {
+      // Document exists - just update it
+      const updateData = {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      };
+      
+      await updateDoc(userRef, updateData);
+      console.log('[Firestore] User profile updated:', userID);
+    }
   } catch (error) {
     console.error('Error updating user profile:', error);
     throw error;

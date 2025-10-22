@@ -21,7 +21,7 @@ const {estimateTokenCount, sleep, AIServiceError} = require("./aiUtils");
  *
  * @param {string} templateString - Prompt template with {variables}
  * @param {Object} [options] - Chain configuration options
- * @param {string} [options.model="gpt-4-turbo-preview"] - Model name
+ * @param {string} [options.model="gpt-4o-mini"] - Model name
  * @param {number} [options.temperature=0.3] - Temperature (0-2)
  * @param {number} [options.maxTokens=2000] - Max completion tokens
  * @param {number} [options.retries=3] - Number of retry attempts
@@ -45,7 +45,7 @@ function createSimpleChain(templateString, options = {}) {
   }
 
   const {
-    model = "gpt-4-turbo-preview",
+    model = "gpt-4o-mini",
     temperature = 0.3,
     maxTokens = 2000,
     retries = 3,
@@ -137,7 +137,7 @@ function createStructuredOutputChain(schema, promptTemplate, options = {}) {
   }
 
   const {
-    model = "gpt-4-turbo-preview",
+    model = "gpt-4o-mini",
     temperature = 0.3,
     maxTokens = 2000,
     retries = 3,
