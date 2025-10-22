@@ -24,8 +24,8 @@
 ### Tasks
 
 1. **Install dependencies in Cloud Functions**
-   - [ ] Navigate to `functions/` directory
-   - [ ] Install required packages:
+   - [x] Navigate to `functions/` directory
+   - [x] Install required packages:
      ```bash
      cd functions
      npm install openai@^4.20.0
@@ -33,8 +33,8 @@
      npm install @langchain/openai@^0.0.19
      npm install @langchain/core@^0.1.0
      ```
-   - [ ] Update `package.json` with dependency versions
-   - [ ] Test `npm install` completes without errors
+   - [x] Update `package.json` with dependency versions
+   - [x] Test `npm install` completes without errors
 
 2. **Set up OpenAI API credentials**
    - [ ] Obtain OpenAI API key from platform.openai.com
