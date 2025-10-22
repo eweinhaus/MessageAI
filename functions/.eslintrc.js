@@ -1,28 +1,19 @@
 module.exports = {
+  root: true,
   env: {
     es6: true,
     node: true,
-  },
-  parserOptions: {
-    "ecmaVersion": 2020,
+    jest: true, // Add Jest globals
   },
   extends: [
     "eslint:recommended",
     "google",
   ],
   rules: {
-    "no-restricted-globals": ["error", "name", "length"],
-    "prefer-arrow-callback": "error",
-    "quotes": ["error", "double", {"allowTemplateLiterals": true}],
+    "quotes": ["error", "double"],
+    "max-len": ["error", {code: 80}],
   },
-  overrides: [
-    {
-      files: ["**/*.spec.*"],
-      env: {
-        mocha: true,
-      },
-      rules: {},
-    },
-  ],
-  globals: {},
+  parserOptions: {
+    ecmaVersion: 2020,
+  },
 };
