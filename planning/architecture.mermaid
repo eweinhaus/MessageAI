@@ -4,19 +4,21 @@ graph TB
         UB["👤 User B's Phone<br/>React Native App"]
         
         subgraph "User A - App Components"
-            UAComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List"]
-            UAState["📦 Zustand State<br/>• Current User<br/>• Active Chats<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue"]
+            UAComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List<br/>• AI Insights Panel"]
+            UAState["📦 Zustand State<br/>• Current User<br/>• Active Chats<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue<br/>• AI Results Cache"]
             UASQL["💾 SQLite Database<br/>• Messages (with syncStatus)<br/>• Chat Metadata<br/>• Pending Queue<br/>• Last Sync Timestamp"]
             UANotif["🔔 Expo Notifications<br/>• FCM Receiver<br/>• In-App Toast Handler<br/>• Foreground Only"]
             UANet["📡 NetInfo Listener<br/>• Network Status<br/>• Online/Offline Detection<br/>• Auto-Reconnect Trigger"]
+            UAAI["🤖 AI Service Client<br/>• Call AI Functions<br/>• Handle Loading States<br/>• Error Handling"]
         end
         
         subgraph "User B - App Components"
-            UBComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List"]
-            UBState["📦 Zustand State<br/>• Current User<br/>• Active Chats<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue"]
+            UBComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List<br/>• AI Insights Panel"]
+            UBState["📦 Zustand State<br/>• Current User<br/>• Active Chats<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue<br/>• AI Results Cache"]
             UBSQL["💾 SQLite Database<br/>• Messages (with syncStatus)<br/>• Chat Metadata<br/>• Pending Queue<br/>• Last Sync Timestamp"]
             UBNotif["🔔 Expo Notifications<br/>• FCM Receiver<br/>• In-App Toast Handler<br/>• Foreground Only"]
             UBNet["📡 NetInfo Listener<br/>• Network Status<br/>• Online/Offline Detection<br/>• Auto-Reconnect Trigger"]
+            UBAI["🤖 AI Service Client<br/>• Call AI Functions<br/>• Handle Loading States<br/>• Error Handling"]
         end
         
         UA --> UAComp
@@ -24,12 +26,14 @@ graph TB
         UA --> UASQL
         UA --> UANotif
         UA --> UANet
+        UA --> UAAI
         
         UB --> UBComp
         UB --> UBState
         UB --> UBSQL
         UB --> UBNotif
         UB --> UBNet
+        UB --> UBAI
     end
     
     subgraph "Real-Time Listeners - Firestore SDK"
@@ -46,11 +50,17 @@ graph TB
     subgraph "Cloud Layer - Firebase"
         AUTH["🔐 Firebase Auth<br/>• Google Sign-In<br/>• Session Management<br/>• Token Auto-Refresh<br/>• onAuthStateChanged"]
         
-        FS["☁️ Firestore<br/>(Source of Truth)<br/><br/>Collections:<br/>• /users<br/>• /chats<br/>• /chats/{id}/messages"]
+        FS["☁️ Firestore<br/>(Source of Truth)<br/><br/>Collections:<br/>• /users<br/>• /chats<br/>• /chats/{id}/messages<br/>• /chats/{id}/aiInsights<br/>• /chats/{id}/priorities<br/>• /chats/{id}/summaries<br/>• /chats/{id}/actionItems<br/>• /chats/{id}/decisions"]
         
-        CF["⚡ Cloud Functions<br/><br/>onMessageCreated:<br/>• Check recipient online<br/>• Get FCM token<br/>• Send push (foreground)<br/><br/>Scheduled:<br/>• Clean old presence data"]
+        CF["⚡ Cloud Functions<br/><br/>onMessageCreated:<br/>• Check recipient online<br/>• Get FCM token<br/>• Send push (foreground)<br/><br/>AI Callable Functions:<br/>• analyzePriorities<br/>• summarizeThread<br/>• extractActionItems<br/>• trackDecisions<br/><br/>Scheduled:<br/>• Clean old presence data<br/>• Clean expired AI cache"]
         
         FCM["📢 Firebase Cloud<br/>Messaging (FCM)<br/>• Push to Device A<br/>• Push to Device B<br/>• Foreground Only"]
+    end
+    
+    subgraph "AI Layer - OpenAI"
+        OPENAI["🧠 OpenAI API<br/><br/>Model: GPT-4 Turbo<br/>• Text Generation<br/>• Structured Output<br/>• Function Calling<br/><br/>Context Window: 128K tokens"]
+        
+        LANGCHAIN["🔗 Langchain<br/><br/>• Prompt Templates<br/>• Output Parsers<br/>• LLM Chains<br/>• Agents (optional)"]
     end
     
     subgraph "Data Flow: Send Message"
@@ -71,6 +81,10 @@ graph TB
     
     subgraph "Sync Strategy"
         SYNC["SQLite = Read Cache + Write Queue<br/>Firestore = Source of Truth<br/><br/>On Startup:<br/>1. Read SQLite (instant UI)<br/>2. Async sync with Firestore<br/>3. Reconcile differences<br/><br/>On Conflict:<br/>• Firestore ALWAYS wins<br/>• Overwrite SQLite<br/><br/>On Send:<br/>1. Write SQLite (pending)<br/>2. Write Firestore (async)<br/>3. Update SQLite (synced)<br/><br/>On Receive:<br/>1. Listener fires<br/>2. Write SQLite<br/>3. Update UI"]
+    end
+    
+    subgraph "Data Flow: AI Analysis (RAG Pipeline)"
+        AIFLOW["1️⃣ User taps 'Summarize Thread'<br/>2️⃣ Client calls Cloud Function<br/>3️⃣ Function fetches messages from Firestore<br/>4️⃣ Build context (last N messages)<br/>5️⃣ Send to OpenAI GPT-4 via Langchain<br/>6️⃣ Parse structured response<br/>7️⃣ Cache result in Firestore<br/>   (/chats/{id}/summaries)<br/>8️⃣ Return to client<br/>9️⃣ Display in modal<br/>🔟 Future requests: serve from cache"]
     end
     
     %% Connections - User A Flow
@@ -119,15 +133,39 @@ graph TB
     UANet -->|Reconnect Event| UASQL
     UBNet -->|Reconnect Event| UBSQL
     
+    %% AI Flow Connections
+    UAComp -->|User Taps AI Feature| UAAI
+    UBComp -->|User Taps AI Feature| UBAI
+    UAAI -->|Call Callable Function| CF
+    UBAI -->|Call Callable Function| CF
+    CF -->|Fetch Messages| FS
+    CF -->|Send Context| LANGCHAIN
+    LANGCHAIN -->|API Request| OPENAI
+    OPENAI -->|AI Response| LANGCHAIN
+    LANGCHAIN -->|Parsed Result| CF
+    CF -->|Cache Result| FS
+    CF -->|Return to Client| UAAI
+    CF -->|Return to Client| UBAI
+    UAAI -->|Update State| UAState
+    UBAI -->|Update State| UBState
+    UAState -->|Trigger Render| UAComp
+    UBState -->|Trigger Render| UBComp
+    
+    %% AI Cache Listeners
+    FS -->|Real-Time AI Results| UAState
+    FS -->|Real-Time AI Results| UBState
+    
     %% Styling
     classDef client fill:#e1f5ff,stroke:#01579b,stroke-width:2px
     classDef firebase fill:#fff3e0,stroke:#e65100,stroke-width:2px
     classDef listener fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef flow fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
     classDef sync fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    classDef ai fill:#e8eaf6,stroke:#1a237e,stroke-width:2px
     
-    class UA,UB,UAComp,UAState,UASQL,UANotif,UANet,UBComp,UBState,UBSQL,UBNotif,UBNet client
+    class UA,UB,UAComp,UAState,UASQL,UANotif,UANet,UAAI,UBComp,UBState,UBSQL,UBNotif,UBNet,UBAI client
     class FS,AUTH,CF,FCM firebase
     class ListenerA,ListenerB,PresenceA,PresenceB,MsgListenerA,MsgListenerB listener
-    class SEND,RECEIVE,OFFLINE,PRESENCE flow
+    class SEND,RECEIVE,OFFLINE,PRESENCE,AIFLOW flow
     class SYNC sync
+    class OPENAI,LANGCHAIN ai
