@@ -15,6 +15,7 @@ import { BACKGROUND_CHAT, TEXT_SECONDARY } from '../constants/colors';
  * @param {string} props.chatID - Chat ID to display messages for
  * @param {boolean} props.isGroup - Whether this is a group chat (shows sender info)
  * @param {boolean} props.isLoading - Loading state
+ * @param {Object} props.priorities - Message priorities (messageId -> priority data)
  */
 export default function MessageList({
   chatID,
@@ -22,6 +23,7 @@ export default function MessageList({
   isLoading = false,
   topInset = 0,
   bottomInset = 0,
+  priorities = {},
 }) {
   const flatListRef = useRef(null);
   // Use a stable selector to avoid infinite loops
@@ -133,6 +135,9 @@ export default function MessageList({
     const isGrouped = isMessageGrouped(item, prevMessage);
     const isLast = isLastInGroup(item, nextMessage);
 
+    // Get priority data for this message
+    const priorityData = priorities[item.messageID];
+
     return (
       <MessageBubble
         message={item}
@@ -140,6 +145,9 @@ export default function MessageList({
         showSenderInfo={isGroup}
         isGrouped={isGrouped}
         isLastInGroup={isLast}
+        priority={priorityData?.priority}
+        priorityReason={priorityData?.reason}
+        priorityConfidence={priorityData?.confidence}
       />
     );
   };

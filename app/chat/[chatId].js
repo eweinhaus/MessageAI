@@ -12,11 +12,14 @@ import useUserStore from '../../store/userStore';
 import MessageList from '../../components/MessageList';
 import MessageInput from '../../components/MessageInput';
 import ChatHeader from '../../components/ChatHeader';
+import AIInsightsPanel from '../../components/AIInsightsPanel';
 import { getMessagesForChat, insertMessage, updateMessage } from '../../db/messageDb';
 import { sendMessage } from '../../services/messageService';
+import { analyzePriorities } from '../../services/aiService';
 import { Ionicons } from '@expo/vector-icons';
 import { PRIMARY_GREEN } from '../../constants/colors';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
+import ErrorToast from '../../components/ErrorToast';
 
 export default function ChatDetailScreen() {
   const router = useRouter();
@@ -30,6 +33,10 @@ export default function ChatDetailScreen() {
   const currentUser = useUserStore((state) => state.currentUser);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiLoading, setAILoading] = useState({});
+  const [priorities, setPriorities] = useState({});
+  const [error, setError] = useState(null);
   
   const chat = getChatByID(chatId);
   
@@ -150,6 +157,90 @@ export default function ChatDetailScreen() {
     };
   }, [chatId, currentUser]);
 
+  // Set up Firestore listener for message priorities
+  useEffect(() => {
+    if (!chatId) return;
+
+    const listenerId = `chat-priorities-${chatId}`;
+    console.log(`[ChatDetail] Setting up priorities listener for chat ${chatId}`);
+
+    const prioritiesRef = collection(db, `chats/${chatId}/priorities`);
+    const unsubscribe = onSnapshot(
+      prioritiesRef,
+      (snapshot) => {
+        const newPriorities = {};
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          newPriorities[doc.id] = {
+            priority: data.priority,
+            reason: data.reason,
+            confidence: data.confidence,
+          };
+        });
+        setPriorities(newPriorities);
+        console.log(`[ChatDetail] Loaded ${Object.keys(newPriorities).length} priorities`);
+      },
+      (error) => {
+        console.error('[ChatDetail] Priorities listener error:', error);
+      }
+    );
+
+    registerListener(listenerId, unsubscribe, {
+      collection: `chats/${chatId}/priorities`,
+    });
+
+    return () => {
+      unregisterListener(listenerId);
+    };
+  }, [chatId]);
+
+  // Handle AI Priority Analysis
+  const handleAnalyzePriorities = async () => {
+    setShowAIPanel(false);
+    setAILoading((prev) => ({ ...prev, priorities: true }));
+    setError(null);
+
+    try {
+      console.log('[ChatDetail] Analyzing priorities...');
+      const result = await analyzePriorities(chatId, { messageCount: 30 });
+
+      if (result.success) {
+        console.log('[ChatDetail] Priority analysis complete:', result.data);
+        // Priorities will be updated via Firestore listener
+        setError({ type: 'success', message: 'Priority analysis complete!' });
+      } else {
+        console.error('[ChatDetail] Priority analysis failed:', result.error);
+        setError({ type: 'error', message: result.message });
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error:', err);
+      setError({ type: 'error', message: 'Something went wrong. Please try again.' });
+    } finally {
+      setAILoading((prev) => ({ ...prev, priorities: false }));
+    }
+  };
+
+  // Placeholder handlers for other AI features
+  const handleSummarizeThread = () => {
+    setShowAIPanel(false);
+    setError({ type: 'info', message: 'Thread summarization coming soon!' });
+  };
+
+  const handleExtractActionItems = () => {
+    setShowAIPanel(false);
+    setError({ type: 'info', message: 'Action item extraction coming soon!' });
+  };
+
+  const handleSmartSearch = () => {
+    setShowAIPanel(false);
+    setError({ type: 'info', message: 'Smart search coming soon!' });
+  };
+
+  const handleTrackDecisions = () => {
+    setShowAIPanel(false);
+    setError({ type: 'info', message: 'Decision tracking coming soon!' });
+  };
+
   // Navigate to member list
   const handleHeaderPress = () => {
     // For groups, navigate to member list
@@ -187,13 +278,22 @@ export default function ChatDetailScreen() {
         }}
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        {/* Custom Header */}
-        <ChatHeader
-          chat={chat}
-          currentUserID={currentUser?.userID}
-          onPress={handleHeaderPress}
-          chatId={chatId}
-        />
+        {/* Custom Header with AI Button */}
+        <View style={styles.headerContainer}>
+          <ChatHeader
+            chat={chat}
+            currentUserID={currentUser?.userID}
+            onPress={handleHeaderPress}
+            chatId={chatId}
+          />
+          <TouchableOpacity
+            style={styles.aiButton}
+            onPress={() => setShowAIPanel(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="sparkles" size={24} color={PRIMARY_GREEN} />
+          </TouchableOpacity>
+        </View>
         
         <KeyboardAvoidingView
           style={styles.keyboardAvoid}
@@ -207,6 +307,7 @@ export default function ChatDetailScreen() {
               isLoading={isLoading}
               topInset={0}
               bottomInset={bottomInset}
+              priorities={priorities}
             />
             <MessageInput
               chatID={chatId}
@@ -216,6 +317,27 @@ export default function ChatDetailScreen() {
             />
           </View>
         </KeyboardAvoidingView>
+
+        {/* AI Insights Panel */}
+        <AIInsightsPanel
+          visible={showAIPanel}
+          onClose={() => setShowAIPanel(false)}
+          onAnalyzePriorities={handleAnalyzePriorities}
+          onSummarizeThread={handleSummarizeThread}
+          onExtractActionItems={handleExtractActionItems}
+          onSmartSearch={handleSmartSearch}
+          onTrackDecisions={handleTrackDecisions}
+          loading={aiLoading}
+        />
+
+        {/* Error Toast */}
+        {error && (
+          <ErrorToast
+            message={error.message}
+            type={error.type}
+            onDismiss={() => setError(null)}
+          />
+        )}
       </SafeAreaView>
     </>
   );
@@ -225,6 +347,26 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FAFAFA',
+  },
+  headerContainer: {
+    position: 'relative',
+  },
+  aiButton: {
+    position: 'absolute',
+    right: 16,
+    top: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
   },
   keyboardAvoid: {
     flex: 1,

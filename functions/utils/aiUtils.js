@@ -390,6 +390,56 @@ function handleAIError(error, context) {
   };
 }
 
+/**
+ * Fetch last N messages from a chat
+ * @param {string} chatId - Chat ID to fetch from
+ * @param {number} messageCount - Number of messages to fetch
+ * @return {Promise<Array<Object>>} Array of message objects
+ * @throws {ValidationError} If parameters invalid or chat not found
+ *
+ * @example
+ * const messages = await getLastNMessages(chatId, 50);
+ */
+async function getLastNMessages(chatId, messageCount = 50) {
+  if (!chatId || typeof chatId !== "string") {
+    throw new ValidationError("chatId must be a non-empty string");
+  }
+
+  if (!messageCount || typeof messageCount !== "number" || messageCount < 1) {
+    throw new ValidationError("messageCount must be a positive number");
+  }
+
+  try {
+    const snapshot = await admin.firestore()
+        .collection("chats")
+        .doc(chatId)
+        .collection("messages")
+        .orderBy("timestamp", "desc")
+        .limit(messageCount)
+        .get();
+
+    if (snapshot.empty) {
+      return [];
+    }
+
+    // Reverse to get chronological order (oldest first)
+    const messages = snapshot.docs
+        .map((doc) => ({
+          messageID: doc.id,
+          ...doc.data(),
+        }))
+        .reverse();
+
+    return messages;
+  } catch (error) {
+    throw new AIServiceError(
+        `Failed to fetch messages: ${error.message}`,
+        500,
+        "FIRESTORE_ERROR",
+    );
+  }
+}
+
 // Export all utilities
 module.exports = {
   getOpenAIClient,
@@ -398,6 +448,7 @@ module.exports = {
   validateChatAccess,
   handleAIError,
   estimateTokenCount,
+  getLastNMessages,
   sleep, // Available for future use in retry logic
   AIServiceError,
   ValidationError,

@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { formatMessageTime } from '../utils/timeUtils';
 import { retryFailedMessage } from '../services/messageService';
 import Avatar from './Avatar';
+import PriorityBadge from './PriorityBadge';
 import {
   BUBBLE_OWN,
   BUBBLE_OTHER,
@@ -23,8 +24,20 @@ import {
  * @param {boolean} props.showSenderInfo - Whether to show avatar and name (for groups)
  * @param {boolean} props.isGrouped - Whether this message is grouped with previous (hide avatar/name)
  * @param {boolean} props.isLastInGroup - Whether this is the last message in a group (show timestamp/status)
+ * @param {string} props.priority - Priority level ("urgent" or "normal")
+ * @param {string} props.priorityReason - Reason for priority
+ * @param {number} props.priorityConfidence - Confidence score (0-1)
  */
-function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = false, isLastInGroup = true }) {
+function MessageBubble({ 
+  message, 
+  isOwn, 
+  showSenderInfo = false, 
+  isGrouped = false, 
+  isLastInGroup = true,
+  priority,
+  priorityReason,
+  priorityConfidence,
+}) {
   const {
     messageID,
     chatID,
@@ -97,6 +110,15 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
             {text?.trim() || text}
           </Text>
         </View>
+
+        {/* Priority Badge */}
+        {priority && (
+          <PriorityBadge
+            priority={priority}
+            reason={priorityReason}
+            confidence={priorityConfidence}
+          />
+        )}
 
         {/* Timestamp and delivery status - only show for last message in group */}
         {isLastInGroup && (

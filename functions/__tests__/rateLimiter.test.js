@@ -38,12 +38,6 @@ jest.mock("firebase-admin", () => {
     collection: jest.fn(() => mockCollection),
   };
 
-  const mockTransaction = {
-    get: jest.fn(),
-    set: jest.fn(),
-    update: jest.fn(),
-  };
-
   const mockFirestore = {
     collection: jest.fn(() => ({
       doc: jest.fn(() => mockSubDoc),
@@ -150,6 +144,92 @@ describe("rateLimiter", () => {
       // Should not throw - testing that custom limit is accepted
       expect(true).toBe(true);
     });
+
+    test("should allow when rate limit window expired", async () => {
+      admin.auth().getUser.mockResolvedValue({
+        customClaims: {},
+      });
+
+      const expiredTime = Date.now() - 100000; // 100 seconds ago
+      admin.firestore()
+          .collection()
+          .doc()
+          .collection()
+          .doc()
+          .get.mockResolvedValue({
+            exists: true,
+            data: () => ({
+              count: 15,
+              resetAt: {toMillis: () => expiredTime},
+            }),
+          });
+
+      const result = await checkRateLimit("user123", "test");
+      expect(result).toBe(true);
+    });
+
+    test("should throw RateLimitError when limit exceeded", async () => {
+      const {RateLimitError} = require("../utils/errors");
+      admin.auth().getUser.mockResolvedValue({
+        customClaims: {},
+      });
+
+      const futureTime = Date.now() + 3600000; // 1 hour from now
+      admin.firestore()
+          .collection()
+          .doc()
+          .collection()
+          .doc()
+          .get.mockResolvedValue({
+            exists: true,
+            data: () => ({
+              count: 15,
+              resetAt: {toMillis: () => futureTime},
+            }),
+          });
+
+      await expect(checkRateLimit("user123", "test"))
+          .rejects.toThrow(RateLimitError);
+    });
+
+    test("should allow when under limit", async () => {
+      admin.auth().getUser.mockResolvedValue({
+        customClaims: {},
+      });
+
+      const futureTime = Date.now() + 3600000;
+      admin.firestore()
+          .collection()
+          .doc()
+          .collection()
+          .doc()
+          .get.mockResolvedValue({
+            exists: true,
+            data: () => ({
+              count: 5,
+              resetAt: {toMillis: () => futureTime},
+            }),
+          });
+
+      const result = await checkRateLimit("user123", "test");
+      expect(result).toBe(true);
+    });
+
+    test("should handle Firestore errors gracefully", async () => {
+      admin.auth().getUser.mockResolvedValue({
+        customClaims: {},
+      });
+      admin.firestore()
+          .collection()
+          .doc()
+          .collection()
+          .doc()
+          .get.mockRejectedValue(new Error("Firestore error"));
+
+      // Should fail open (allow) on errors
+      const result = await checkRateLimit("user123", "test");
+      expect(result).toBe(true);
+    });
   });
 
   describe("incrementRateLimit", () => {
@@ -236,6 +316,39 @@ describe("rateLimiter", () => {
 
       const summaryStatus = await getRateLimitStatus("user123", "summary");
       expect(summaryStatus.limit).toBe(5);
+    });
+
+    test("should return status with expired window reset", async () => {
+      const expiredTime = Date.now() - 100000;
+      admin.firestore()
+          .collection()
+          .doc()
+          .collection()
+          .doc()
+          .get.mockResolvedValue({
+            exists: true,
+            data: () => ({
+              count: 10,
+              resetAt: {toMillis: () => expiredTime},
+            }),
+          });
+
+      const status = await getRateLimitStatus("user123", "summary");
+      expect(status.count).toBe(0); // Should reset
+      expect(status.remaining).toBe(5);
+    });
+
+    test("should handle Firestore errors gracefully", async () => {
+      admin.firestore()
+          .collection()
+          .doc()
+          .collection()
+          .doc()
+          .get.mockRejectedValue(new Error("Firestore error"));
+
+      const status = await getRateLimitStatus("user123", "summary");
+      expect(status).toBeDefined();
+      expect(status.limit).toBe(5);
     });
   });
 

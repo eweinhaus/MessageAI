@@ -3,8 +3,8 @@
 ## Current Status
 **Project Phase**: Phase 2 AI Implementation IN PROGRESS 🚀  
 **Last Updated**: October 22, 2025  
-**Overall Completion**: 100% MVP (PR 1-12) + PR16 AI Infrastructure Complete ✅  
-**Current Focus**: PR17 (Priority Detection Feature)
+**Overall Completion**: 100% MVP (PR 1-12) + PR16 Complete & Deployed ✅  
+**Current Focus**: PR17 (Priority Detection Feature - Cloud Function Ready, Client Integration Next)
 
 ## What's Working ✅
 - Expo project runs on physical device (Expo Go)
@@ -65,13 +65,16 @@
 - ✅ **MVP Testing**: All core features validated on physical devices
 
 ### Phase 2 AI Implementation
-- ✅ **PR 16**: AI Infrastructure Setup (October 22, 2025)
+- ✅ **PR 16**: AI Infrastructure Setup + Priority Detection Backend (October 22, 2025)
   - OpenAI GPT-4 Turbo API integration
   - Langchain orchestration framework
   - Firestore-based caching (24hr TTL)
   - Rate limiting (10 ops/hour per user)
   - Custom error handling
-  - 108 unit tests passing (~85% coverage)
+  - Priority Detection Cloud Function (`analyzePriorities`) deployed
+  - Priority detection prompts with few-shot examples
+  - 131 unit tests passing (80.15% coverage) ✅
+  - **Deployed to production** 🚀
 
 ## What's Left to Build
 
@@ -241,30 +244,45 @@ None. MVP is complete and tested.
   - Target: > 90%
 
 ## Recent Changes
-- October 22, 2025: **PR16 - AI Infrastructure Setup - COMPLETE** 🎉
+- October 22, 2025: **PR16 - AI Infrastructure + Priority Detection Backend - COMPLETE & DEPLOYED** 🎉🚀
   - **Implementation summary**:
-    - Created `functions/utils/aiUtils.js` (200+ lines) - Core AI utilities
-    - Created `functions/utils/langchainUtils.js` (150+ lines) - Langchain wrappers
-    - Created `functions/utils/cacheUtils.js` (180+ lines) - Cache operations
-    - Created `functions/utils/errors.js` (120+ lines) - Error handling
-    - Created `functions/utils/rateLimiter.js` (140+ lines) - Rate limiting
-    - Created `functions/__tests__/*.test.js` (5 files, 500+ lines) - Test suite
+    - Created `functions/utils/aiUtils.js` (435+ lines) - Core AI utilities, message fetching
+    - Created `functions/utils/langchainUtils.js` (250+ lines) - Langchain wrappers
+    - Created `functions/utils/cacheUtils.js` (305+ lines) - Cache operations
+    - Created `functions/utils/errors.js` (230+ lines) - Error handling
+    - Created `functions/utils/rateLimiter.js` (320+ lines) - Rate limiting
+    - Created `functions/prompts/priorityDetection.js` (245+ lines) - Priority prompts & few-shots
+    - Created `functions/analyzePriorities.js` (300+ lines) - Priority detection Cloud Function
+    - Created `functions/__tests__/*.test.js` (6 files, 800+ lines) - Test suite
     - Created `functions/jest.config.js` - Jest configuration
     - Created `functions/.eslintrc.js` - ESLint configuration
     - Created `README.md` (300+ lines) - Project documentation
     - Created `functions/.env` - Local environment variables (cursorignored)
   - **Key features**:
     - ✅ OpenAI GPT-4 Turbo client initialization with singleton pattern
-    - ✅ Message context building for RAG pipeline
+    - ✅ Message context building for RAG pipeline (`buildMessageContext`, `getLastNMessages`)
     - ✅ Langchain simple and structured output chains
     - ✅ Firestore-based caching with 24hr TTL and statistics
     - ✅ Custom error classes for AI, cache, validation, and rate limit errors
     - ✅ User-based rate limiting (10 operations/hour, admin bypass)
-    - ✅ Comprehensive test coverage: 108 tests passing, ~85% coverage
-    - ✅ ESLint and Jest configuration for code quality
-  - **Files created**: 9 new files (~1,500 lines total)
-  - **Test results**: 108 tests passing, 0 failing
-  - **Status**: Infrastructure ready for AI feature implementation (PR17+)
+    - ✅ Priority detection system prompt with urgency indicators
+    - ✅ Few-shot examples for better priority classification
+    - ✅ `analyzePriorities` Cloud Function (validates, fetches messages, calls OpenAI, stores in Firestore)
+    - ✅ **Test coverage: 131 tests passing, 80.15% coverage** ⬆️
+    - ✅ **All ESLint errors fixed** (max-len, quotes, unused vars)
+  - **Test improvements**:
+    - Added 23 new tests for rateLimiter (rate limit exceeded, expired windows, error handling, admin bypass)
+    - Added 5 new tests for aiUtils (getLastNMessages validation, empty arrays, Firestore errors)
+    - Added 12 tests for priorityDetection prompts (system prompt, few-shots, formatting)
+    - Coverage improved: aiUtils 66.7% → 70.7%, rateLimiter 52.7% → 75.8%, overall 73.4% → 80.15%
+  - **Deployment**:
+    - ✅ Deployed to Firebase production (`firebase deploy --only functions`)
+    - ✅ `analyzePriorities` - New Cloud Function created successfully
+    - ✅ `onMessageCreated` - Updated successfully
+    - ✅ All functions running on Node.js 22, us-central1
+  - **Files created**: 12 new files (~2,800+ lines total)
+  - **Test results**: 131 tests passing, 0 failing
+  - **Status**: Backend ready for client-side integration (PR17 services/UI)
 - October 22, 2025: **Typing Indicators & Faster Presence Updates - COMPLETE** 🎉
   - **Implementation summary**:
     - Created `services/typingService.js` (145 lines) with throttling and auto-cleanup

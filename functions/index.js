@@ -144,6 +144,10 @@ async function sendFCMNotification(fcmToken, notification, data) {
   return admin.messaging().send(payload);
 }
 
+// AI Features - Priority Detection
+const {analyzePriorities} = require("./analyzePriorities");
+exports.analyzePriorities = analyzePriorities;
+
 /**
  * Triggered when new message created in
  * /chats/{chatID}/messages/{messageID}
