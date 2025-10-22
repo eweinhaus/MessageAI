@@ -134,3 +134,61 @@ node scripts/clearAllData.js
 
 - `dotenv` package: `npm install dotenv`
 
+---
+
+## Cache Clear Test Script
+
+### testCacheClear.js
+
+**Purpose**: Verify that logout properly clears local data (SQLite + Zustand stores).
+
+### Usage
+
+```bash
+node scripts/testCacheClear.js
+```
+
+### What It Does
+
+1. Checks that all required files exist
+2. Verifies `clearAllData()` function exists in database.js
+3. Confirms logout calls all cleanup functions
+4. Provides manual test checklist
+
+### Manual Test Checklist
+
+The script outputs a comprehensive checklist for testing:
+
+1. **Basic Logout/Login** - Verify no old messages after logout
+2. **Console Logs** - Check for "Clearing local data" messages
+3. **Multi-User Test** - Ensure data isolation between users
+4. **Offline Logout** - Verify clearing works without network
+5. **SQLite Verification** - Advanced check of database tables
+
+### Success Indicators
+
+✅ Console shows "Clearing local data" on logout  
+✅ Home screen is empty after fresh login  
+✅ No flash of previous user's messages  
+✅ Loading indicator appears briefly, then correct data  
+
+### Related Documentation
+
+See `md_files/CACHE_FIX_SUMMARY.md` for full technical details.
+
+### When to Use
+
+- After implementing cache clear fix
+- Before deploying changes
+- When debugging data leakage issues
+- During multi-user testing
+
+### Why This Matters
+
+Without proper cache clearing:
+- User B could see User A's messages
+- Privacy violation (PII exposure)
+- Security risk (data leakage)
+
+The fix ensures complete data isolation between users.
+

@@ -59,6 +59,18 @@ export default function RootLayout() {
 
   // Load chats from SQLite and sync with Firestore when authenticated
   useEffect(() => {
+    // When user logs out, clear all local stores and data
+    if (!isAuthenticated && !isLoading && dbInitialized) {
+      console.log('[App] User logged out, clearing local data...');
+      const { clearAllData } = require('../db/database');
+      const { default: useMessageStore } = require('../store/messageStore');
+      
+      clearAllData().catch(err => console.error('[App] Error clearing SQLite:', err));
+      setChats([]);
+      useMessageStore.getState().clearMessages();
+      return;
+    }
+    
     if (!isAuthenticated || !currentUser || !dbInitialized) return;
 
     async function loadAndSyncData() {
@@ -88,7 +100,7 @@ export default function RootLayout() {
     }
 
     loadAndSyncData();
-  }, [isAuthenticated, currentUser, dbInitialized]);
+  }, [isAuthenticated, currentUser, dbInitialized, isLoading]);
 
   // Set up network listener to trigger sync when coming back online
   useEffect(() => {

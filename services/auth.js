@@ -92,7 +92,8 @@ export async function signUpWithEmail(email, password, displayName) {
     await createUserProfile(user.uid, displayName || email.split('@')[0], email);
     return userCredential;
   } catch (error) {
-    console.error('Error signing up with email:', error);
+    // Log concise error info instead of full stack trace
+    console.log('Sign up error:', error.code || error.message);
     const friendlyMessage = getErrorMessage(error);
     const enhancedError = new Error(friendlyMessage);
     enhancedError.code = error.code;
@@ -108,7 +109,8 @@ export async function signInWithEmail(email, password) {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return userCredential;
   } catch (error) {
-    console.error('Error signing in with email:', error);
+    // Log concise error info instead of full stack trace
+    console.log('Sign in error:', error.code || error.message);
     const friendlyMessage = getErrorMessage(error);
     const enhancedError = new Error(friendlyMessage);
     enhancedError.code = error.code;
@@ -123,7 +125,8 @@ export async function sendPasswordReset(email) {
   try {
     await firebaseSendPasswordResetEmail(auth, email);
   } catch (error) {
-    console.error('Error sending password reset email:', error);
+    // Log concise error info instead of full stack trace
+    console.log('Password reset error:', error.code || error.message);
     const friendlyMessage = getErrorMessage(error);
     const enhancedError = new Error(friendlyMessage);
     enhancedError.code = error.code;

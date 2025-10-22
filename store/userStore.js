@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { subscribeToAuth, logout as authLogout } from '../services/auth';
 import { setUserOffline, cleanupPresence } from '../services/presenceService';
+import { clearAllData } from '../db/database';
 
 // Flag to prevent multiple initializations
 let isInitialized = false;
@@ -59,7 +60,7 @@ const useUserStore = create((set, get) => ({
 
   /**
    * Logout the current user
-   * Clears user state and calls Firebase logout
+   * Clears user state, local data, and calls Firebase logout
    */
   logout: async () => {
     try {
@@ -81,6 +82,25 @@ const useUserStore = create((set, get) => ({
         cleanupPresence();
       }
       
+      // Clear all local data to prevent data leakage between users
+      console.log('[Logout] Clearing local data (SQLite, stores)...');
+      try {
+        // Clear SQLite database
+        await clearAllData();
+        console.log('[Logout] SQLite data cleared');
+        
+        // Clear Zustand stores (import at function level to avoid circular deps)
+        const { default: useChatStore } = await import('./chatStore');
+        const { default: useMessageStore } = await import('./messageStore');
+        
+        useChatStore.getState().clearChats();
+        useMessageStore.getState().clearMessages();
+        console.log('[Logout] Zustand stores cleared');
+      } catch (clearError) {
+        console.error('[Logout] Error clearing local data:', clearError);
+        // Don't block logout if clearing fails
+      }
+      
       await authLogout();
       set({
         currentUser: null,
@@ -88,6 +108,8 @@ const useUserStore = create((set, get) => ({
         isLoading: false,
         error: null,
       });
+      
+      console.log('[Logout] Logout complete');
     } catch (error) {
       console.error('Error logging out:', error);
       set({

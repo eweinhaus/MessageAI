@@ -14,6 +14,12 @@ import { useRouter } from 'expo-router';
 import { signInWithEmail, signUpWithEmail } from '../../services/auth';
 import useUserStore from '../../store/userStore';
 
+// Simple email validation
+const isValidEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
 export default function LoginScreen() {
   const router = useRouter();
   const { isAuthenticated, setError, clearError } = useUserStore();
@@ -24,6 +30,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Google OAuth disabled for MVP - can be re-enabled post-MVP
   // See git history or OAUTH_SETUP_NOTES.md for implementation details
@@ -37,21 +44,38 @@ export default function LoginScreen() {
 
   const handleEmailAuth = async () => {
     try {
+      // Clear previous errors
+      setErrorMessage('');
+      clearError();
+      
+      // Client-side validation
       if (!email || !password || (mode === 'signup' && !displayName)) {
-        Alert.alert('Missing info', 'Please fill all fields.');
+        setErrorMessage('Please fill in all fields');
         return;
       }
+      
+      const trimmedEmail = email.trim();
+      if (!isValidEmail(trimmedEmail)) {
+        setErrorMessage('Please enter a valid email address');
+        return;
+      }
+      
+      if (password.length < 6) {
+        setErrorMessage('Password must be at least 6 characters');
+        return;
+      }
+      
       setIsLoading(true);
-      clearError();
+      
       if (mode === 'login') {
-        await signInWithEmail(email.trim(), password);
+        await signInWithEmail(trimmedEmail, password);
       } else {
-        await signUpWithEmail(email.trim(), password, displayName.trim());
+        await signUpWithEmail(trimmedEmail, password, displayName.trim());
       }
     } catch (error) {
-      console.error('Email auth error:', error);
+      // Display user-friendly error message inline
       setError(error);
-      Alert.alert('Auth Error', error.message || 'Please try again.', [{ text: 'OK' }]);
+      setErrorMessage(error.message || 'Authentication failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +102,10 @@ export default function LoginScreen() {
             placeholder="Display name"
             autoCapitalize="words"
             value={displayName}
-            onChangeText={setDisplayName}
+            onChangeText={(text) => {
+              setDisplayName(text);
+              setErrorMessage('');
+            }}
           />
         )}
         <TextInput
@@ -87,15 +114,29 @@ export default function LoginScreen() {
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(text) => {
+            setEmail(text);
+            setErrorMessage('');
+          }}
         />
         <TextInput
           style={styles.input}
           placeholder="Password"
           secureTextEntry
           value={password}
-          onChangeText={setPassword}
+          onChangeText={(text) => {
+            setPassword(text);
+            setErrorMessage('');
+          }}
         />
+        
+        {/* Inline error message */}
+        {errorMessage ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : null}
+        
         <TouchableOpacity style={styles.primaryButton} onPress={handleEmailAuth} disabled={isLoading}>
           {isLoading ? (
             <ActivityIndicator color="#fff" size="small" />
@@ -103,7 +144,10 @@ export default function LoginScreen() {
             <Text style={styles.primaryButtonText}>{mode === 'login' ? 'Sign in' : 'Create account'}</Text>
           )}
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+        <TouchableOpacity onPress={() => {
+          setMode(mode === 'login' ? 'signup' : 'login');
+          setErrorMessage('');
+        }}>
           <Text style={styles.switchText}>
             {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </Text>
@@ -158,6 +202,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 10,
     fontSize: 16,
+  },
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+  },
+  errorText: {
+    color: '#991B1B',
+    fontSize: 14,
+    fontWeight: '500',
   },
   primaryButton: {
     backgroundColor: '#111827',
