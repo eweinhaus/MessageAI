@@ -204,21 +204,46 @@ export async function getAllUsers() {
     const usersRef = collection(db, 'users');
     const querySnapshot = await getDocs(usersRef);
     
+    console.log('[Firestore] Total documents in users collection:', querySnapshot.size);
+    
     const users = [];
+    const invalidUsers = [];
+    
     querySnapshot.forEach((doc) => {
       const userData = doc.data();
       
+      console.log('[Firestore] Checking user document:', doc.id);
+      console.log('  - userID:', userData.userID || '❌ MISSING');
+      console.log('  - displayName:', userData.displayName || '❌ MISSING');
+      console.log('  - email:', userData.email || '❌ MISSING');
+      
       // Validate user data has required fields
       if (!userData.userID || !userData.displayName || !userData.email) {
-        console.warn('[Firestore] Skipping invalid user document:', doc.id, userData);
+        console.warn('[Firestore] ❌ INVALID USER - Missing required fields:', doc.id);
+        console.warn('  Fields:', {
+          userID: userData.userID,
+          displayName: userData.displayName,
+          email: userData.email
+        });
+        invalidUsers.push({ docId: doc.id, userData });
         return;
       }
       
-      console.log('[Firestore] Found user:', userData.userID, userData.displayName);
+      console.log('[Firestore] ✅ Valid user:', userData.userID, userData.displayName);
       users.push(userData);
     });
     
-    console.log('[Firestore] Total valid users in collection:', users.length);
+    console.log('[Firestore] ====== SUMMARY ======');
+    console.log('[Firestore] Valid users:', users.length);
+    console.log('[Firestore] Invalid users:', invalidUsers.length);
+    if (invalidUsers.length > 0) {
+      console.log('[Firestore] ⚠️ Invalid users will NOT appear in contacts:');
+      invalidUsers.forEach(({ docId, userData }) => {
+        console.log(`  - ${docId} (${userData.email || 'no email'})`);
+      });
+    }
+    console.log('[Firestore] ====================');
+    
     return users;
   } catch (error) {
     console.error('Error getting all users:', error);

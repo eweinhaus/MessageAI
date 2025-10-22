@@ -76,23 +76,61 @@ export async function authenticateWithGoogle(idToken) {
  * Email/Password - Sign up
  */
 export async function signUpWithEmail(email, password, displayName) {
+  let userCredential = null;
+  
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    // Step 1: Create Firebase Auth account
+    userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
+    
+    console.log('[Auth] Firebase Auth account created:', user.uid);
 
+    // Step 2: Update Firebase Auth profile (optional, non-fatal)
     if (displayName) {
       try {
         await updateProfile(user, { displayName });
+        console.log('[Auth] Firebase Auth displayName set');
       } catch (e) {
         // non-fatal
-        console.warn('Unable to set displayName on profile:', e?.message);
+        console.warn('[Auth] Unable to set displayName on Auth profile:', e?.message);
       }
     }
 
-    await createUserProfile(user.uid, displayName || email.split('@')[0], email);
+    // Step 3: Create Firestore profile (CRITICAL - retry on failure)
+    const maxRetries = 3;
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[Auth] Creating Firestore profile (attempt ${attempt}/${maxRetries})...`);
+        await createUserProfile(user.uid, displayName || email.split('@')[0], email);
+        console.log('[Auth] ✓ Firestore profile created successfully');
+        lastError = null;
+        break; // Success!
+      } catch (e) {
+        lastError = e;
+        console.error(`[Auth] Firestore profile creation failed (attempt ${attempt}):`, e.message);
+        
+        if (attempt < maxRetries) {
+          // Wait before retry (exponential backoff: 1s, 2s, 4s)
+          const delay = Math.pow(2, attempt - 1) * 1000;
+          console.log(`[Auth] Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    // If all retries failed, we have a problem
+    if (lastError) {
+      console.error('[Auth] ❌ CRITICAL: Failed to create Firestore profile after all retries');
+      console.error('[Auth] User has Firebase Auth account but no Firestore profile');
+      console.error('[Auth] Profile will be auto-created on next sign-in');
+      // Don't throw - let them sign in, auto-repair will fix it
+    }
+    
     return userCredential;
   } catch (error) {
-    // Log concise error info instead of full stack trace
+    // If Firebase Auth creation failed, there's nothing to clean up
     console.log('Sign up error:', error.code || error.message);
     const friendlyMessage = getErrorMessage(error);
     const enhancedError = new Error(friendlyMessage);
@@ -107,6 +145,36 @@ export async function signUpWithEmail(email, password, displayName) {
 export async function signInWithEmail(email, password) {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    
+    // Validate that Firestore profile exists and has required fields
+    console.log('[Auth] Validating user profile...');
+    const profile = await getUserProfile(user.uid);
+    
+    if (!profile) {
+      // Profile doesn't exist - create it (likely failed during initial sign-up)
+      console.warn('[Auth] User profile missing! Creating now...');
+      await createUserProfile(
+        user.uid,
+        user.displayName || email.split('@')[0],
+        user.email || email
+      );
+    } else if (!profile.userID || !profile.displayName || !profile.email) {
+      // Profile exists but is missing required fields - repair it
+      console.warn('[Auth] User profile incomplete! Repairing...');
+      const updates = {};
+      
+      if (!profile.userID) updates.userID = user.uid;
+      if (!profile.displayName) updates.displayName = user.displayName || email.split('@')[0];
+      if (!profile.email) updates.email = user.email || email;
+      
+      const { updateUserProfile } = require('./firestore');
+      await updateUserProfile(user.uid, updates);
+      console.log('[Auth] Profile repaired:', updates);
+    } else {
+      console.log('[Auth] Profile validated ✓');
+    }
+    
     return userCredential;
   } catch (error) {
     // Log concise error info instead of full stack trace

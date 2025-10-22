@@ -94,6 +94,51 @@ Never commit your service account key to git!
 
 ---
 
+## Fix Invalid Users Script
+
+### fixInvalidUsers.js
+
+**Purpose**: Automatically fix user documents missing required fields.
+
+### When to Use
+
+Use this script if:
+- You can't see all contacts in the contact picker
+- Console shows "Skipping invalid user document" warnings
+- Users were manually created in Firebase Console without all fields
+
+### Usage
+
+```bash
+node scripts/fixInvalidUsers.js
+```
+
+### What It Fixes
+
+The script checks each user document for:
+- ❌ Missing `userID` → Sets to document ID
+- ❌ Missing `displayName` → Generates from email or creates default
+- ❌ Missing `email` → **Cannot auto-fix** (must add manually)
+
+### Manual Fix in Firebase Console
+
+If you prefer to fix manually:
+
+1. Go to **Firestore Database** > `users` collection
+2. Click on each user document
+3. Ensure these fields exist:
+   - `userID`: string (should match document ID)
+   - `displayName`: string (user's name)
+   - `email`: string (user's email address)
+4. Add missing fields by clicking "Add field"
+
+### Requirements
+
+- Service account key (see "Using the Script" section above)
+- OR fix manually in Firebase Console
+
+---
+
 ## Clear All Data Script
 
 ### clearAllData.js

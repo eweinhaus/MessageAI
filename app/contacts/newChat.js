@@ -286,18 +286,19 @@ export default function NewChatScreen() {
       <Stack.Screen
         options={{
           title: 'New Chat',
-          headerStyle: {
-            backgroundColor: '#4CAF50',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: '600',
-          },
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.headerButton}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <TouchableOpacity
               onPress={handleNext}
               disabled={selectedUsers.size === 0 || isCreating}
-              style={styles.nextButton}
+              style={styles.headerButton}
             >
               <Text
                 style={[
@@ -451,9 +452,8 @@ const styles = StyleSheet.create({
     color: '#558b2f',
     marginTop: 2,
   },
-  nextButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  headerButton: {
+    marginHorizontal: 16,
   },
   nextButtonText: {
     fontSize: 16,
