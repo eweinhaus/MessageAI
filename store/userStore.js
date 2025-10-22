@@ -68,9 +68,16 @@ const useUserStore = create((set, get) => ({
       // Get current user before logout
       const user = get().currentUser;
       
-      // Set user offline before logging out
+      // Set user offline before logging out (non-blocking)
+      // This may fail if auth token is already invalidated, which is fine
       if (user?.userID) {
-        await setUserOffline(user.userID);
+        try {
+          await setUserOffline(user.userID);
+        } catch (presenceError) {
+          // Silently handle presence errors during logout
+          // The user is logging out anyway, so this is not critical
+          console.warn('[Logout] Could not set user offline (expected during logout):', presenceError.message);
+        }
         cleanupPresence();
       }
       

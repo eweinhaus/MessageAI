@@ -1,9 +1,38 @@
 import { Tabs, useRouter } from 'expo-router';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import useUserStore from '../../store/userStore';
 
 export default function TabsLayout() {
   const router = useRouter();
+  const { logout } = useUserStore();
+  
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              // Navigation to login screen will happen automatically
+              // when auth state changes in the root layout
+            } catch (error) {
+              console.error('Error logging out:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  };
   
   return (
     <Tabs
@@ -28,6 +57,14 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="chatbubbles" size={size} color={color} />
           ),
+          headerLeft: () => (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={26} color="#fff" />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <TouchableOpacity
               style={styles.headerButton}
@@ -44,7 +81,7 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   headerButton: {
-    marginRight: 16,
+    marginHorizontal: 16,
   },
 });
 

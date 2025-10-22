@@ -1,4 +1,4 @@
-// Login Screen - Google Sign-In + Email/Password
+// Login Screen - Email/Password Auth
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
@@ -11,14 +11,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri, ResponseType } from 'expo-auth-session';
-import { authenticateWithGoogle, signInWithEmail, signUpWithEmail } from '../../services/auth';
+import { signInWithEmail, signUpWithEmail } from '../../services/auth';
 import useUserStore from '../../store/userStore';
-
-// Complete the web browser session
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -31,42 +25,8 @@ export default function LoginScreen() {
   const [displayName, setDisplayName] = useState('');
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
 
-  // Build explicit redirect URI (Expo AuthSession proxy) with app scheme
-  const redirectUri = makeRedirectUri({ scheme: 'messageai', useProxy: true });
-  useEffect(() => {
-    console.log('Auth redirect URI:', redirectUri);
-  }, [redirectUri]);
-
-  // Configure Google authentication
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    responseType: ResponseType.IdToken,
-    scopes: ['openid', 'email', 'profile'],
-    redirectUri,
-  });
-
-  // Handle Google authentication response
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const idToken = response.params?.id_token;
-      if (!idToken) {
-        console.error('Google auth success but missing id_token:', response);
-        setError('Missing id_token in Google auth response');
-        setIsLoading(false);
-        return;
-      }
-      handleGoogleSignIn(idToken);
-    } else if (response?.type === 'error') {
-      console.error('Google auth error:', response.error);
-      setError(response.error);
-      Alert.alert('Authentication Error', 'Failed to sign in with Google. Please try again.', [{ text: 'OK' }]);
-      setIsLoading(false);
-    } else if (response?.type === 'cancel') {
-      setIsLoading(false);
-    }
-  }, [response]);
+  // Google OAuth disabled for MVP - can be re-enabled post-MVP
+  // See git history or OAUTH_SETUP_NOTES.md for implementation details
 
   // Redirect to main app if already authenticated
   useEffect(() => {
@@ -74,20 +34,6 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     }
   }, [isAuthenticated]);
-
-  const handleGoogleSignIn = async (idToken) => {
-    try {
-      setIsLoading(true);
-      clearError();
-      await authenticateWithGoogle(idToken);
-    } catch (error) {
-      console.error('Error signing in:', error);
-      setError(error);
-      Alert.alert('Sign In Failed', error.message || 'Please try again.', [{ text: 'OK' }]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleEmailAuth = async () => {
     try {
@@ -111,18 +57,6 @@ export default function LoginScreen() {
     }
   };
 
-  const handleSignInPress = async () => {
-    try {
-      setIsLoading(true);
-      clearError();
-      await promptAsync({ useProxy: true, redirectUri });
-    } catch (error) {
-      console.error('Error prompting Google sign-in:', error);
-      setError(error);
-      setIsLoading(false);
-      Alert.alert('Sign In Error', 'Failed to open sign-in prompt. Please try again.', [{ text: 'OK' }]);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -176,35 +110,9 @@ export default function LoginScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Divider */}
-      <View style={styles.dividerContainer}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.divider} />
-      </View>
-
-      {/* Google Sign-In Section */}
-      <View style={styles.content}>
-        <TouchableOpacity
-          style={[styles.signInButton, (isLoading || !request) && styles.signInButtonDisabled]}
-          onPress={handleSignInPress}
-          disabled={isLoading || !request}
-          activeOpacity={0.8}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <>
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.signInButtonText}>Sign in with Google</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-
       {/* Footer */}
       <View style={styles.footer}>
-        <Text style={styles.footerText}>MVP Build - Email/Password + Google</Text>
+        <Text style={styles.footerText}>MVP Build - Email/Password Auth</Text>
       </View>
       </View>
     </SafeAreaView>

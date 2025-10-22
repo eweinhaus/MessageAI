@@ -20,7 +20,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gauntlet.messageai"
+      "bundleIdentifier": "com.gauntlet.messageai",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.gauntlet.messageai",
@@ -42,7 +45,6 @@
         {
           "icon": "./assets/icon.png",
           "color": "#4285F4",
-          "sounds": ["./assets/notification.wav"],
           "mode": "production"
         }
       ]

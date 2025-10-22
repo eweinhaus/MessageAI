@@ -67,7 +67,16 @@ async function updatePresence(userID, isOnline, force = false) {
     
     console.log(`[Presence] Updated status for ${userID}: ${isOnline ? 'online' : 'offline'}`);
   } catch (error) {
-    console.error('[Presence] Error updating presence:', error);
+    // Handle permission errors gracefully (common during logout)
+    const isPermissionError = 
+      error.code === 'permission-denied' || 
+      error.message?.includes('Missing or insufficient permissions');
+    
+    if (isPermissionError) {
+      console.warn(`[Presence] Permission denied when updating presence for ${userID} (user may be logging out)`);
+    } else {
+      console.error('[Presence] Error updating presence:', error);
+    }
     // Don't throw - presence updates should fail gracefully
   }
 }

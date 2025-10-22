@@ -92,3 +92,45 @@ echo "scripts/serviceAccountKey.json" >> .gitignore
 
 Never commit your service account key to git!
 
+---
+
+## Clear All Data Script
+
+### clearAllData.js
+
+**⚠️ DESTRUCTIVE OPERATION** - Deletes all data from Firestore.
+
+### Usage
+
+```bash
+node scripts/clearAllData.js
+```
+
+### What It Does
+
+1. Waits 3 seconds (can cancel with Ctrl+C)
+2. Deletes all messages from all chats
+3. Deletes all chats
+4. Deletes all user profiles
+
+### What Gets Deleted
+
+- ❌ All users from `/users` collection
+- ❌ All chats from `/chats` collection  
+- ❌ All messages from `/chats/{chatId}/messages` subcollections
+
+### What Doesn't Get Deleted
+
+- ✅ Firebase Auth accounts (delete manually in Console if needed)
+- ✅ SQLite data on devices (syncs from Firestore on next app open)
+
+### When to Use
+
+- Starting fresh with testing
+- Cleaning up after development
+- Resetting the app to initial state
+
+### Requirements
+
+- `dotenv` package: `npm install dotenv`
+
