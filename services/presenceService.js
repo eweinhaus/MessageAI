@@ -2,16 +2,16 @@
 import { doc, updateDoc, serverTimestamp, onSnapshot, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebaseConfig';
 
-// Throttle state - max 1 update per 30 seconds per user
+// Throttle state - max 1 update per 10 seconds per user
 const lastUpdateTime = {};
-const THROTTLE_DELAY = 30000; // 30 seconds
+const THROTTLE_DELAY = 10000; // 10 seconds (3x faster for better responsiveness)
 let isInitialized = false;
 let currentUserID = null;
 let heartbeatInterval = null;
 
-// Presence timeout - consider user offline if no update in 45 seconds
-// This is 1.5x the throttle delay to account for network delays
-const PRESENCE_TIMEOUT = 45000; // 45 seconds
+// Presence timeout - consider user offline if no update in 20 seconds
+// This is 2x the heartbeat interval plus buffer for network delays
+const PRESENCE_TIMEOUT = 20000; // 20 seconds (2.25x faster offline detection)
 
 /**
  * Update user's online status in Firestore
@@ -100,7 +100,7 @@ export function initializePresence(userID) {
   // Set user online immediately
   setUserOnline(userID);
   
-  // Set up heartbeat to update presence every 25 seconds (within throttle window)
+  // Set up heartbeat to update presence every 8 seconds (within throttle window)
   // This ensures the user's presence is kept fresh and doesn't become stale
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
@@ -111,7 +111,7 @@ export function initializePresence(userID) {
       console.log('[Presence] Heartbeat - updating presence');
       setUserOnline(currentUserID);
     }
-  }, 25000); // 25 seconds - within the 30s throttle window
+  }, 8000); // 8 seconds - within the 10s throttle window (3x faster updates)
 }
 
 /**

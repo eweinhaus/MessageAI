@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import { PRIMARY_GREEN, BACKGROUND_COLOR, TEXT_PRIMARY } from '../constants/colors';
 import { useNetworkStatus } from '../utils/networkStatus';
+import { useTyping } from '../hooks/useTyping';
 
 /**
  * MessageInput Component
@@ -12,10 +13,22 @@ import { useNetworkStatus } from '../utils/networkStatus';
  * @param {Object} props
  * @param {string} props.chatID - Chat ID
  * @param {Function} props.onSend - Callback when send button is pressed (receives text)
+ * @param {string} props.currentUserId - Current user's ID (for typing indicators)
+ * @param {string} props.currentUserName - Current user's display name (for typing indicators)
  */
-export default function MessageInput({ chatID, onSend, bottomInset = 0 }) {
+export default function MessageInput({ chatID, onSend, bottomInset = 0, currentUserId, currentUserName }) {
   const [text, setText] = useState('');
   const { isOnline } = useNetworkStatus();
+  const { handleTyping, clearUserTyping } = useTyping(chatID, currentUserId, currentUserName);
+
+  const handleTextChange = (newText) => {
+    setText(newText);
+    
+    // Trigger typing indicator if text is not empty
+    if (newText.trim().length > 0) {
+      handleTyping();
+    }
+  };
 
   const handleSend = () => {
     const trimmedText = text.trim();
@@ -23,6 +36,9 @@ export default function MessageInput({ chatID, onSend, bottomInset = 0 }) {
     if (trimmedText === '') {
       return;
     }
+
+    // Clear typing indicator before sending
+    clearUserTyping();
 
     // Call parent's onSend callback
     onSend(trimmedText);
@@ -46,7 +62,7 @@ export default function MessageInput({ chatID, onSend, bottomInset = 0 }) {
         placeholder={isOnline ? "Type a message..." : "You're offline..."}
         placeholderTextColor="#999"
         value={text}
-        onChangeText={setText}
+        onChangeText={handleTextChange}
         multiline
         maxLength={2000}
         editable

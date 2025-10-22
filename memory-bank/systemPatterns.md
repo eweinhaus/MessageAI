@@ -350,8 +350,70 @@ function subscribeToPresence(userID, callback) {
 **Why not Firebase Realtime Database?**
 - Firestore-only solution is simpler (no additional service)
 - Heartbeat + staleness achieves similar results
-- 45-second delay for force-quit detection is acceptable for MVP
 - Can add RTDB later if needed
+
+**Updated Timing** (October 22, 2025):
+- Heartbeat: Every 8 seconds (was 25s) - 3x faster
+- Throttle: Max 1 write per 10 seconds (was 30s)
+- Staleness: 20 seconds timeout (was 45s)
+- Result: 3x faster updates, 3x more Firestore writes
+- Trade-off: Better UX at cost of higher Firestore usage
+
+### 7. Typing Indicators
+
+**Pattern**: Ephemeral real-time status updates via Firestore subcollection
+
+**Implementation** (October 22, 2025):
+```javascript
+// Firestore structure (ephemeral, no SQLite persistence)
+/chats/{chatId}/typing/{userId}
+  - isTyping: boolean
+  - timestamp: serverTimestamp()
+  - displayName: string
+
+// Throttling to prevent spam
+TYPING_THROTTLE = 1000ms   // Max 1 update per second
+TYPING_TIMEOUT = 3000ms    // Consider stale after 3 seconds
+
+// Client-side management
+- useTyping hook manages subscription and auto-cleanup
+- Triggers on text input change
+- Auto-clears after 3 seconds of inactivity
+- Clears on message send
+- Clears on component unmount
+```
+
+**Display Logic** (Priority order in ChatHeader):
+1. **Typing indicators** (highest priority)
+   - 1 user: "John is typing..."
+   - 2 users: "John and Sarah are typing..."
+   - 3+ users: "3 people are typing..."
+2. **Member count** (for groups, when no typing)
+   - "5 members"
+3. **Last seen status** (for 1:1, when no typing)
+   - "Online" / "Last seen 5m ago"
+
+**Key Features**:
+- ✅ Real-time typing indicators in chat headers
+- ✅ Throttled updates (1 write/second per user)
+- ✅ Auto-cleanup after 3 seconds of inactivity
+- ✅ Multiple users typing supported
+- ✅ Works in 1:1 and group chats
+- ✅ No SQLite persistence (ephemeral data only)
+- ✅ Excludes current user from typing list
+- ✅ Stale indicator detection and cleanup
+
+**Firestore Cost**:
+- ~1 write per second per actively typing user
+- ~100-500 writes per active chat session per user
+- Minimal cost for MVP scale (< $0.50 per 1000 active users)
+
+**Why ephemeral subcollection?**
+- Typing is transient - doesn't need persistence
+- Subcollection allows multiple users typing simultaneously
+- Document per user prevents write conflicts
+- Automatic cleanup via timestamp staleness detection
+- No impact on main chat/message documents
 
 ## Data Flow Patterns
 

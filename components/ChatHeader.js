@@ -7,13 +7,14 @@ import { Ionicons } from '@expo/vector-icons';
 import Avatar from './Avatar';
 import { PRIMARY_GREEN, STATUS_ONLINE, TEXT_SECONDARY } from '../constants/colors';
 import { usePresence } from '../hooks/usePresence';
+import { useTyping } from '../hooks/useTyping';
 import { getInitials } from '../utils/avatarUtils';
 
 /**
  * ChatHeader Component
  * Custom header for chat screens that displays:
- * - 1:1 chats: Avatar, name, online status
- * - Group chats: Group icon, name, member count
+ * - 1:1 chats: Avatar, name, online status, typing indicator
+ * - Group chats: Group icon, name, member count, typing indicators
  * 
  * Tappable to navigate to member list
  * 
@@ -21,6 +22,7 @@ import { getInitials } from '../utils/avatarUtils';
  * @param {Object} props.chat - Chat object from store
  * @param {string} props.currentUserID - Current user's ID
  * @param {Function} props.onPress - Callback when header is tapped
+ * @param {string} props.chatId - Chat ID (for typing indicators)
  */
 /**
  * Get group initials from the first 2 members
@@ -39,7 +41,7 @@ function getGroupInitials(memberNames = []) {
   return (first + second).toUpperCase();
 }
 
-export default function ChatHeader({ chat, currentUserID, onPress }) {
+export default function ChatHeader({ chat, currentUserID, onPress, chatId }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   
@@ -70,6 +72,9 @@ export default function ChatHeader({ chat, currentUserID, onPress }) {
   // Get presence data for 1:1 chats
   const { isOnline, lastSeen } = usePresence(isGroup ? null : otherUserID);
   
+  // Get typing indicators (for both 1:1 and group chats)
+  const { typingUsers } = useTyping(chatId, currentUserID, null);
+  
   // Format last seen time
   const getLastSeenText = () => {
     // If explicitly marked as online, show "Online"
@@ -91,6 +96,28 @@ export default function ChatHeader({ chat, currentUserID, onPress }) {
     if (hours < 24) return `Last seen ${hours}h ago`;
     if (days < 7) return `Last seen ${days}d ago`;
     return 'Offline';
+  };
+  
+  // Get status text with typing indicator priority
+  const getStatusText = () => {
+    // PRIORITY 1: Show typing indicator (highest priority)
+    if (typingUsers.length > 0) {
+      if (typingUsers.length === 1) {
+        return `${typingUsers[0].displayName} is typing...`;
+      } else if (typingUsers.length === 2) {
+        return `${typingUsers[0].displayName} and ${typingUsers[1].displayName} are typing...`;
+      } else {
+        return `${typingUsers.length} people are typing...`;
+      }
+    }
+    
+    // PRIORITY 2: Show member count for groups (no typing)
+    if (isGroup) {
+      return `${memberCount} members`;
+    }
+    
+    // PRIORITY 3: Show last seen for 1:1 chats (no typing)
+    return getLastSeenText();
   };
   
   const handleBackPress = () => {
@@ -148,7 +175,7 @@ export default function ChatHeader({ chat, currentUserID, onPress }) {
               {displayName}
             </Text>
             <Text style={styles.status} numberOfLines={1}>
-              {isGroup ? `${memberCount} members` : getLastSeenText()}
+              {getStatusText()}
             </Text>
           </View>
         </TouchableOpacity>

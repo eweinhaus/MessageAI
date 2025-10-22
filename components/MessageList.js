@@ -39,16 +39,35 @@ export default function MessageList({
   
   // Track which messages have been marked as read to avoid duplicate writes
   const [markedAsRead, setMarkedAsRead] = useState(new Set());
+  
+  // Track if we've done initial scroll
+  const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Reset initial scroll flag when chatID changes
   useEffect(() => {
-    if (messages.length > 0 && flatListRef.current) {
+    setHasInitialScrolled(false);
+  }, [chatID]);
+
+  // Auto-scroll to bottom on initial load
+  useEffect(() => {
+    if (!isLoading && messages.length > 0 && flatListRef.current && !hasInitialScrolled) {
+      // Delay to ensure FlatList has rendered
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: false });
+        setHasInitialScrolled(true);
+      }, 100);
+    }
+  }, [isLoading, messages.length, hasInitialScrolled]);
+
+  // Auto-scroll to bottom when new messages arrive (after initial load)
+  useEffect(() => {
+    if (hasInitialScrolled && messages.length > 0 && flatListRef.current) {
       // Small delay to ensure layout has completed
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length]);
+  }, [messages.length, hasInitialScrolled]);
 
   /**
    * Determine if a message should be grouped with the previous one

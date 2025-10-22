@@ -192,6 +192,7 @@ export default function ChatDetailScreen() {
           chat={chat}
           currentUserID={currentUser?.userID}
           onPress={handleHeaderPress}
+          chatId={chatId}
         />
         
         <KeyboardAvoidingView
@@ -210,6 +211,8 @@ export default function ChatDetailScreen() {
             <MessageInput
               chatID={chatId}
               onSend={handleSendMessage}
+              currentUserId={currentUser?.userID}
+              currentUserName={currentUser?.displayName}
             />
           </View>
         </KeyboardAvoidingView>
