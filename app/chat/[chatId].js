@@ -14,9 +14,10 @@ import MessageInput from '../../components/MessageInput';
 import ChatHeader from '../../components/ChatHeader';
 import AIInsightsPanel from '../../components/AIInsightsPanel';
 import SummaryModal from '../../components/SummaryModal';
+import ActionItemsModal from '../../components/ActionItemsModal';
 import { getMessagesForChat, insertMessage, updateMessage } from '../../db/messageDb';
 import { sendMessage } from '../../services/messageService';
-import { analyzePriorities, summarizeThread } from '../../services/aiService';
+import { analyzePriorities, summarizeThread, extractActionItems, updateActionItemStatus } from '../../services/aiService';
 import { Ionicons } from '@expo/vector-icons';
 import { PRIMARY_GREEN } from '../../constants/colors';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
@@ -44,6 +45,13 @@ export default function ChatDetailScreen() {
   const [summaryData, setSummaryData] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState(null);
+  
+  // Action items modal state
+  const [showActionItemsModal, setShowActionItemsModal] = useState(false);
+  const [actionItemsData, setActionItemsData] = useState([]);
+  const [actionItemsLoading, setActionItemsLoading] = useState(false);
+  const [actionItemsError, setActionItemsError] = useState(null);
+  const [actionItemsCached, setActionItemsCached] = useState(false);
   
   const chat = getChatByID(chatId);
   
@@ -292,12 +300,124 @@ export default function ChatDetailScreen() {
     }
   };
 
-  // Placeholder handlers for other AI features
-
-  const handleExtractActionItems = () => {
+  // Handle Action Items Extraction
+  const handleExtractActionItems = async () => {
     setShowAIPanel(false);
-    setError({ type: 'info', message: 'Action item extraction coming soon!' });
+    setAILoading((prev) => ({ ...prev, actionItems: true }));
+    setActionItemsLoading(true);
+    setActionItemsError(null);
+    setShowActionItemsModal(true);
+
+    try {
+      const result = await extractActionItems(chatId, {
+        messageCount: 50,
+        forceRefresh: false,
+      });
+
+      if (result.success) {
+        setActionItemsData(result.data.actionItems || []);
+        setActionItemsCached(result.cached);
+        const count = result.data.actionItems?.length || 0;
+        setError({ 
+          type: 'success', 
+          message: result.cached ? 
+            `Loaded ${count} action item${count !== 1 ? 's' : ''} from cache` : 
+            `Found ${count} action item${count !== 1 ? 's' : ''}!`
+        });
+      } else {
+        console.error('[ChatDetail] Action item extraction failed:', result.error);
+        setActionItemsError(result.message);
+        setError({ type: 'error', message: result.message });
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error:', err);
+      const errorMsg = 'Something went wrong. Please try again.';
+      setActionItemsError(errorMsg);
+      setError({ type: 'error', message: errorMsg });
+    } finally {
+      setActionItemsLoading(false);
+      setAILoading((prev) => ({ ...prev, actionItems: false }));
+    }
   };
+
+  // Handle Action Items Refresh
+  const handleRefreshActionItems = async () => {
+    setActionItemsLoading(true);
+    setActionItemsError(null);
+
+    try {
+      const result = await extractActionItems(chatId, {
+        messageCount: 50,
+        forceRefresh: true, // Force fresh extraction
+      });
+
+      if (result.success) {
+        setActionItemsData(result.data.actionItems || []);
+        setActionItemsCached(false);
+        const count = result.data.actionItems?.length || 0;
+        setError({ type: 'success', message: `Found ${count} action item${count !== 1 ? 's' : ''}!` });
+      } else {
+        console.error('[ChatDetail] Action items refresh failed:', result.error);
+        setActionItemsError(result.message);
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error during refresh:', err);
+      const errorMsg = 'Failed to refresh action items. Please try again.';
+      setActionItemsError(errorMsg);
+    } finally {
+      setActionItemsLoading(false);
+    }
+  };
+
+  // Handle marking action item as complete
+  const handleMarkActionItemComplete = async (itemId) => {
+    const result = await updateActionItemStatus(chatId, itemId, 'completed');
+    
+    if (result.success) {
+      // Update local state
+      setActionItemsData((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, status: 'completed' } : item
+        )
+      );
+      setError({ type: 'success', message: 'Action item marked as complete!' });
+    } else {
+      setError({ type: 'error', message: 'Failed to update action item.' });
+    }
+  };
+
+  // Handle marking action item as pending (reopen)
+  const handleMarkActionItemPending = async (itemId) => {
+    const result = await updateActionItemStatus(chatId, itemId, 'pending');
+    
+    if (result.success) {
+      // Update local state
+      setActionItemsData((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, status: 'pending' } : item
+        )
+      );
+      setError({ type: 'success', message: 'Action item reopened!' });
+    } else {
+      setError({ type: 'error', message: 'Failed to update action item.' });
+    }
+  };
+
+  // Handle viewing the context message for an action item
+  const handleViewActionItemMessage = (messageId) => {
+    // For now, just close the modal
+    // In the future, we could scroll to the message and highlight it
+    setShowActionItemsModal(false);
+    setError({ type: 'info', message: `Jump to message: ${messageId}` });
+    
+    // TODO: Implement jump-to-message functionality
+    // This would require:
+    // 1. Finding the message index in the messages array
+    // 2. Scrolling the FlatList to that index
+    // 3. Highlighting the message briefly
+  };
+
+  // Placeholder handlers for other AI features
 
   const handleSmartSearch = () => {
     setShowAIPanel(false);
@@ -399,6 +519,20 @@ export default function ChatDetailScreen() {
           loading={summaryLoading}
           error={summaryError}
           onRefresh={handleRefreshSummary}
+        />
+
+        {/* Action Items Modal */}
+        <ActionItemsModal
+          visible={showActionItemsModal}
+          onClose={() => setShowActionItemsModal(false)}
+          actionItems={actionItemsData}
+          loading={actionItemsLoading}
+          error={actionItemsError}
+          onRefresh={handleRefreshActionItems}
+          onViewMessage={handleViewActionItemMessage}
+          onMarkComplete={handleMarkActionItemComplete}
+          onMarkPending={handleMarkActionItemPending}
+          cached={actionItemsCached}
         />
 
         {/* Error Toast */}

@@ -140,25 +140,41 @@ export async function summarizeThread(chatId, options = {}) {
  * @param {string} chatId - Chat ID to analyze
  * @param {Object} [options] - Options
  * @param {number} [options.messageCount=50] - Number of messages to analyze
+ * @param {boolean} [options.forceRefresh=false] - Skip cache and force fresh extraction
  * @return {Promise<Object>} Result with action items
  *
  * @example
  * const result = await extractActionItems(chatId);
  * if (result.success) {
- *   result.data.items.forEach(item => console.log(item.task));
+ *   result.data.actionItems.forEach(item => console.log(item.task));
  * }
  */
 export async function extractActionItems(chatId, options = {}) {
   try {
+    const user = auth.currentUser;
+
+    if (!user) {
+      console.error("[AI Service] No authenticated user!");
+      return {
+        success: false,
+        error: "unauthenticated",
+        message: "Please sign in to use AI features",
+      };
+    }
+
     const callable = httpsCallable(functions, "extractActionItems");
 
     const result = await callable({
       chatId,
       messageCount: options.messageCount || 50,
+      forceRefresh: options.forceRefresh || false,
     });
+
+    console.log("[AI Service] extractActionItems success");
 
     return {
       success: true,
+      cached: result.data.cached || false,
       data: result.data,
     };
   } catch (error) {

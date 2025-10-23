@@ -152,6 +152,10 @@ exports.analyzePriorities = analyzePriorities;
 const {summarizeThread} = require("./summarizeThread");
 exports.summarizeThread = summarizeThread;
 
+// AI Features - Action Item Extraction
+const {extractActionItems} = require("./extractActionItems");
+exports.extractActionItems = extractActionItems;
+
 /**
  * Triggered when new message created in
  * /chats/{chatID}/messages/{messageID}

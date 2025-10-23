@@ -22,7 +22,8 @@ const DEFAULT_LIMITS = {
   priority: 10, // 10 calls per hour
   summary: 5, // 5 calls per hour
   search: 20, // 20 calls per hour
-  actions: 10, // 10 calls per hour
+  actions: 10, // 10 calls per hour (legacy name)
+  actionItems: 10, // 10 calls per hour
   decisions: 5, // 5 calls per hour
   default: 10, // Default for any operation
 };
