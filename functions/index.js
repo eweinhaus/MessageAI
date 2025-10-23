@@ -156,6 +156,10 @@ exports.summarizeThread = summarizeThread;
 const {extractActionItems} = require("./extractActionItems");
 exports.extractActionItems = extractActionItems;
 
+// AI Features - Smart Search
+const {smartSearch} = require("./smartSearch");
+exports.smartSearch = smartSearch;
+
 /**
  * Triggered when new message created in
  * /chats/{chatID}/messages/{messageID}

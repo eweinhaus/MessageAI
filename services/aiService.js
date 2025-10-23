@@ -236,6 +236,17 @@ export async function updateActionItemStatus(chatId, itemId, status) {
  */
 export async function smartSearch(chatId, query, options = {}) {
   try {
+    const user = auth.currentUser;
+
+    if (!user) {
+      console.error("[AI Service] No authenticated user!");
+      return {
+        success: false,
+        error: "unauthenticated",
+        message: "Please sign in to use AI features",
+      };
+    }
+
     const callable = httpsCallable(functions, "smartSearch");
 
     const result = await callable({
@@ -243,6 +254,8 @@ export async function smartSearch(chatId, query, options = {}) {
       query,
       limit: options.limit || 10,
     });
+
+    console.log("[AI Service] smartSearch success");
 
     return {
       success: true,

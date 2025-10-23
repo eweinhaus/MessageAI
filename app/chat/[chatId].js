@@ -15,9 +15,10 @@ import ChatHeader from '../../components/ChatHeader';
 import AIInsightsPanel from '../../components/AIInsightsPanel';
 import SummaryModal from '../../components/SummaryModal';
 import ActionItemsModal from '../../components/ActionItemsModal';
+import SmartSearchModal from '../../components/SmartSearchModal';
 import { getMessagesForChat, insertMessage, updateMessage } from '../../db/messageDb';
 import { sendMessage } from '../../services/messageService';
-import { analyzePriorities, summarizeThread, extractActionItems, updateActionItemStatus } from '../../services/aiService';
+import { analyzePriorities, summarizeThread, extractActionItems, updateActionItemStatus, smartSearch } from '../../services/aiService';
 import { Ionicons } from '@expo/vector-icons';
 import { PRIMARY_GREEN } from '../../constants/colors';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
@@ -52,6 +53,12 @@ export default function ChatDetailScreen() {
   const [actionItemsLoading, setActionItemsLoading] = useState(false);
   const [actionItemsError, setActionItemsError] = useState(null);
   const [actionItemsCached, setActionItemsCached] = useState(false);
+  
+  // Smart search modal state
+  const [showSmartSearchModal, setShowSmartSearchModal] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(null);
   
   const chat = getChatByID(chatId);
   
@@ -207,6 +214,42 @@ export default function ChatDetailScreen() {
     };
   }, [chatId]);
 
+  // Set up Firestore listener for action items
+  useEffect(() => {
+    if (!chatId) return;
+
+    const listenerId = `chat-actionItems-${chatId}`;
+
+    const actionItemsRef = collection(db, `chats/${chatId}/actionItems`);
+    const q = query(actionItemsRef, orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items = [];
+        snapshot.forEach((doc) => {
+          items.push({
+            id: doc.id, // Include document ID
+            ...doc.data(),
+          });
+        });
+        console.log(`[ChatDetail] Loaded ${items.length} action items from Firestore`);
+        setActionItemsData(items);
+      },
+      (error) => {
+        console.error('[ChatDetail] Action items listener error:', error);
+      }
+    );
+
+    registerListener(listenerId, unsubscribe, {
+      collection: `chats/${chatId}/actionItems`,
+    });
+
+    return () => {
+      unregisterListener(listenerId);
+    };
+  }, [chatId]);
+
   // Handle AI Priority Analysis
   const handleAnalyzePriorities = async () => {
     setShowAIPanel(false);
@@ -315,7 +358,7 @@ export default function ChatDetailScreen() {
       });
 
       if (result.success) {
-        setActionItemsData(result.data.actionItems || []);
+        // Don't set actionItemsData here - let the Firestore listener handle it
         setActionItemsCached(result.cached);
         const count = result.data.actionItems?.length || 0;
         setError({ 
@@ -324,6 +367,8 @@ export default function ChatDetailScreen() {
             `Loaded ${count} action item${count !== 1 ? 's' : ''} from cache` : 
             `Found ${count} action item${count !== 1 ? 's' : ''}!`
         });
+        
+        // Firestore listener will update actionItemsData with document IDs
       } else {
         console.error('[ChatDetail] Action item extraction failed:', result.error);
         setActionItemsError(result.message);
@@ -374,12 +419,7 @@ export default function ChatDetailScreen() {
     const result = await updateActionItemStatus(chatId, itemId, 'completed');
     
     if (result.success) {
-      // Update local state
-      setActionItemsData((prev) =>
-        prev.map((item) =>
-          item.id === itemId ? { ...item, status: 'completed' } : item
-        )
-      );
+      // Firestore listener will automatically update local state
       setError({ type: 'success', message: 'Action item marked as complete!' });
     } else {
       setError({ type: 'error', message: 'Failed to update action item.' });
@@ -391,12 +431,7 @@ export default function ChatDetailScreen() {
     const result = await updateActionItemStatus(chatId, itemId, 'pending');
     
     if (result.success) {
-      // Update local state
-      setActionItemsData((prev) =>
-        prev.map((item) =>
-          item.id === itemId ? { ...item, status: 'pending' } : item
-        )
-      );
+      // Firestore listener will automatically update local state
       setError({ type: 'success', message: 'Action item reopened!' });
     } else {
       setError({ type: 'error', message: 'Failed to update action item.' });
@@ -417,13 +452,60 @@ export default function ChatDetailScreen() {
     // 3. Highlighting the message briefly
   };
 
-  // Placeholder handlers for other AI features
-
+  // Handle Smart Search
   const handleSmartSearch = () => {
     setShowAIPanel(false);
-    setError({ type: 'info', message: 'Smart search coming soon!' });
+    setShowSmartSearchModal(true);
+    setSearchResults([]);
+    setSearchError(null);
   };
 
+  // Handle search query submission
+  const handleSearchSubmit = async (query) => {
+    setSearchLoading(true);
+    setSearchError(null);
+    setSearchResults([]);
+
+    try {
+      const result = await smartSearch(chatId, query, {
+        limit: 10,
+      });
+
+      if (result.success) {
+        setSearchResults(result.data.results || []);
+        const count = result.data.results?.length || 0;
+        if (count === 0) {
+          setSearchError('No results found. Try different keywords.');
+        }
+      } else {
+        console.error('[ChatDetail] Smart search failed:', result.error);
+        setSearchError(result.message || 'Search failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected search error:', err);
+      setSearchError('Something went wrong. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Handle jump to message from search results
+  const handleJumpToMessage = (messageId) => {
+    // Close search modal
+    setShowSmartSearchModal(false);
+    
+    // Show info toast
+    setError({ type: 'info', message: `Jumping to message...` });
+    
+    // TODO: Implement actual jump-to-message functionality
+    // This would require:
+    // 1. Finding the message index in the messages array
+    // 2. Scrolling the FlatList to that index
+    // 3. Highlighting the message briefly
+    console.log('[ChatDetail] Jump to message:', messageId);
+  };
+
+  // Placeholder handler for decision tracking
   const handleTrackDecisions = () => {
     setShowAIPanel(false);
     setError({ type: 'info', message: 'Decision tracking coming soon!' });
@@ -533,6 +615,17 @@ export default function ChatDetailScreen() {
           onMarkComplete={handleMarkActionItemComplete}
           onMarkPending={handleMarkActionItemPending}
           cached={actionItemsCached}
+        />
+
+        {/* Smart Search Modal */}
+        <SmartSearchModal
+          visible={showSmartSearchModal}
+          onClose={() => setShowSmartSearchModal(false)}
+          onSearch={handleSearchSubmit}
+          onJumpToMessage={handleJumpToMessage}
+          loading={searchLoading}
+          results={searchResults}
+          error={searchError}
         />
 
         {/* Error Toast */}
