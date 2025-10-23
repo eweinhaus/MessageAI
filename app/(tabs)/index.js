@@ -16,6 +16,8 @@ import { db } from '../../config/firebaseConfig';
 import useUserStore from '../../store/userStore';
 import useChatStore from '../../store/chatStore';
 import ChatListItem from '../../components/ChatListItem';
+import Icon from '../../components/Icon';
+import colors from '../../constants/colors';
 import { getAllChats, insertChat } from '../../db/messageDb';
 import { syncChatsFromFirestore } from '../../utils/syncManager';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
@@ -199,7 +201,7 @@ export default function HomeScreen() {
     
     return (
       <View style={styles.emptyState}>
-        <Text style={styles.emptyStateIcon}>💬</Text>
+        <Icon name="message" size="xxlarge" color={colors.mediumGray} style={styles.emptyStateIcon} />
         <Text style={styles.emptyStateTitle}>No conversations yet</Text>
         <Text style={styles.emptyStateText}>
           Start a conversation by tapping the + button above
@@ -279,7 +281,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyStateIcon: {
-    fontSize: 64,
     marginBottom: 16,
   },
   emptyStateTitle: {

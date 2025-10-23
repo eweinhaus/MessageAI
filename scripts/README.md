@@ -237,3 +237,102 @@ Without proper cache clearing:
 
 The fix ensures complete data isolation between users.
 
+---
+
+## Color Import Check Script
+
+### checkColorImports.sh
+
+**Purpose**: Verify that all color constants are properly imported before causing runtime errors.
+
+### Usage
+
+```bash
+./scripts/checkColorImports.sh
+```
+
+### What It Checks
+
+1. **Missing Imports**: Files using `colors.` without importing
+2. **Incorrect Casing**: Files using `COLORS.` (uppercase - incorrect)
+3. **Export Structure**: Verifies constants/colors.js has default export
+
+### When to Use
+
+- ✅ Before committing changes
+- ✅ After creating new components
+- ✅ After editing components that use colors
+- ✅ When debugging color-related errors
+
+### Example Output
+
+```bash
+🔍 Checking for color import issues...
+
+📋 Check 1: Files using 'colors.' without import...
+✅ All files using 'colors.' have proper imports
+
+📋 Check 2: Files using 'COLORS.' (uppercase - likely wrong)...
+✅ No incorrect uppercase COLORS usage found
+
+📋 Check 3: Verifying constants/colors.js structure...
+✅ constants/colors.js has default export
+
+==================================
+✅ All checks passed!
+```
+
+### Related Errors
+
+This script prevents these runtime errors:
+- `ReferenceError: Property 'colors' doesn't exist`
+- `ReferenceError: Property 'COLORS' doesn't exist`
+- `TypeError: Cannot read property 'primary' of undefined`
+
+### Correct Usage Pattern
+
+```javascript
+// ✅ CORRECT
+import colors from '../constants/colors';
+
+<View style={{ backgroundColor: colors.primary }} />
+<Icon color={colors.mediumGray} />
+
+// ❌ WRONG
+<View style={{ backgroundColor: colors.primary }} />  // Missing import!
+<Icon color={COLORS.PRIMARY} />  // Wrong casing!
+```
+
+### Pre-Commit Hook (Optional)
+
+Add to `.git/hooks/pre-commit`:
+```bash
+#!/bin/bash
+./scripts/checkColorImports.sh
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Color import check failed. Please fix the issues above."
+  exit 1
+fi
+```
+
+Then make it executable:
+```bash
+chmod +x .git/hooks/pre-commit
+```
+
+### Related Documentation
+
+- `.cursor/rules/color-imports.mdc` - Detailed import guidelines
+- `md_files/COLOR_IMPORT_FIX.md` - Full fix history and examples
+- `memory-bank/systemPatterns.md` - Anti-patterns section
+
+### Why This Matters
+
+Color import errors cause:
+- ❌ App crashes at runtime
+- ❌ Hard-to-debug errors (only show when component renders)
+- ❌ Wasted time tracking down missing imports
+
+This script catches them before they reach production.
+

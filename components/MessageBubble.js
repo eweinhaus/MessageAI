@@ -23,8 +23,20 @@ import {
  * @param {boolean} props.showSenderInfo - Whether to show avatar and name (for groups)
  * @param {boolean} props.isGrouped - Whether this message is grouped with previous (hide avatar/name)
  * @param {boolean} props.isLastInGroup - Whether this is the last message in a group (show timestamp/status)
+ * @param {string} props.priority - Priority level ("urgent" or "normal")
+ * @param {string} props.priorityReason - Reason for priority
+ * @param {number} props.priorityConfidence - Confidence score (0-1)
  */
-function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = false, isLastInGroup = true }) {
+function MessageBubble({ 
+  message, 
+  isOwn, 
+  showSenderInfo = false, 
+  isGrouped = false, 
+  isLastInGroup = true,
+  priority,
+  priorityReason,
+  priorityConfidence,
+}) {
   const {
     messageID,
     chatID,
@@ -91,9 +103,14 @@ function MessageBubble({ message, isOwn, showSenderInfo = false, isGrouped = fal
             isOwn ? styles.bubbleOwn : styles.bubbleOther,
             !isLastInGroup && styles.bubbleInGroup,
             isOwn ? styles.bubbleAlignOwn : styles.bubbleAlignOther,
+            priority === 'urgent' && styles.urgentBubble,
           ]}
         >
-          <Text style={[styles.messageText, isOwn ? styles.messageTextOwn : styles.messageTextOther]}>
+          <Text style={[
+            styles.messageText, 
+            isOwn ? styles.messageTextOwn : styles.messageTextOther,
+            priority === 'urgent' && styles.urgentText,
+          ]}>
             {text?.trim() || text}
           </Text>
         </View>
@@ -237,6 +254,13 @@ const styles = StyleSheet.create({
   },
   messageTextOther: {
     color: TEXT_PRIMARY,
+  },
+  urgentBubble: {
+    backgroundColor: '#DC2626', // Red-600 for urgent messages
+  },
+  urgentText: {
+    color: '#FFFFFF', // White text for contrast on red background
+    fontWeight: '600',
   },
   metaContainer: {
     flexDirection: 'row',

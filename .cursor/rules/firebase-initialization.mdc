@@ -1,0 +1,229 @@
+Description: Firebase service initialization rules
+Globs: services/**/*.js, utils/**/*.js
+
+# Firebase Service Initialization Rules
+
+## Critical Pattern
+
+When using ANY Firebase service (Functions, Auth, Firestore, Storage), you MUST initialize it with the Firebase app instance.
+
+### Correct Initialization
+
+**Module-Level Pattern (Recommended):**
+```javascript
+import {getFunctions, httpsCallable} from "firebase/functions";
+import app from "../config/firebaseConfig";
+
+// ✅ Initialize once at module level
+const functions = getFunctions(app);
+
+// Then use in your functions
+export async function callMyFunction() {
+  const callable = httpsCallable(functions, "myFunction");
+  await callable({...});
+}
+```
+
+**Direct Pattern (Alternative):**
+```javascript
+import {getFunctions, httpsCallable} from "firebase/functions";
+import app from "../config/firebaseConfig";
+
+export async function callMyFunction() {
+  // ✅ Initialize with app instance
+  const functions = getFunctions(app);
+  const callable = httpsCallable(functions, "myFunction");
+  await callable({...});
+}
+```
+
+### Common Pitfall
+
+❌ **DON'T initialize without app instance:**
+```javascript
+// This creates a DISCONNECTED instance!
+const functions = getFunctions();  // ❌ NO APP INSTANCE
+
+// Cloud Function will receive context.auth = undefined
+// Results in "User must be authenticated" errors
+```
+
+✅ **DO initialize with app instance:**
+```javascript
+import app from "../config/firebaseConfig";
+
+// This connects to the main Firebase app
+const functions = getFunctions(app);  // ✅ WITH APP INSTANCE
+
+// Cloud Function receives proper context.auth
+// Authentication works correctly
+```
+
+### Why This Matters
+
+**Firebase Service Connection:**
+```
+Firebase App Instance (app)
+  ├── Auth Service → shares auth state
+  ├── Firestore → shares auth state
+  ├── Functions → shares auth state (if initialized with app)
+  └── Storage → shares auth state
+```
+
+Without the app instance:
+- ❌ Service is disconnected from auth state
+- ❌ Cloud Functions receive `context.auth = undefined`
+- ❌ Authentication checks fail
+- ❌ User sees "User must be authenticated" errors
+
+With the app instance:
+- ✅ Service connected to auth state
+- ✅ Cloud Functions receive proper `context.auth`
+- ✅ Authentication checks pass
+- ✅ Everything works as expected
+
+### All Firebase Services
+
+This pattern applies to ALL Firebase services:
+
+```javascript
+import app from "../config/firebaseConfig";
+import {getFunctions} from "firebase/functions";
+import {getAuth} from "firebase/auth";
+import {getFirestore} from "firebase/firestore";
+import {getStorage} from "firebase/storage";
+
+// ✅ CORRECT - All initialized with app
+const functions = getFunctions(app);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// ❌ WRONG - Disconnected instances
+const functions = getFunctions();
+const auth = getAuth();
+const db = getFirestore();
+const storage = getStorage();
+```
+
+### Module-Level vs Function-Level
+
+**Module-Level (Best for services):**
+```javascript
+import app from "../config/firebaseConfig";
+import {getFunctions} from "firebase/functions";
+
+// Initialize once
+const functions = getFunctions(app);
+
+// Reuse in all exports
+export async function func1() { /* use functions */ }
+export async function func2() { /* use functions */ }
+export async function func3() { /* use functions */ }
+```
+
+**Benefits:**
+- ✅ Initialize once, reuse everywhere
+- ✅ Better performance (no repeated initialization)
+- ✅ Consistent instance across all functions
+- ✅ Cleaner code
+
+**Function-Level (Use only if needed):**
+```javascript
+export async function myFunction() {
+  const functions = getFunctions(app);
+  // Use functions only in this scope
+}
+```
+
+**When to use:**
+- Only if you need different configurations per function
+- Very rare - module-level is almost always better
+
+### Checklist
+
+Before calling any Firebase Cloud Function:
+1. ✅ Import app from firebaseConfig
+2. ✅ Initialize Functions with `getFunctions(app)`
+3. ✅ Use the same functions instance for all calls
+4. ✅ Test that authentication works
+
+### Error Messages
+
+These errors indicate missing app instance:
+
+**Cloud Function Error:**
+```
+FirebaseError: User must be authenticated to use AI features
+functions/unauthenticated
+```
+
+**Console Error:**
+```
+[AI Service] Summarization failed: [FirebaseError: User must be authenticated]
+```
+
+**Fix:** Add app instance to getFunctions()
+
+### Testing
+
+After ANY change to Firebase service initialization:
+```bash
+# 1. Check if user is authenticated
+# 2. Call Cloud Function
+# 3. Verify it works without "unauthenticated" errors
+```
+
+### Related Files
+
+**Firebase Configuration:**
+- `/config/firebaseConfig.js` - Main Firebase initialization
+- Exports: `app`, `auth`, `db`
+
+**Services Using Functions:**
+- `/services/aiService.js` - AI Cloud Functions (FIXED ✅)
+- `/services/notificationService.js` - Push notification functions
+- Any new service files
+
+### Real Example from Codebase
+
+**services/aiService.js (Correct Implementation):**
+```javascript
+import {getFunctions, httpsCallable} from "firebase/functions";
+import app from "../config/firebaseConfig";
+
+// Initialize once at module level
+const functions = getFunctions(app);
+
+// All functions use the same instance
+export async function analyzePriorities(chatId, options = {}) {
+  const callable = httpsCallable(functions, "analyzePriorities");
+  return await callable({chatId, ...options});
+}
+
+export async function summarizeThread(chatId, options = {}) {
+  const callable = httpsCallable(functions, "summarizeThread");
+  return await callable({chatId, ...options});
+}
+
+// etc...
+```
+
+### Related Documentation
+
+- `md_files/FIREBASE_FUNCTIONS_AUTH_FIX.md` - Detailed fix history
+- `memory-bank/systemPatterns.md` - Anti-patterns section
+- Firebase Docs: https://firebase.google.com/docs/web/setup#add-sdks-initialize
+
+### Prevention
+
+Always review code for:
+```bash
+# Search for disconnected getFunctions() calls
+grep -rn "getFunctions()" services/ utils/
+
+# Should only find: getFunctions(app)
+# Red flag: getFunctions() with no parameter
+```
+
+If you find `getFunctions()` without app parameter → **FIX IT**

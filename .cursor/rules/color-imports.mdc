@@ -1,0 +1,142 @@
+Description: Color constants import rules
+Globs: app/**/*.js, components/**/*.js, services/**/*.js
+
+# Color Import Rules
+
+## Critical Pattern
+
+When using colors in ANY React Native component or screen, you MUST import the colors constants first.
+
+### Import Syntax
+
+**Default Import (Recommended):**
+```javascript
+import colors from '../constants/colors';
+```
+
+Then use lowercase property names:
+```javascript
+color: colors.primary
+color: colors.text
+color: colors.white
+backgroundColor: colors.backgroundSecondary
+```
+
+**Named Imports (Alternative):**
+```javascript
+import { PRIMARY_GREEN, TEXT_SECONDARY, BACKGROUND_COLOR } from '../constants/colors';
+```
+
+Then use the imported constants directly:
+```javascript
+color: PRIMARY_GREEN
+color: TEXT_SECONDARY
+backgroundColor: BACKGROUND_COLOR
+```
+
+### Common Pitfall
+
+❌ **DON'T use `colors.` without importing it:**
+```javascript
+// This will cause: ReferenceError: Property 'colors' doesn't exist
+<Icon color={colors.primary} />
+```
+
+✅ **DO import colors first:**
+```javascript
+import colors from '../constants/colors';
+
+// Now this works
+<Icon color={colors.primary} />
+```
+
+### Available Color Properties
+
+When using default import `colors`:
+- `colors.primary` - Primary brand color (green)
+- `colors.primaryDark` - Darker shade
+- `colors.primaryLight` - Lighter shade
+- `colors.text` - Primary text color
+- `colors.textSecondary` - Secondary text
+- `colors.textLight` - Light text
+- `colors.white` - White text
+- `colors.background` - Primary background
+- `colors.backgroundSecondary` - Secondary background
+- `colors.backgroundChat` - Chat background
+- `colors.backgroundColor` - General background
+- `colors.lightGray` - Light gray
+- `colors.mediumGray` - Medium gray
+- `colors.timestamp` - Timestamp color
+- `colors.online` - Online status
+- `colors.offline` - Offline status
+- `colors.error` - Error color
+- `colors.errorColor` - Error/failed message
+- `colors.border` - Border color
+- `colors.disabled` - Disabled color
+- `colors.bubbleOwn` - Own message bubble
+- `colors.bubbleOther` - Other message bubble
+
+### Checklist
+
+Before creating or editing any component:
+1. ✅ Check if you're using any color in styles or props
+2. ✅ Add `import colors from '../constants/colors'` at the top
+3. ✅ Use lowercase property names (e.g., `colors.primary`, not `colors.PRIMARY`)
+4. ✅ Test the component to ensure no "Property 'colors' doesn't exist" errors
+
+### File Locations
+
+Color constants are defined in:
+- `/constants/colors.js` - Source of truth for all colors
+- Default export object with lowercase properties
+- Named exports with UPPERCASE constants
+
+### Related Files
+
+This pattern is used consistently across:
+- All screens in `/app/`
+- All components in `/components/`
+- All services that render UI
+
+### Testing
+
+After ANY file edit that uses colors:
+```bash
+# Run the automated check script
+./scripts/checkColorImports.sh
+
+# Run the app and check for errors
+npx expo start
+```
+
+Look for these errors in the console:
+- `ReferenceError: Property 'colors' doesn't exist`
+- `ReferenceError: Property 'COLORS' doesn't exist`
+- `TypeError: Cannot read property 'primary' of undefined`
+
+All indicate a missing or incorrect import.
+
+### Automated Verification
+
+Run the automated check before committing:
+```bash
+./scripts/checkColorImports.sh
+```
+
+This script checks for:
+1. Files using `colors.` without importing
+2. Files using `COLORS.` (uppercase - incorrect)
+3. Proper default export in constants/colors.js
+
+### Pre-Commit Hook (Optional)
+
+Add to `.git/hooks/pre-commit`:
+```bash
+#!/bin/bash
+./scripts/checkColorImports.sh
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Color import check failed. Please fix the issues above."
+  exit 1
+fi
+```

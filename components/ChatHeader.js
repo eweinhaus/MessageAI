@@ -23,6 +23,8 @@ import { getInitials } from '../utils/avatarUtils';
  * @param {string} props.currentUserID - Current user's ID
  * @param {Function} props.onPress - Callback when header is tapped
  * @param {string} props.chatId - Chat ID (for typing indicators)
+ * @param {boolean} props.showAIButton - Whether to show the AI insights button
+ * @param {Function} props.onAIPress - Callback when AI button is tapped
  */
 /**
  * Get group initials from the first 2 members
@@ -41,7 +43,7 @@ function getGroupInitials(memberNames = []) {
   return (first + second).toUpperCase();
 }
 
-export default function ChatHeader({ chat, currentUserID, onPress, chatId }) {
+export default function ChatHeader({ chat, currentUserID, onPress, chatId, showAIButton, onAIPress }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   
@@ -180,6 +182,21 @@ export default function ChatHeader({ chat, currentUserID, onPress, chatId }) {
           </View>
         </TouchableOpacity>
         
+        {/* AI Insights button (optional) */}
+        {showAIButton && (
+          <TouchableOpacity
+            onPress={onAIPress}
+            style={styles.aiButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name="sparkles"
+              size={24}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        )}
+        
         {/* Right action - Info button */}
         <TouchableOpacity
           onPress={onPress}
@@ -265,9 +282,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.85)',
   },
+  aiButton: {
+    padding: 4,
+    marginLeft: 4,
+  },
   infoButton: {
     padding: 4,
-    marginLeft: 8,
+    marginLeft: 4,
   },
 });
 

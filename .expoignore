@@ -1,0 +1,118 @@
+# .expoignore
+# Tells Metro bundler which files/directories to ignore
+# This speeds up builds by reducing file watching overhead
+
+# ============================================
+# Firebase Cloud Functions (RECOMMENDED)
+# ============================================
+# Pros: ~500+ files, largest win for watch performance
+# Cons: None - Cloud Functions run on Firebase servers, never bundled
+functions/**
+
+# ============================================
+# Documentation (RECOMMENDED)
+# ============================================
+# Pros: ~60+ markdown files, no runtime impact
+# Cons: None - documentation isn't code
+md_files/**
+memory-bank/**
+planning/**
+README.md
+
+# ============================================
+# Testing Infrastructure (RECOMMENDED)
+# ============================================
+# Pros: Test files and screenshots never needed in production
+# Cons: None - tests run separately, not in app bundle
+tests/**
+**/__tests__/**
+**/coverage/**
+**/*.test.js
+**/*.spec.js
+
+# ============================================
+# Utility Scripts (RECOMMENDED)
+# ============================================
+# Pros: Node scripts for development tasks, not app code
+# Cons: None - these are CLI tools, not imported by app
+scripts/**
+
+# ============================================
+# Git & Version Control (RECOMMENDED)
+# ============================================
+# Pros: Reduces noise from git operations
+# Cons: None - never needed at runtime
+.git/**
+.gitignore
+.gitattributes
+
+# ============================================
+# Build Artifacts (RECOMMENDED)
+# ============================================
+# Pros: Generated files that change frequently, cause unnecessary rebuilds
+# Cons: None - these are outputs, not sources
+.expo/**
+.expo-shared/**
+dist/**
+build/**
+
+# ============================================
+# IDE & Editor Files (RECOMMENDED)
+# ============================================
+# Pros: Editor configs trigger false rebuilds
+# Cons: None - these are local dev settings
+.vscode/**
+.idea/**
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ============================================
+# Environment & Config (CAUTION)
+# ============================================
+# Pros: Prevents accidental bundling of secrets
+# Cons: Make sure you're using Firebase config properly
+.env
+.env.*
+!.env.example
+
+# ============================================
+# Package Manager Artifacts (RECOMMENDED)
+# ============================================
+# Pros: Lock files change often, don't affect bundle
+# Cons: None - these guide npm/yarn, not Metro
+package-lock.json
+yarn.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================
+# Firebase Artifacts (RECOMMENDED)
+# ============================================
+# Pros: Server-side configs, not used in app
+# Cons: None - Firebase CLI uses these, not your app
+firebase.json
+.firebaserc
+firestore.rules
+firestore.indexes.json
+storage.rules
+
+# ============================================
+# CI/CD & Deployment (RECOMMENDED)
+# ============================================
+# Pros: Build configs don't need watching
+# Cons: None - these control builds, not bundle contents
+eas.json
+.github/**
+.circleci/**
+
+# ============================================
+# Asset Snapshots (RECOMMENDED)
+# ============================================
+# Pros: Screenshot artifacts from tests
+# Cons: None - these are test outputs
+**/snapshots/**
+**/screenshots/**
+

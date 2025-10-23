@@ -4,6 +4,7 @@
 // Primary brand color
 export const PRIMARY_GREEN = '#4CAF50';
 export const PRIMARY_GREEN_DARK = '#388E3C';
+export const PRIMARY_GREEN_LIGHT = '#E8F5E9';
 
 // Message bubble colors
 export const BUBBLE_OWN = '#007AFF'; // Blue for own messages (iOS style)
@@ -35,4 +36,47 @@ export const BORDER_LIGHT = '#E0E0E0';
 
 // Loading/Disabled states
 export const DISABLED_COLOR = '#CCCCCC';
+
+// Default export for convenience
+export default {
+  // Primary colors
+  primary: PRIMARY_GREEN,
+  primaryDark: PRIMARY_GREEN_DARK,
+  primaryLight: PRIMARY_GREEN_LIGHT,
+  
+  // Message bubbles
+  bubbleOwn: BUBBLE_OWN,
+  bubbleOther: BUBBLE_OTHER,
+  
+  // Text colors
+  text: TEXT_PRIMARY,
+  textSecondary: TEXT_SECONDARY,
+  textLight: TEXT_LIGHT,
+  white: TEXT_ON_PRIMARY,
+  
+  // Background colors
+  background: BACKGROUND_PRIMARY,
+  backgroundSecondary: BACKGROUND_SECONDARY,
+  backgroundChat: BACKGROUND_CHAT,
+  backgroundColor: BACKGROUND_COLOR,
+  
+  // Gray shades
+  lightGray: BACKGROUND_SECONDARY,
+  mediumGray: TEXT_SECONDARY,
+  
+  // Timestamp
+  timestamp: TIMESTAMP_COLOR,
+  
+  // Status colors
+  online: STATUS_ONLINE,
+  offline: STATUS_OFFLINE,
+  error: STATUS_ERROR,
+  errorColor: ERROR_COLOR,
+  
+  // Border colors
+  border: BORDER_LIGHT,
+  
+  // Disabled
+  disabled: DISABLED_COLOR,
+};
 

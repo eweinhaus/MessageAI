@@ -1,6 +1,7 @@
 // Error Toast - User-friendly error notification
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Dimensions } from 'react-native';
+import Icon from './Icon';
 import { getErrorMessage } from '../utils/errorMessages';
 
 const { width } = Dimensions.get('window');
@@ -99,12 +100,10 @@ export default function ErrorToast({ error, visible, onDismiss, type = 'error' }
         activeOpacity={0.9}
       >
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>
-            {type === 'error' && '⚠️'}
-            {type === 'warning' && '⚠️'}
-            {type === 'info' && 'ℹ️'}
-            {type === 'success' && '✓'}
-          </Text>
+          {type === 'error' && <Icon name="warning" size="large" color="#fff" />}
+          {type === 'warning' && <Icon name="warning" size="large" color="#fff" />}
+          {type === 'info' && <Icon name="info" size="large" color="#fff" />}
+          {type === 'success' && <Icon name="success" size="large" color="#fff" />}
         </View>
         <View style={styles.textContainer}>
           <Text style={styles.message} numberOfLines={3}>
@@ -117,7 +116,7 @@ export default function ErrorToast({ error, visible, onDismiss, type = 'error' }
           onPress={handleDismiss}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.closeIcon}>×</Text>
+          <Icon name="close" size="xlarge" color="#fff" />
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
@@ -147,9 +146,6 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginRight: 12,
   },
-  icon: {
-    fontSize: 24,
-  },
   textContainer: {
     flex: 1,
   },
@@ -167,12 +163,6 @@ const styles = StyleSheet.create({
   closeButton: {
     marginLeft: 12,
     padding: 4,
-  },
-  closeIcon: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: 'bold',
-    lineHeight: 28,
   },
 });
 

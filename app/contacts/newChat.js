@@ -60,11 +60,24 @@ export default function NewChatScreen() {
       console.log('[ContactPicker] Users:', users.map(u => ({ id: u.userID, name: u.displayName })));
       
       // Filter out current user
+      console.log('[ContactPicker] Current userID:', currentUser.userID);
+      console.log('[ContactPicker] All users before filter:', users.map(u => ({
+        id: u.userID,
+        name: u.displayName,
+        email: u.email,
+        isCurrentUser: u.userID === currentUser.userID
+      })));
+      
       const filteredUsers = users.filter(
         (user) => user.userID !== currentUser.userID
       );
       
       console.log('[ContactPicker] Filtered users (excluding self):', filteredUsers.length);
+      console.log('[ContactPicker] Filtered users:', filteredUsers.map(u => ({
+        id: u.userID,
+        name: u.displayName,
+        email: u.email
+      })));
       
       // Sort by display name
       filteredUsers.sort((a, b) =>

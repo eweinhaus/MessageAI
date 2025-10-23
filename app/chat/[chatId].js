@@ -12,11 +12,17 @@ import useUserStore from '../../store/userStore';
 import MessageList from '../../components/MessageList';
 import MessageInput from '../../components/MessageInput';
 import ChatHeader from '../../components/ChatHeader';
+import AIInsightsPanel from '../../components/AIInsightsPanel';
+import SummaryModal from '../../components/SummaryModal';
+import ActionItemsModal from '../../components/ActionItemsModal';
+import SmartSearchModal from '../../components/SmartSearchModal';
 import { getMessagesForChat, insertMessage, updateMessage } from '../../db/messageDb';
 import { sendMessage } from '../../services/messageService';
+import { analyzePriorities, summarizeThread, extractActionItems, updateActionItemStatus, smartSearch } from '../../services/aiService';
 import { Ionicons } from '@expo/vector-icons';
 import { PRIMARY_GREEN } from '../../constants/colors';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
+import ErrorToast from '../../components/ErrorToast';
 
 export default function ChatDetailScreen() {
   const router = useRouter();
@@ -30,6 +36,29 @@ export default function ChatDetailScreen() {
   const currentUser = useUserStore((state) => state.currentUser);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiLoading, setAILoading] = useState({});
+  const [priorities, setPriorities] = useState({});
+  const [error, setError] = useState(null);
+  
+  // Summary modal state
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState(null);
+  
+  // Action items modal state
+  const [showActionItemsModal, setShowActionItemsModal] = useState(false);
+  const [actionItemsData, setActionItemsData] = useState([]);
+  const [actionItemsLoading, setActionItemsLoading] = useState(false);
+  const [actionItemsError, setActionItemsError] = useState(null);
+  const [actionItemsCached, setActionItemsCached] = useState(false);
+  
+  // Smart search modal state
+  const [showSmartSearchModal, setShowSmartSearchModal] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(null);
   
   const chat = getChatByID(chatId);
   
@@ -150,6 +179,338 @@ export default function ChatDetailScreen() {
     };
   }, [chatId, currentUser]);
 
+  // Set up Firestore listener for message priorities
+  useEffect(() => {
+    if (!chatId) return;
+
+    const listenerId = `chat-priorities-${chatId}`;
+
+    const prioritiesRef = collection(db, `chats/${chatId}/priorities`);
+    const unsubscribe = onSnapshot(
+      prioritiesRef,
+      (snapshot) => {
+        const newPriorities = {};
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          newPriorities[doc.id] = {
+            priority: data.priority,
+            reason: data.reason,
+            confidence: data.confidence,
+          };
+        });
+        setPriorities(newPriorities);
+      },
+      (error) => {
+        console.error('[ChatDetail] Priorities listener error:', error);
+      }
+    );
+
+    registerListener(listenerId, unsubscribe, {
+      collection: `chats/${chatId}/priorities`,
+    });
+
+    return () => {
+      unregisterListener(listenerId);
+    };
+  }, [chatId]);
+
+  // Set up Firestore listener for action items
+  useEffect(() => {
+    if (!chatId) return;
+
+    const listenerId = `chat-actionItems-${chatId}`;
+
+    const actionItemsRef = collection(db, `chats/${chatId}/actionItems`);
+    const q = query(actionItemsRef, orderBy('createdAt', 'desc'));
+    
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items = [];
+        snapshot.forEach((doc) => {
+          items.push({
+            id: doc.id, // Include document ID
+            ...doc.data(),
+          });
+        });
+        console.log(`[ChatDetail] Loaded ${items.length} action items from Firestore`);
+        setActionItemsData(items);
+      },
+      (error) => {
+        console.error('[ChatDetail] Action items listener error:', error);
+      }
+    );
+
+    registerListener(listenerId, unsubscribe, {
+      collection: `chats/${chatId}/actionItems`,
+    });
+
+    return () => {
+      unregisterListener(listenerId);
+    };
+  }, [chatId]);
+
+  // Handle AI Priority Analysis
+  const handleAnalyzePriorities = async () => {
+    setShowAIPanel(false);
+    setAILoading((prev) => ({ ...prev, priorities: true }));
+    setError(null);
+
+    try {
+      const result = await analyzePriorities(chatId, { 
+        messageCount: 30,
+        forceRefresh: true, // Always get fresh results
+      });
+
+      if (result.success) {
+        const urgentCount = result.data.priorities.filter(p => p.priority === 'urgent').length;
+        const message = urgentCount > 0 
+          ? `Found ${urgentCount} urgent message${urgentCount > 1 ? 's' : ''}!`
+          : 'No urgent messages found.';
+        setError({ type: 'success', message });
+      } else {
+        console.error('[ChatDetail] Priority analysis failed:', result.error);
+        setError({ type: 'error', message: result.message });
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error:', err);
+      setError({ type: 'error', message: 'Something went wrong. Please try again.' });
+    } finally {
+      setAILoading((prev) => ({ ...prev, priorities: false }));
+    }
+  };
+
+  // Handle AI Thread Summarization
+  const handleSummarizeThread = async () => {
+    setShowAIPanel(false);
+    setAILoading((prev) => ({ ...prev, summary: true }));
+    setSummaryLoading(true);
+    setSummaryError(null);
+    setShowSummaryModal(true);
+
+    try {
+      const result = await summarizeThread(chatId, {
+        messageCount: 50,
+        forceRefresh: false,
+      });
+
+      if (result.success) {
+        setSummaryData(result.data);
+        setError({ 
+          type: 'success', 
+          message: result.cached ? 'Loaded summary from cache' : 'Summary generated!' 
+        });
+      } else {
+        console.error('[ChatDetail] Summarization failed:', result.error);
+        setSummaryError(result.message);
+        setError({ type: 'error', message: result.message });
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error:', err);
+      const errorMsg = 'Something went wrong. Please try again.';
+      setSummaryError(errorMsg);
+      setError({ type: 'error', message: errorMsg });
+    } finally {
+      setSummaryLoading(false);
+      setAILoading((prev) => ({ ...prev, summary: false }));
+    }
+  };
+
+  // Handle Summary Refresh
+  const handleRefreshSummary = async () => {
+    setSummaryLoading(true);
+    setSummaryError(null);
+
+    try {
+      const result = await summarizeThread(chatId, {
+        messageCount: 50,
+        forceRefresh: true, // Force fresh summary
+      });
+
+      if (result.success) {
+        setSummaryData(result.data);
+        setError({ type: 'success', message: 'Summary refreshed!' });
+      } else {
+        console.error('[ChatDetail] Summary refresh failed:', result.error);
+        setSummaryError(result.message);
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error during refresh:', err);
+      const errorMsg = 'Failed to refresh summary. Please try again.';
+      setSummaryError(errorMsg);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // Handle Action Items Extraction
+  const handleExtractActionItems = async () => {
+    setShowAIPanel(false);
+    setAILoading((prev) => ({ ...prev, actionItems: true }));
+    setActionItemsLoading(true);
+    setActionItemsError(null);
+    setShowActionItemsModal(true);
+
+    try {
+      const result = await extractActionItems(chatId, {
+        messageCount: 50,
+        forceRefresh: false,
+      });
+
+      if (result.success) {
+        // Don't set actionItemsData here - let the Firestore listener handle it
+        setActionItemsCached(result.cached);
+        const count = result.data.actionItems?.length || 0;
+        setError({ 
+          type: 'success', 
+          message: result.cached ? 
+            `Loaded ${count} action item${count !== 1 ? 's' : ''} from cache` : 
+            `Found ${count} action item${count !== 1 ? 's' : ''}!`
+        });
+        
+        // Firestore listener will update actionItemsData with document IDs
+      } else {
+        console.error('[ChatDetail] Action item extraction failed:', result.error);
+        setActionItemsError(result.message);
+        setError({ type: 'error', message: result.message });
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error:', err);
+      const errorMsg = 'Something went wrong. Please try again.';
+      setActionItemsError(errorMsg);
+      setError({ type: 'error', message: errorMsg });
+    } finally {
+      setActionItemsLoading(false);
+      setAILoading((prev) => ({ ...prev, actionItems: false }));
+    }
+  };
+
+  // Handle Action Items Refresh
+  const handleRefreshActionItems = async () => {
+    setActionItemsLoading(true);
+    setActionItemsError(null);
+
+    try {
+      const result = await extractActionItems(chatId, {
+        messageCount: 50,
+        forceRefresh: true, // Force fresh extraction
+      });
+
+      if (result.success) {
+        setActionItemsData(result.data.actionItems || []);
+        setActionItemsCached(false);
+        const count = result.data.actionItems?.length || 0;
+        setError({ type: 'success', message: `Found ${count} action item${count !== 1 ? 's' : ''}!` });
+      } else {
+        console.error('[ChatDetail] Action items refresh failed:', result.error);
+        setActionItemsError(result.message);
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error during refresh:', err);
+      const errorMsg = 'Failed to refresh action items. Please try again.';
+      setActionItemsError(errorMsg);
+    } finally {
+      setActionItemsLoading(false);
+    }
+  };
+
+  // Handle marking action item as complete
+  const handleMarkActionItemComplete = async (itemId) => {
+    const result = await updateActionItemStatus(chatId, itemId, 'completed');
+    
+    if (result.success) {
+      // Firestore listener will automatically update local state
+      setError({ type: 'success', message: 'Action item marked as complete!' });
+    } else {
+      setError({ type: 'error', message: 'Failed to update action item.' });
+    }
+  };
+
+  // Handle marking action item as pending (reopen)
+  const handleMarkActionItemPending = async (itemId) => {
+    const result = await updateActionItemStatus(chatId, itemId, 'pending');
+    
+    if (result.success) {
+      // Firestore listener will automatically update local state
+      setError({ type: 'success', message: 'Action item reopened!' });
+    } else {
+      setError({ type: 'error', message: 'Failed to update action item.' });
+    }
+  };
+
+  // Handle viewing the context message for an action item
+  const handleViewActionItemMessage = (messageId) => {
+    // For now, just close the modal
+    // In the future, we could scroll to the message and highlight it
+    setShowActionItemsModal(false);
+    setError({ type: 'info', message: `Jump to message: ${messageId}` });
+    
+    // TODO: Implement jump-to-message functionality
+    // This would require:
+    // 1. Finding the message index in the messages array
+    // 2. Scrolling the FlatList to that index
+    // 3. Highlighting the message briefly
+  };
+
+  // Handle Smart Search
+  const handleSmartSearch = () => {
+    setShowAIPanel(false);
+    setShowSmartSearchModal(true);
+    setSearchResults([]);
+    setSearchError(null);
+  };
+
+  // Handle search query submission
+  const handleSearchSubmit = async (query) => {
+    setSearchLoading(true);
+    setSearchError(null);
+    setSearchResults([]);
+
+    try {
+      const result = await smartSearch(chatId, query, {
+        limit: 10,
+      });
+
+      if (result.success) {
+        setSearchResults(result.data.results || []);
+        const count = result.data.results?.length || 0;
+        if (count === 0) {
+          setSearchError('No results found. Try different keywords.');
+        }
+      } else {
+        console.error('[ChatDetail] Smart search failed:', result.error);
+        setSearchError(result.message || 'Search failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected search error:', err);
+      setSearchError('Something went wrong. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Handle jump to message from search results
+  const handleJumpToMessage = (messageId) => {
+    // Close search modal
+    setShowSmartSearchModal(false);
+    
+    // Show info toast
+    setError({ type: 'info', message: `Jumping to message...` });
+    
+    // TODO: Implement actual jump-to-message functionality
+    // This would require:
+    // 1. Finding the message index in the messages array
+    // 2. Scrolling the FlatList to that index
+    // 3. Highlighting the message briefly
+    console.log('[ChatDetail] Jump to message:', messageId);
+  };
+
+  // Placeholder handler for decision tracking
+  const handleTrackDecisions = () => {
+    setShowAIPanel(false);
+    setError({ type: 'info', message: 'Decision tracking coming soon!' });
+  };
+
   // Navigate to member list
   const handleHeaderPress = () => {
     // For groups, navigate to member list
@@ -187,12 +548,14 @@ export default function ChatDetailScreen() {
         }}
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        {/* Custom Header */}
+        {/* Custom Header with AI Button */}
         <ChatHeader
           chat={chat}
           currentUserID={currentUser?.userID}
           onPress={handleHeaderPress}
           chatId={chatId}
+          showAIButton={true}
+          onAIPress={() => setShowAIPanel(true)}
         />
         
         <KeyboardAvoidingView
@@ -207,6 +570,7 @@ export default function ChatDetailScreen() {
               isLoading={isLoading}
               topInset={0}
               bottomInset={bottomInset}
+              priorities={priorities}
             />
             <MessageInput
               chatID={chatId}
@@ -216,6 +580,62 @@ export default function ChatDetailScreen() {
             />
           </View>
         </KeyboardAvoidingView>
+
+        {/* AI Insights Panel */}
+        <AIInsightsPanel
+          visible={showAIPanel}
+          onClose={() => setShowAIPanel(false)}
+          onAnalyzePriorities={handleAnalyzePriorities}
+          onSummarizeThread={handleSummarizeThread}
+          onExtractActionItems={handleExtractActionItems}
+          onSmartSearch={handleSmartSearch}
+          onTrackDecisions={handleTrackDecisions}
+          loading={aiLoading}
+        />
+
+        {/* Summary Modal */}
+        <SummaryModal
+          visible={showSummaryModal}
+          onClose={() => setShowSummaryModal(false)}
+          summary={summaryData}
+          loading={summaryLoading}
+          error={summaryError}
+          onRefresh={handleRefreshSummary}
+        />
+
+        {/* Action Items Modal */}
+        <ActionItemsModal
+          visible={showActionItemsModal}
+          onClose={() => setShowActionItemsModal(false)}
+          actionItems={actionItemsData}
+          loading={actionItemsLoading}
+          error={actionItemsError}
+          onRefresh={handleRefreshActionItems}
+          onViewMessage={handleViewActionItemMessage}
+          onMarkComplete={handleMarkActionItemComplete}
+          onMarkPending={handleMarkActionItemPending}
+          cached={actionItemsCached}
+        />
+
+        {/* Smart Search Modal */}
+        <SmartSearchModal
+          visible={showSmartSearchModal}
+          onClose={() => setShowSmartSearchModal(false)}
+          onSearch={handleSearchSubmit}
+          onJumpToMessage={handleJumpToMessage}
+          loading={searchLoading}
+          results={searchResults}
+          error={searchError}
+        />
+
+        {/* Error Toast */}
+        {error && (
+          <ErrorToast
+            message={error.message}
+            type={error.type}
+            onDismiss={() => setError(null)}
+          />
+        )}
       </SafeAreaView>
     </>
   );
