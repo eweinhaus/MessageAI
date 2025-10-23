@@ -4,21 +4,21 @@ graph TB
         UB["👤 User B's Phone<br/>React Native App"]
         
         subgraph "User A - App Components"
-            UAComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List<br/>• AI Insights Panel"]
-            UAState["📦 Zustand State<br/>• Current User<br/>• Active Chats<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue<br/>• AI Results Cache"]
+            UAComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List (Priority Ordered)<br/>• Global Summary Modal<br/>• Action Items Tab<br/>• Smart Search Tab"]
+            UAState["📦 Zustand State<br/>• Current User<br/>• Active Chats (Priority Sorted)<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue<br/>• Global AI Summary<br/>• Priority Scores<br/>• Unread Watermarks"]
             UASQL["💾 SQLite Database<br/>• Messages (with syncStatus)<br/>• Chat Metadata<br/>• Pending Queue<br/>• Last Sync Timestamp"]
             UANotif["🔔 Expo Notifications<br/>• FCM Receiver<br/>• In-App Toast Handler<br/>• Foreground Only"]
             UANet["📡 NetInfo Listener<br/>• Network Status<br/>• Online/Offline Detection<br/>• Auto-Reconnect Trigger"]
-            UAAI["🤖 AI Service Client<br/>• Call AI Functions<br/>• Handle Loading States<br/>• Error Handling"]
+            UAAI["🤖 Global AI Service Client<br/>• Summary on App Open<br/>• Priority Detection (Background)<br/>• Action Items Extraction<br/>• Smart Search (Two-Stage)<br/>• Error Handling"]
         end
         
         subgraph "User B - App Components"
-            UBComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List<br/>• AI Insights Panel"]
-            UBState["📦 Zustand State<br/>• Current User<br/>• Active Chats<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue<br/>• AI Results Cache"]
+            UBComp["🎨 UI Components<br/>• Chat Screen<br/>• Message List<br/>• Contact Picker<br/>• Auth Screens<br/>• Chat List (Priority Ordered)<br/>• Global Summary Modal<br/>• Action Items Tab<br/>• Smart Search Tab"]
+            UBState["📦 Zustand State<br/>• Current User<br/>• Active Chats (Priority Sorted)<br/>• Messages by Chat<br/>• Network Status<br/>• Sync Queue<br/>• Global AI Summary<br/>• Priority Scores<br/>• Unread Watermarks"]
             UBSQL["💾 SQLite Database<br/>• Messages (with syncStatus)<br/>• Chat Metadata<br/>• Pending Queue<br/>• Last Sync Timestamp"]
             UBNotif["🔔 Expo Notifications<br/>• FCM Receiver<br/>• In-App Toast Handler<br/>• Foreground Only"]
             UBNet["📡 NetInfo Listener<br/>• Network Status<br/>• Online/Offline Detection<br/>• Auto-Reconnect Trigger"]
-            UBAI["🤖 AI Service Client<br/>• Call AI Functions<br/>• Handle Loading States<br/>• Error Handling"]
+            UBAI["🤖 Global AI Service Client<br/>• Summary on App Open<br/>• Priority Detection (Background)<br/>• Action Items Extraction<br/>• Smart Search (Two-Stage)<br/>• Error Handling"]
         end
         
         UA --> UAComp
@@ -45,22 +45,26 @@ graph TB
         
         MsgListenerA["📡 Message Listener A<br/>onSnapshot: /chats/{chatID}<br/>/messages orderBy timestamp"]
         MsgListenerB["📡 Message Listener B<br/>onSnapshot: /chats/{chatID}<br/>/messages orderBy timestamp"]
+        
+        ActionItemsListener["📡 Action Items Listener<br/>collectionGroup: /actionItems<br/>where userId == currentUser"]
+        
+        SummaryListener["📡 Summary Listener<br/>onSnapshot: /users/{userId}<br/>/aiCache/globalSummary"]
     end
     
     subgraph "Cloud Layer - Firebase"
         AUTH["🔐 Firebase Auth<br/>• Google Sign-In<br/>• Session Management<br/>• Token Auto-Refresh<br/>• onAuthStateChanged"]
         
-        FS["☁️ Firestore<br/>(Source of Truth)<br/><br/>Collections:<br/>• /users<br/>• /chats<br/>• /chats/{id}/messages<br/>• /chats/{id}/aiInsights<br/>• /chats/{id}/priorities<br/>• /chats/{id}/summaries<br/>• /chats/{id}/actionItems<br/>• /chats/{id}/decisions"]
+        FS["☁️ Firestore<br/>(Source of Truth)<br/><br/>Collections:<br/>• /users<br/>• /chats<br/>• /chats/{id}/messages<br/>• /chats/{id}/typing<br/><br/>Global AI Collections:<br/>• /actionItems (global)<br/>• /users/{id}/aiCache/globalSummary<br/>• /users/{id}/aiCache/chatPriorities/{chatId}<br/>• /users/{id}/watermarks"]
         
-        CF["⚡ Cloud Functions<br/><br/>onMessageCreated:<br/>• Check recipient online<br/>• Get FCM token<br/>• Send push (foreground)<br/><br/>AI Callable Functions:<br/>• analyzePriorities<br/>• summarizeThread<br/>• extractActionItems<br/>• trackDecisions<br/><br/>Scheduled:<br/>• Clean old presence data<br/>• Clean expired AI cache"]
+        CF["⚡ Cloud Functions<br/><br/>onMessageCreated:<br/>• Check recipient online<br/>• Get FCM token<br/>• Send push (foreground)<br/><br/>Global AI Callable Functions:<br/>• summarizeUnread (delta processing)<br/>• analyzePriorityBatch (bulk)<br/>• extractActionItems (global)<br/>• searchMessages (two-stage)<br/>• updateWatermarks<br/><br/>Scheduled:<br/>• Clean old presence data<br/>• Clean expired AI cache"]
         
         FCM["📢 Firebase Cloud<br/>Messaging (FCM)<br/>• Push to Device A<br/>• Push to Device B<br/>• Foreground Only"]
     end
     
     subgraph "AI Layer - OpenAI"
-        OPENAI["🧠 OpenAI API<br/><br/>Model: GPT-4 Turbo<br/>• Text Generation<br/>• Structured Output<br/>• Function Calling<br/><br/>Context Window: 128K tokens"]
+        OPENAI["🧠 OpenAI API<br/><br/>Models:<br/>• GPT-4o-mini (fast, cheap)<br/>• GPT-4-turbo (accurate)<br/><br/>Use Cases:<br/>• Summary: gpt-4o-mini<br/>• Priority: gpt-4o-mini<br/>• Search Stage 1: gpt-4o-mini<br/>• Search Stage 2: gpt-4-turbo<br/><br/>Context Window: 128K tokens"]
         
-        LANGCHAIN["🔗 Langchain<br/><br/>• Prompt Templates<br/>• Output Parsers<br/>• LLM Chains<br/>• Agents (optional)"]
+        LANGCHAIN["🔗 Langchain<br/><br/>• Prompt Templates<br/>• Output Parsers<br/>• LLM Chains<br/>• Delta Processing"]
     end
     
     subgraph "Data Flow: Send Message"
@@ -76,15 +80,27 @@ graph TB
     end
     
     subgraph "Data Flow: Presence"
-        PRESENCE["1️⃣ App foreground:<br/>   - setUserOnline(userID)<br/>   - Write to /users/{id}<br/>   - Set onDisconnect() handler<br/>2️⃣ App background:<br/>   - onDisconnect triggers<br/>   - Sets isOnline: false<br/>3️⃣ Listener fires<br/>4️⃣ UI updates (gray dot)<br/><br/>Throttle: Max 1 write per 30s"]
+        PRESENCE["1️⃣ App foreground:<br/>   - setUserOnline(userID)<br/>   - Write to /users/{id}<br/>   - Start heartbeat (8s)<br/>2️⃣ App background:<br/>   - Stop heartbeat<br/>   - Sets isOnline: false<br/>3️⃣ Listener fires<br/>4️⃣ UI updates (gray dot)<br/><br/>Staleness: 20s timeout"]
     end
     
     subgraph "Sync Strategy"
         SYNC["SQLite = Read Cache + Write Queue<br/>Firestore = Source of Truth<br/><br/>On Startup:<br/>1. Read SQLite (instant UI)<br/>2. Async sync with Firestore<br/>3. Reconcile differences<br/><br/>On Conflict:<br/>• Firestore ALWAYS wins<br/>• Overwrite SQLite<br/><br/>On Send:<br/>1. Write SQLite (pending)<br/>2. Write Firestore (async)<br/>3. Update SQLite (synced)<br/><br/>On Receive:<br/>1. Listener fires<br/>2. Write SQLite<br/>3. Update UI"]
     end
     
-    subgraph "Data Flow: AI Analysis (RAG Pipeline)"
-        AIFLOW["1️⃣ User taps 'Summarize Thread'<br/>2️⃣ Client calls Cloud Function<br/>3️⃣ Function fetches messages from Firestore<br/>4️⃣ Build context (last N messages)<br/>5️⃣ Send to OpenAI GPT-4 via Langchain<br/>6️⃣ Parse structured response<br/>7️⃣ Cache result in Firestore<br/>   (/chats/{id}/summaries)<br/>8️⃣ Return to client<br/>9️⃣ Display in modal<br/>🔟 Future requests: serve from cache"]
+    subgraph "Data Flow: Global AI Summary on App Open (NEW)"
+        AISUMMARY["1️⃣ User opens app (foreground)<br/>2️⃣ Check for unread messages<br/>3️⃣ Load cached summary instantly (< 500ms)<br/>4️⃣ Show summary modal (if unread > 0)<br/>5️⃣ Background: Call summarizeUnread<br/>6️⃣ Function fetches unread messages (delta)<br/>7️⃣ Process only new messages since watermark<br/>8️⃣ Send to GPT-4o-mini via Langchain<br/>9️⃣ Parse structured response<br/>🔟 Merge with cached summary<br/>1️⃣1️⃣ Cache result (15 min TTL)<br/>1️⃣2️⃣ Update watermarks<br/>1️⃣3️⃣ Return to client<br/>1️⃣4️⃣ Swap in fresh summary in modal"]
+    end
+    
+    subgraph "Data Flow: AI Priority Ordering (NEW)"
+        AIPRIORITY["1️⃣ User opens app or receives message<br/>2️⃣ Calculate lightweight local score:<br/>   - Unread count (30%)<br/>   - Recency (20%)<br/>   - Affinity (10%)<br/>   - Question mark bonus (0.5)<br/>3️⃣ If localScore > 0.5:<br/>   - Call analyzePriorityBatch<br/>   - Get AI urgency signals<br/>   - Boost for unanswered questions<br/>4️⃣ Calculate final score<br/>5️⃣ Cache for 6 hours<br/>6️⃣ Sort chat list by score<br/>7️⃣ Apply visual indicators:<br/>   - Bold text (unread)<br/>   - Red ! badge (urgent)"]
+    end
+    
+    subgraph "Data Flow: Global Action Items Tab (NEW)"
+        AIACTION["1️⃣ User taps Action Items tab<br/>2️⃣ Query /actionItems collection<br/>   (collectionGroup where userId)<br/>3️⃣ Real-time listener active<br/>4️⃣ Sort by priority or deadline<br/>5️⃣ Display with chat name context<br/>6️⃣ User taps 'Mark Complete'<br/>7️⃣ Update status in Firestore<br/>8️⃣ Listener fires → UI updates<br/>9️⃣ User taps 'View Context'<br/>🔟 Navigate to chat, scroll to message"]
+    end
+    
+    subgraph "Data Flow: Global Smart Search (NEW)"
+        AISEARCH["1️⃣ User types search query<br/>2️⃣ Stage 1: Fast Search (< 1.5s)<br/>   - Context: Last 500 messages<br/>   - Model: GPT-4o-mini<br/>   - Return top 5-10 results<br/>3️⃣ Show Stage 1 results immediately<br/>4️⃣ Stage 2: Deep Search (2-4s)<br/>   - Context: All messages (5000)<br/>   - Model: GPT-4-turbo<br/>   - Return top 20 results<br/>5️⃣ Merge and re-rank<br/>6️⃣ Show refined results<br/>7️⃣ Cache (session-based)<br/>8️⃣ User taps result → jump to message"]
     end
     
     %% Connections - User A Flow
@@ -105,6 +121,8 @@ graph TB
     FS -->|Real-Time Updates| MsgListenerB
     FS -->|Real-Time Updates| PresenceA
     FS -->|Real-Time Updates| PresenceB
+    FS -->|Real-Time Updates| ActionItemsListener
+    FS -->|Real-Time Updates| SummaryListener
     
     ListenerA -->|New Chat Data| UAState
     ListenerB -->|New Chat Data| UBState
@@ -112,6 +130,10 @@ graph TB
     MsgListenerB -->|New Messages| UBState
     PresenceA -->|Status Update| UAComp
     PresenceB -->|Status Update| UBComp
+    ActionItemsListener -->|Action Items| UAState
+    ActionItemsListener -->|Action Items| UBState
+    SummaryListener -->|Fresh Summary| UAState
+    SummaryListener -->|Fresh Summary| UBState
     
     UAState -->|Write on Receive| UASQL
     UBState -->|Write on Receive| UBSQL
@@ -133,17 +155,22 @@ graph TB
     UANet -->|Reconnect Event| UASQL
     UBNet -->|Reconnect Event| UBSQL
     
-    %% AI Flow Connections
-    UAComp -->|User Taps AI Feature| UAAI
-    UBComp -->|User Taps AI Feature| UBAI
-    UAAI -->|Call Callable Function| CF
-    UBAI -->|Call Callable Function| CF
-    CF -->|Fetch Messages| FS
+    %% Global AI Flow Connections
+    UAComp -->|App Open Event| UAAI
+    UBComp -->|App Open Event| UBAI
+    UAComp -->|Search Query| UAAI
+    UBComp -->|Search Query| UBAI
+    UAComp -->|View Action Items| UAAI
+    UBComp -->|View Action Items| UBAI
+    
+    UAAI -->|Call Global AI Functions| CF
+    UBAI -->|Call Global AI Functions| CF
+    CF -->|Fetch Unread Messages| FS
     CF -->|Send Context| LANGCHAIN
     LANGCHAIN -->|API Request| OPENAI
     OPENAI -->|AI Response| LANGCHAIN
     LANGCHAIN -->|Parsed Result| CF
-    CF -->|Cache Result| FS
+    CF -->|Cache Result (Global)| FS
     CF -->|Return to Client| UAAI
     CF -->|Return to Client| UBAI
     UAAI -->|Update State| UAState
@@ -151,9 +178,14 @@ graph TB
     UAState -->|Trigger Render| UAComp
     UBState -->|Trigger Render| UBComp
     
-    %% AI Cache Listeners
-    FS -->|Real-Time AI Results| UAState
-    FS -->|Real-Time AI Results| UBState
+    %% Priority Detection on Receive
+    MsgListenerA -->|New Message Event| UAAI
+    MsgListenerB -->|New Message Event| UBAI
+    UAAI -->|Background Priority Check| CF
+    UBAI -->|Background Priority Check| CF
+    
+    %% Action Items Collection
+    CF -->|Write Global Action Items| FS
     
     %% Styling
     classDef client fill:#e1f5ff,stroke:#01579b,stroke-width:2px
@@ -162,10 +194,12 @@ graph TB
     classDef flow fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
     classDef sync fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     classDef ai fill:#e8eaf6,stroke:#1a237e,stroke-width:2px
+    classDef newflow fill:#fff9c4,stroke:#f57f17,stroke-width:3px
     
     class UA,UB,UAComp,UAState,UASQL,UANotif,UANet,UAAI,UBComp,UBState,UBSQL,UBNotif,UBNet,UBAI client
     class FS,AUTH,CF,FCM firebase
-    class ListenerA,ListenerB,PresenceA,PresenceB,MsgListenerA,MsgListenerB listener
-    class SEND,RECEIVE,OFFLINE,PRESENCE,AIFLOW flow
+    class ListenerA,ListenerB,PresenceA,PresenceB,MsgListenerA,MsgListenerB,ActionItemsListener,SummaryListener listener
+    class SEND,RECEIVE,OFFLINE,PRESENCE flow
     class SYNC sync
     class OPENAI,LANGCHAIN ai
+    class AISUMMARY,AIPRIORITY,AIACTION,AISEARCH newflow

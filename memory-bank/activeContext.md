@@ -1,10 +1,50 @@
 # Active Context
 
 ## Current Status
-**Phase**: Phase 2 AI Implementation IN PROGRESS 🚀  
+**Phase**: Phase 2 AI Implementation - PIVOTING TO GLOBAL FEATURES 🔄  
 **Date**: October 23, 2025  
-**Current PR**: PR19 COMPLETE ✅ + DEPLOYED ✅ | Next: PR20 (Smart Search)  
-**Firebase Project**: MessageAI-dev
+**Current PR**: PR19 COMPLETE ✅ + DEPLOYED ✅ | Next: PR20 (Global Summary Infrastructure)  
+**Firebase Project**: MessageAI-dev  
+**Major Change**: Moving from per-chat AI features to global, proactive intelligence
+
+## ✅ Major Pivot: From Per-Chat to Global AI Features (October 23, 2025)
+
+**Decision:** Moved from chat-specific AI features to global, proactive intelligence that works across all conversations.
+
+**Rationale:**
+- Better aligned with "busy working professional" persona
+- Showcases system-level thinking and product maturity
+- More impressive technically (cross-chat analysis, priority scoring, delta processing)
+- Meets rubric requirements with integrated approach (e.g., decision tracking via Action Items filter)
+
+**New Architecture:**
+1. **Global Summary on App Open** - Auto-popup summarizing ALL unread messages
+2. **AI Priority Chat Ordering** - Chat list sorted by importance, not recency
+3. **Global Action Items Tab** - New bottom tab for all commitments across chats
+4. **Global Smart Search Tab** - Two-stage semantic search across all messages
+5. **Background Priority Detection** - Real-time urgency analysis as messages arrive
+
+**Removed Features:**
+- ❌ Per-chat AI Insights Panel (replaced with global approach)
+- ❌ Separate Decision Tracking page (folded into Action Items filter)
+
+**Key Technical Innovations:**
+- **Delta processing** - Only analyze new messages since last watermark
+- **Hybrid priority scoring** - Lightweight local score + selective AI analysis
+- **Two-stage search** - Fast initial results, then refined accuracy
+- **Progressive loading** - Show cached instantly, refresh in background
+- **Cost optimization** - Aggressive caching (15min summary, 6hr priorities)
+
+**Implementation Plan:**
+- **PR20:** Global Summary Infrastructure (delta processing, watermarks, auto-popup)
+- **PR21:** AI Priority Ordering (hybrid scoring, urgent indicators)
+- **PR22:** Global Action Items + Smart Search Tabs
+- **PR23:** Polish & Optimization (one-tap actions, tooltips, performance)
+
+**New Documentation:**
+- Created `planning/PRD_AI_extend.md` - Comprehensive PRD for global features
+- Updated `planning/architecture.mermaid` - New global AI flows
+- Created `planning/tasks_AI_extend.md` - Detailed task breakdown (4 PRs)
 
 ## Phase 2 AI Implementation Status (October 22, 2025)
 
