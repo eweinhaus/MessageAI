@@ -697,6 +697,31 @@ function MessageList({ chatID }) {
 **Why**: Spam Firestore writes, costs money
 **Do**: Throttle to max 1 update per 30 seconds
 
+### ❌ Don't: Use colors without importing them (CRITICAL)
+**Why**: Causes `ReferenceError: Property 'colors' doesn't exist` at runtime
+**Do**: Always add `import colors from '../constants/colors'` when using color constants
+**How**: 
+- Use default import: `import colors from '../constants/colors'`
+- Use lowercase properties: `colors.primary`, `colors.text`, `colors.background`
+- See `.cursor/rules/color-imports.mdc` for complete reference
+**Context**: This is a recurring issue that has been fixed multiple times (October 22, 2025)
+
+### ❌ Don't: Initialize Firebase services without app instance (CRITICAL)
+**Why**: Causes authentication errors - `context.auth` is undefined in Cloud Functions
+**Do**: Always pass the Firebase app instance when initializing services
+**How**:
+```javascript
+// ❌ WRONG - Creates disconnected instance
+const functions = getFunctions();
+
+// ✅ CORRECT - Connected to app, shares auth state
+import app from '../config/firebaseConfig';
+const functions = getFunctions(app);
+```
+**Pattern**: Initialize once at module level, reuse everywhere
+**Services affected**: `getFunctions`, `getAuth`, `getFirestore`, `getStorage`
+**Context**: Fixed in PR18 after "User must be authenticated" errors (October 22, 2025)
+
 ## UI Responsiveness & Screen Compatibility
 
 ### SafeAreaView Implementation

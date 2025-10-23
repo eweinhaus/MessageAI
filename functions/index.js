@@ -148,6 +148,10 @@ async function sendFCMNotification(fcmToken, notification, data) {
 const {analyzePriorities} = require("./analyzePriorities");
 exports.analyzePriorities = analyzePriorities;
 
+// AI Features - Thread Summarization
+const {summarizeThread} = require("./summarizeThread");
+exports.summarizeThread = summarizeThread;
+
 /**
  * Triggered when new message created in
  * /chats/{chatID}/messages/{messageID}

@@ -12,6 +12,10 @@
  */
 
 import {getFunctions, httpsCallable} from "firebase/functions";
+import app, {auth} from "../config/firebaseConfig";
+
+// Initialize Functions with the Firebase app instance
+const functions = getFunctions(app);
 
 /**
  * Get user-friendly error message from error code
@@ -53,7 +57,7 @@ function getErrorMessage(error) {
  */
 export async function analyzePriorities(chatId, options = {}) {
   try {
-    const functions = getFunctions();
+    console.log("[AI Service] analyzePriorities user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "analyzePriorities");
 
     const result = await callable({
@@ -83,6 +87,7 @@ export async function analyzePriorities(chatId, options = {}) {
  * @param {string} chatId - Chat ID to summarize
  * @param {Object} [options] - Options
  * @param {number} [options.messageCount=50] - Number of messages to analyze
+ * @param {boolean} [options.forceRefresh=false] - Skip cache and force fresh summary
  * @return {Promise<Object>} Result with summary data
  *
  * @example
@@ -93,16 +98,18 @@ export async function analyzePriorities(chatId, options = {}) {
  */
 export async function summarizeThread(chatId, options = {}) {
   try {
-    const functions = getFunctions();
+    console.log("[AI Service] summarizeThread user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "summarizeThread");
 
     const result = await callable({
       chatId,
       messageCount: options.messageCount || 50,
+      forceRefresh: options.forceRefresh || false,
     });
 
     return {
       success: true,
+      cached: result.data.cached || false,
       data: result.data,
     };
   } catch (error) {
@@ -132,7 +139,7 @@ export async function summarizeThread(chatId, options = {}) {
  */
 export async function extractActionItems(chatId, options = {}) {
   try {
-    const functions = getFunctions();
+    console.log("[AI Service] extractActionItems user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "extractActionItems");
 
     const result = await callable({
@@ -203,7 +210,7 @@ export async function updateActionItemStatus(chatId, itemId, status) {
  */
 export async function smartSearch(chatId, query, options = {}) {
   try {
-    const functions = getFunctions();
+    console.log("[AI Service] smartSearch user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "smartSearch");
 
     const result = await callable({
@@ -241,7 +248,7 @@ export async function smartSearch(chatId, query, options = {}) {
  */
 export async function trackDecisions(chatId) {
   try {
-    const functions = getFunctions();
+    console.log("[AI Service] trackDecisions user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "trackDecisions");
 
     const result = await callable({chatId});

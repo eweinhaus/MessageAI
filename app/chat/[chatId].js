@@ -13,9 +13,10 @@ import MessageList from '../../components/MessageList';
 import MessageInput from '../../components/MessageInput';
 import ChatHeader from '../../components/ChatHeader';
 import AIInsightsPanel from '../../components/AIInsightsPanel';
+import SummaryModal from '../../components/SummaryModal';
 import { getMessagesForChat, insertMessage, updateMessage } from '../../db/messageDb';
 import { sendMessage } from '../../services/messageService';
-import { analyzePriorities } from '../../services/aiService';
+import { analyzePriorities, summarizeThread } from '../../services/aiService';
 import { Ionicons } from '@expo/vector-icons';
 import { PRIMARY_GREEN } from '../../constants/colors';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
@@ -37,6 +38,12 @@ export default function ChatDetailScreen() {
   const [aiLoading, setAILoading] = useState({});
   const [priorities, setPriorities] = useState({});
   const [error, setError] = useState(null);
+  
+  // Summary modal state
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState(null);
   
   const chat = getChatByID(chatId);
   
@@ -222,11 +229,70 @@ export default function ChatDetailScreen() {
     }
   };
 
-  // Placeholder handlers for other AI features
-  const handleSummarizeThread = () => {
+  // Handle AI Thread Summarization
+  const handleSummarizeThread = async () => {
     setShowAIPanel(false);
-    setError({ type: 'info', message: 'Thread summarization coming soon!' });
+    setAILoading((prev) => ({ ...prev, summary: true }));
+    setSummaryLoading(true);
+    setSummaryError(null);
+    setShowSummaryModal(true);
+
+    try {
+      const result = await summarizeThread(chatId, {
+        messageCount: 50,
+        forceRefresh: false,
+      });
+
+      if (result.success) {
+        setSummaryData(result.data);
+        setError({ 
+          type: 'success', 
+          message: result.cached ? 'Loaded summary from cache' : 'Summary generated!' 
+        });
+      } else {
+        console.error('[ChatDetail] Summarization failed:', result.error);
+        setSummaryError(result.message);
+        setError({ type: 'error', message: result.message });
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error:', err);
+      const errorMsg = 'Something went wrong. Please try again.';
+      setSummaryError(errorMsg);
+      setError({ type: 'error', message: errorMsg });
+    } finally {
+      setSummaryLoading(false);
+      setAILoading((prev) => ({ ...prev, summary: false }));
+    }
   };
+
+  // Handle Summary Refresh
+  const handleRefreshSummary = async () => {
+    setSummaryLoading(true);
+    setSummaryError(null);
+
+    try {
+      const result = await summarizeThread(chatId, {
+        messageCount: 50,
+        forceRefresh: true, // Force fresh summary
+      });
+
+      if (result.success) {
+        setSummaryData(result.data);
+        setError({ type: 'success', message: 'Summary refreshed!' });
+      } else {
+        console.error('[ChatDetail] Summary refresh failed:', result.error);
+        setSummaryError(result.message);
+      }
+    } catch (err) {
+      console.error('[ChatDetail] Unexpected error during refresh:', err);
+      const errorMsg = 'Failed to refresh summary. Please try again.';
+      setSummaryError(errorMsg);
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+  // Placeholder handlers for other AI features
 
   const handleExtractActionItems = () => {
     setShowAIPanel(false);
@@ -323,6 +389,16 @@ export default function ChatDetailScreen() {
           onSmartSearch={handleSmartSearch}
           onTrackDecisions={handleTrackDecisions}
           loading={aiLoading}
+        />
+
+        {/* Summary Modal */}
+        <SummaryModal
+          visible={showSummaryModal}
+          onClose={() => setShowSummaryModal(false)}
+          summary={summaryData}
+          loading={summaryLoading}
+          error={summaryError}
+          onRefresh={handleRefreshSummary}
         />
 
         {/* Error Toast */}

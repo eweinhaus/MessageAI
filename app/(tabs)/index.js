@@ -17,6 +17,7 @@ import useUserStore from '../../store/userStore';
 import useChatStore from '../../store/chatStore';
 import ChatListItem from '../../components/ChatListItem';
 import Icon from '../../components/Icon';
+import colors from '../../constants/colors';
 import { getAllChats, insertChat } from '../../db/messageDb';
 import { syncChatsFromFirestore } from '../../utils/syncManager';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
