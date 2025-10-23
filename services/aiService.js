@@ -57,7 +57,6 @@ function getErrorMessage(error) {
  */
 export async function analyzePriorities(chatId, options = {}) {
   try {
-    console.log("[AI Service] analyzePriorities user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "analyzePriorities");
 
     const result = await callable({
@@ -98,7 +97,17 @@ export async function analyzePriorities(chatId, options = {}) {
  */
 export async function summarizeThread(chatId, options = {}) {
   try {
-    console.log("[AI Service] summarizeThread user?", auth.currentUser?.uid);
+    const user = auth.currentUser;
+
+    if (!user) {
+      console.error("[AI Service] No authenticated user!");
+      return {
+        success: false,
+        error: "unauthenticated",
+        message: "Please sign in to use AI features",
+      };
+    }
+
     const callable = httpsCallable(functions, "summarizeThread");
 
     const result = await callable({
@@ -107,13 +116,15 @@ export async function summarizeThread(chatId, options = {}) {
       forceRefresh: options.forceRefresh || false,
     });
 
+    console.log("[AI Service] summarizeThread success");
+
     return {
       success: true,
       cached: result.data.cached || false,
       data: result.data,
     };
   } catch (error) {
-    console.error("[AI Service] Summarization failed:", error);
+    console.error("[AI Service] Summarization failed:", error.message);
 
     return {
       success: false,
@@ -139,7 +150,6 @@ export async function summarizeThread(chatId, options = {}) {
  */
 export async function extractActionItems(chatId, options = {}) {
   try {
-    console.log("[AI Service] extractActionItems user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "extractActionItems");
 
     const result = await callable({
@@ -210,7 +220,6 @@ export async function updateActionItemStatus(chatId, itemId, status) {
  */
 export async function smartSearch(chatId, query, options = {}) {
   try {
-    console.log("[AI Service] smartSearch user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "smartSearch");
 
     const result = await callable({
@@ -248,7 +257,6 @@ export async function smartSearch(chatId, query, options = {}) {
  */
 export async function trackDecisions(chatId) {
   try {
-    console.log("[AI Service] trackDecisions user?", auth.currentUser?.uid);
     const callable = httpsCallable(functions, "trackDecisions");
 
     const result = await callable({chatId});

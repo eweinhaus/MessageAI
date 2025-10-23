@@ -1,0 +1,145 @@
+Description: React Native Modal layout patterns to ensure ScrollView content renders correctly
+Globs: components/**/*.js, app/**/*.js
+
+# Modal Layout Patterns
+
+## Critical Rule: Always Add `flex: 1` to Modal Content Containers
+
+When creating modals with scrollable content, the parent View containing the ScrollView **MUST** have `flex: 1` to define available space.
+
+### Problem Symptoms
+- Modal renders header and footer/action buttons
+- Content area appears empty (no ScrollView items visible)
+- Data is present (confirmed via console logs)
+- No obvious errors in console
+
+### Root Cause
+React Native's layout system requires explicit flex values in Modal hierarchies. Without `flex: 1`, the ScrollView's parent doesn't know how much space it has, preventing proper layout calculation.
+
+### Correct Pattern
+
+```javascript
+// ✅ CORRECT - ScrollView content renders properly
+<Modal visible={visible} transparent animationType="slide">
+  <View style={styles.modalContainer}>
+    {/* This View MUST have flex: 1 */}
+    <View style={[styles.modalContent, { flex: 1 }]}>
+      <View style={styles.header}>
+        {/* Header content */}
+      </View>
+      
+      <ScrollView style={{ flex: 1 }}>
+        {/* Scrollable content - will render correctly */}
+      </ScrollView>
+      
+      <View style={styles.actions}>
+        {/* Footer buttons */}
+      </View>
+    </View>
+  </View>
+</Modal>
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    flex: 1,  // CRITICAL: Must be present
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+  },
+  // ... other styles
+});
+```
+
+### Wrong Pattern
+
+```javascript
+// ❌ WRONG - ScrollView content will be invisible
+<Modal visible={visible}>
+  <View style={styles.modalContainer}>
+    {/* Missing flex: 1 - layout breaks */}
+    <View style={styles.modalContent}>
+      <View style={styles.header}>...</View>
+      <ScrollView>...</ScrollView>  {/* Won't render */}
+      <View style={styles.actions}>...</View>
+    </View>
+  </View>
+</Modal>
+
+const styles = StyleSheet.create({
+  modalContent: {
+    // Missing flex: 1
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    maxHeight: '90%',
+  },
+});
+```
+
+## Layout Hierarchy Rules
+
+1. **Top-level Modal container**: Usually `flex: 1` to fill screen
+2. **Content wrapper**: **MUST have `flex: 1`** if it contains a ScrollView
+3. **ScrollView**: Should have `flex: 1` or `style={{flex: 1}}`
+4. **Fixed header/footer**: No flex needed, natural height
+
+## When to Apply This Pattern
+
+Apply this pattern to:
+- ✅ Bottom sheet modals with scrollable content
+- ✅ Full-screen modals with long lists
+- ✅ Modals with dynamic content height
+- ✅ Any Modal → View → ScrollView hierarchy
+
+Don't need `flex: 1` for:
+- ❌ Simple modals with fixed content (no ScrollView)
+- ❌ Modals with only FlatList (FlatList handles its own layout)
+- ❌ Alert-style modals with a few buttons
+
+## Testing Checklist
+
+When creating a new modal with scrollable content:
+1. [ ] Verify `modalContent` (or equivalent) has `flex: 1`
+2. [ ] Verify ScrollView has `flex: 1` or equivalent
+3. [ ] Test with varying content lengths (short and long)
+4. [ ] Check on different screen sizes (small and large)
+5. [ ] Verify header and footer/actions are visible
+6. [ ] Confirm ScrollView content is visible and scrollable
+
+## Real-World Example: SummaryModal (PR18)
+
+**Issue**: SummaryModal rendered header ("Thread Summary" with close button) and footer (Refresh and Done buttons), but the ScrollView content (overview, key points, action items, etc.) was completely invisible.
+
+**Fix**: Added `flex: 1` to `modalContent` style:
+
+```javascript
+modalContent: {
+  flex: 1,  // Added this line
+  backgroundColor: '#fff',
+  borderTopLeftRadius: 20,
+  borderTopRightRadius: 20,
+  maxHeight: '90%',
+  // ... other styles
+},
+```
+
+**Result**: ScrollView immediately calculated correct layout and rendered all sections properly.
+
+## Historical Context
+
+- Fixed in PR18 (October 23, 2025) for `SummaryModal.js`
+- This is a common React Native layout pitfall
+- Documented in memory-bank/systemPatterns.md as critical anti-pattern
+- Created this rule to prevent future occurrences
+
+## Related Patterns
+
+See also:
+- `.cursor/rules/color-imports.mdc` - Color constant import patterns
+- `.cursor/rules/firebase-initialization.mdc` - Firebase service initialization patterns
+- `memory-bank/systemPatterns.md` - Full architecture patterns and anti-patterns

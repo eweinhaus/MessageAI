@@ -106,8 +106,10 @@ export default function SummaryModal({
     );
   }
 
-  // Empty state
-  if (!summary) return null;
+  // Empty state - don't render if modal not visible or no data
+  if (!visible || !summary) {
+    return null;
+  }
 
   const hasKeyPoints = summary.keyPoints && summary.keyPoints.length > 0;
   const hasDecisions = summary.decisions && summary.decisions.length > 0;
@@ -271,6 +273,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContent: {
+    flex: 1,
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,

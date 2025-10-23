@@ -530,28 +530,28 @@
    - [x] Loading state during refresh
 
 8. **Test Thread Summarization**
-   - [ ] Create test chat with 10 messages on one topic
-   - [ ] Tap "Summarize Thread" button
-   - [ ] Verify key points capture main topic
-   - [ ] Create test chat with 50 messages, multiple topics
-   - [ ] Verify summary identifies all major topics
-   - [ ] Test with conversation containing decision
-   - [ ] Verify decision captured correctly
-   - [ ] Test with conversation containing action items
-   - [ ] Verify action items extracted with assignees
+   - [x] Create test chat with 10 messages on one topic
+   - [x] Tap "Summarize Thread" button
+   - [x] Verify key points capture main topic
+   - [x] Create test chat with 50 messages, multiple topics
+   - [x] Verify summary identifies all major topics
+   - [x] Test with conversation containing decision
+   - [x] Verify decision captured correctly
+   - [x] Test with conversation containing action items
+   - [x] Verify action items extracted with assignees
    - [ ] Test error handling (airplane mode)
    - [ ] Test cache (second request faster)
    - [ ] Test rate limiting
    - [ ] Measure response time (should be < 5s for 50 messages)
 
 ### Testing Checklist
-- [ ] Summarization works for 10-100 message threads
-- [ ] Key points are accurate and relevant
-- [ ] Decisions captured correctly
-- [ ] Action items extracted with assignees/deadlines
+- [x] Summarization works for 10-100 message threads
+- [x] Key points are accurate and relevant
+- [x] Decisions captured correctly
+- [x] Action items extracted with assignees/deadlines
 - [ ] Response time < 5 seconds for 50 messages
-- [ ] UI displays all summary sections
-- [ ] Loading states work
+- [x] UI displays all summary sections
+- [x] Loading states work
 - [ ] Error messages are user-friendly
 - [ ] Cache reduces response time
 - [ ] Rate limiting works

@@ -722,6 +722,38 @@ const functions = getFunctions(app);
 **Services affected**: `getFunctions`, `getAuth`, `getFirestore`, `getStorage`
 **Context**: Fixed in PR18 after "User must be authenticated" errors (October 22, 2025)
 
+### ❌ Don't: Omit flex: 1 on Modal content containers (CRITICAL)
+**Why**: ScrollView content becomes invisible - parent container doesn't define available space
+**Do**: Always add `flex: 1` to the parent View containing a ScrollView in Modals
+**How**:
+```javascript
+// ❌ WRONG - ScrollView content invisible
+<Modal visible={visible}>
+  <View style={styles.modalContainer}>
+    <View style={styles.modalContent}>  {/* Missing flex: 1 */}
+      <View style={styles.header}>...</View>
+      <ScrollView>...</ScrollView>  {/* Won't render properly */}
+      <View style={styles.actions}>...</View>
+    </View>
+  </View>
+</Modal>
+
+// ✅ CORRECT - ScrollView calculates layout properly
+<Modal visible={visible}>
+  <View style={styles.modalContainer}>
+    <View style={{...styles.modalContent, flex: 1}}>  {/* flex: 1 added */}
+      <View style={styles.header}>...</View>
+      <ScrollView style={{flex: 1}}>...</ScrollView>
+      <View style={styles.actions}>...</View>
+    </View>
+  </View>
+</Modal>
+```
+**Pattern**: Modal layout hierarchy requires explicit flex values
+**Symptoms**: Modal renders header and footer buttons, but content area is empty
+**Context**: Fixed in PR18 SummaryModal - content was present but not visible (October 23, 2025)
+**Related**: Apply same pattern to any bottom sheet or full-screen modal with scrollable content
+
 ## UI Responsiveness & Screen Compatibility
 
 ### SafeAreaView Implementation

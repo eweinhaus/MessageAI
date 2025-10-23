@@ -10,7 +10,6 @@
 /* eslint-disable max-len */
 const functions = require("firebase-functions/v2");
 const {onCall} = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
 const {
   checkRateLimit,
   incrementRateLimit,
@@ -28,32 +27,37 @@ const {SUMMARIZATION_SYSTEM_PROMPT} = require("./prompts/threadSummarization");
 /**
  * Summarize a conversation thread with key points, decisions, and action items
  *
- * @param {Object} data - Request data
- * @param {string} data.chatId - Chat ID to summarize
- * @param {number} [data.messageCount=50] - Number of recent messages to analyze
- * @param {boolean} [data.forceRefresh=false] - Skip cache and generate new summary
- * @param {Object} context - Firebase function context
+ * @param {Object} request - Firebase Functions v2 request object
+ * @param {Object} request.data - Request data
+ * @param {string} request.data.chatId - Chat ID to summarize
+ * @param {number} [request.data.messageCount=50] - Number of recent messages to analyze
+ * @param {boolean} [request.data.forceRefresh=false] - Skip cache and generate new summary
+ * @param {Object} request.auth - Firebase auth context
  * @returns {Promise<Object>} Summary with keyPoints, decisions, actionItems, etc.
  */
-exports.summarizeThread = onCall(async (data, context) => {
+exports.summarizeThread = onCall(async (request) => {
+  const startTime = Date.now();
+
+  // Extract data and auth from request object (Functions v2 pattern)
+  const {chatId, messageCount = 50, forceRefresh = false} = request.data || {};
+  const userId = request.auth?.uid;
+
   console.log("[summarizeThread] Function invoked", {
-    chatId: data.chatId,
-    messageCount: data.messageCount,
-    forceRefresh: data.forceRefresh,
-    userId: context.auth?.uid,
+    chatId,
+    messageCount,
+    forceRefresh,
+    userId,
+    hasAuth: !!request.auth,
   });
 
   // 1. Authentication check
-  if (!context.auth) {
-    console.warn("[summarizeThread] Unauthenticated request");
+  if (!userId) {
+    console.warn("[summarizeThread] Unauthenticated request - no userId");
     throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated to use AI features",
     );
   }
-
-  const {chatId, messageCount = 50, forceRefresh = false} = data;
-  const userId = context.auth.uid;
 
   // Validate inputs
   if (!chatId) {
@@ -69,8 +73,6 @@ exports.summarizeThread = onCall(async (data, context) => {
         "messageCount must be between 1 and 100",
     );
   }
-
-  const startTime = Date.now();
 
   try {
     // 2. Rate limiting (10 operations per hour per user)
@@ -88,13 +90,17 @@ exports.summarizeThread = onCall(async (data, context) => {
         maxAge: 86400000, // 24 hours
       });
 
-      if (cached) {
+      if (cached && cached.result) {
         const elapsedTime = Date.now() - startTime;
-        console.log(`[summarizeThread] Cache hit (${elapsedTime}ms)`);
+        console.log(`[summarizeThread] Cache hit (${elapsedTime}ms)`, {
+          cacheAge: cached.age,
+          hasResult: !!cached.result,
+        });
         return {
           success: true,
           cached: true,
-          ...cached,
+          ...cached.result,
+          cacheAge: cached.age,
         };
       }
       console.log("[summarizeThread] Cache miss");
@@ -114,11 +120,31 @@ exports.summarizeThread = onCall(async (data, context) => {
       );
     }
 
-    console.log(`[summarizeThread] Retrieved ${messages.length} messages`);
+    console.log(`[summarizeThread] Retrieved ${messages.length} messages`, {
+      firstMessageId: messages[0]?.messageID,
+      lastMessageId: messages[messages.length - 1]?.messageID,
+    });
+
+    messages.slice(0, 3).forEach((msg, index) => {
+      console.log(`[summarizeThread] Message sample ${index + 1}`, {
+        messageID: msg.messageID,
+        senderName: msg.senderName,
+        timestampType: typeof msg.timestamp,
+        hasTimestampToMillis: typeof msg.timestamp?.toMillis === "function",
+        hasText: typeof msg.text === "string" && msg.text.length > 0,
+        textPreview: msg.text?.slice(0, 120) || "<empty>",
+      });
+    });
 
     // 6. Build context (RAG - Augmentation step)
     console.log("[summarizeThread] Building message context");
-    const messageContext = buildMessageContext(messages, {format: "detailed"});
+    const contextData = buildMessageContext(messages, {format: "detailed"});
+
+    console.log("[summarizeThread] Context built", {
+      contextMessageCount: contextData.messageCount,
+      estimatedTokens: contextData.estimatedTokens,
+      contextPreview: contextData.text?.slice(0, 200),
+    });
 
     // 7. Call OpenAI (RAG - Generation step)
     console.log("[summarizeThread] Calling OpenAI API");
@@ -128,14 +154,19 @@ exports.summarizeThread = onCall(async (data, context) => {
       model: "gpt-4o-mini", // Fast and cost-effective model
       messages: [
         {role: "system", content: SUMMARIZATION_SYSTEM_PROMPT},
-        {role: "user", content: messageContext},
+        {role: "user", content: contextData.text},
       ],
       temperature: 0.3, // Lower temperature for more focused, consistent output
       max_tokens: 2000,
       response_format: {type: "json_object"}, // Enforce JSON response
     });
 
-    console.log("[summarizeThread] OpenAI response received");
+    console.log("[summarizeThread] OpenAI response received", {
+      finishReason: completion.choices?.[0]?.finish_reason,
+      promptTokens: completion.usage?.prompt_tokens,
+      completionTokens: completion.usage?.completion_tokens,
+      totalTokens: completion.usage?.total_tokens,
+    });
 
     // 8. Parse and validate response
     const summaryText = completion.choices[0].message.content;
@@ -186,10 +217,8 @@ exports.summarizeThread = onCall(async (data, context) => {
 
     console.log(`[summarizeThread] Found ${summary.participants.length} participants`);
 
-    // 10. Prepare cache data
-    const cacheData = {
-      type: "summary",
-      chatId,
+    // 10. Prepare result data (what gets returned to client)
+    const summaryResult = {
       keyPoints: summary.keyPoints,
       decisions: summary.decisions,
       actionItems: summary.actionItems,
@@ -197,15 +226,31 @@ exports.summarizeThread = onCall(async (data, context) => {
       summary: summary.summary,
       messageCount: messages.length,
       timeRange: {
-        start: messages[0].timestamp.toMillis(),
-        end: messages[messages.length - 1].timestamp.toMillis(),
+        start: typeof messages[0].timestamp?.toMillis === "function" ?
+          messages[0].timestamp.toMillis() :
+          Number(messages[0].timestamp) || Date.now(),
+        end: typeof messages[messages.length - 1].timestamp?.toMillis === "function" ?
+          messages[messages.length - 1].timestamp.toMillis() :
+          Number(messages[messages.length - 1].timestamp) || Date.now(),
       },
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    // 11. Store in cache
+    // 11. Store in cache (matching analyzePriorities pattern)
     console.log("[summarizeThread] Storing result in cache");
-    await setCacheResult(chatId, cacheData);
+    await setCacheResult(chatId, {
+      type: "summary",
+      result: summaryResult,
+      metadata: {
+        chatId,
+        messageCount: messages.length,
+        keyPointsCount: summary.keyPoints.length,
+        decisionsCount: summary.decisions.length,
+        actionItemsCount: summary.actionItems.length,
+        participantsCount: summary.participants.length,
+        model: "gpt-4o-mini",
+        tokenCount: contextData.estimatedTokens,
+      },
+    });
 
     // 12. Increment rate limit counter
     await incrementRateLimit(userId, "summarize");
@@ -216,12 +261,13 @@ exports.summarizeThread = onCall(async (data, context) => {
       decisionsCount: summary.decisions.length,
       actionItemsCount: summary.actionItems.length,
       participantsCount: summary.participants.length,
+      cached: false,
     });
 
     return {
       success: true,
       cached: false,
-      ...cacheData,
+      ...summaryResult,
       processingTime: elapsedTime,
     };
   } catch (error) {
@@ -229,6 +275,10 @@ exports.summarizeThread = onCall(async (data, context) => {
     console.error(`[summarizeThread] Error (${elapsedTime}ms)`, {
       error: error.message,
       code: error.code,
+      status: error.status,
+      name: error.name,
+      responseStatus: error.response?.status,
+      responseData: error.response?.data,
       stack: error.stack,
     });
 
@@ -240,6 +290,7 @@ exports.summarizeThread = onCall(async (data, context) => {
 
     // Convert to user-friendly error
     const errorResponse = handleAIError(error, "summarizeThread");
+    console.log("[summarizeThread] Returning handled error", errorResponse);
     throw new functions.https.HttpsError(
         "internal",
         errorResponse.message,

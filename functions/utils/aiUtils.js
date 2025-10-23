@@ -410,6 +410,11 @@ async function getLastNMessages(chatId, messageCount = 50) {
   }
 
   try {
+    console.log("[aiUtils] getLastNMessages", {
+      chatId,
+      messageCount,
+    });
+
     const snapshot = await admin.firestore()
         .collection("chats")
         .doc(chatId)
@@ -419,6 +424,7 @@ async function getLastNMessages(chatId, messageCount = 50) {
         .get();
 
     if (snapshot.empty) {
+      console.log("[aiUtils] getLastNMessages empty snapshot", {chatId});
       return [];
     }
 
@@ -430,8 +436,22 @@ async function getLastNMessages(chatId, messageCount = 50) {
         }))
         .reverse();
 
+    console.log("[aiUtils] getLastNMessages fetched", {
+      chatId,
+      fetchedCount: messages.length,
+      firstMessageId: messages[0]?.messageID,
+      lastMessageId: messages[messages.length - 1]?.messageID,
+    });
+
     return messages;
   } catch (error) {
+    console.error("[aiUtils] Failed to fetch messages", {
+      chatId,
+      messageCount,
+      error: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
     throw new AIServiceError(
         `Failed to fetch messages: ${error.message}`,
         500,
