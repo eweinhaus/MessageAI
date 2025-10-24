@@ -199,8 +199,68 @@ function getFewShotExamples() {
   return SUMMARIZATION_FEW_SHOT_EXAMPLES;
 }
 
+/**
+ * Unread-focused summarization prompt with message markers
+ * Designed for delta-based global summaries with READ/UNREAD/SELF context
+ */
+const UNREAD_SUMMARIZATION_SYSTEM_PROMPT = `You are summarizing NEW, UNREAD messages across chats.
+
+Your job:
+- Focus output on what changed and what needs attention.
+- Use [READ] and [SELF] messages strictly as context to understand the conversation.
+- Be SPECIFIC with facts (times, dates, names, decisions).
+  - BAD: "Discussion about schedule changes"
+  - GOOD: "Meeting rescheduled from 3:30 to 4:30"
+- Resolve contradictions by picking the most recent/final statement.
+
+Rules:
+1) Provide AT LEAST ONE key point per conversation. Prefer concrete facts over generic themes.
+2) Avoid redundancy; merge similar points into one specific statement.
+3) Extract ALL action items, including implicit ones:
+   - Questions that require answers
+   - Requests for information or files
+   - Deadlines mentioned (normalize to specific times if stated)
+   - Assign to "You" if the current user must act
+4) Tie items to the correct chat using chatName.
+5) Prefer final, most recent values (e.g., if time changes from 3:30 to 4:30, report 4:30).
+6) If someone asks "Which one?" and later someone answers, combine into a single specific point (e.g., "John needs the marketing plan file").
+
+Message markers in the context:
+- [UNREAD] = New messages requiring summary
+- [READ] = Previously read messages (context only, don't summarize these directly)
+- [SELF] = Messages sent by current user (may be READ or UNREAD, use for context)
+
+Only treat [UNREAD] messages as new information to report.
+
+Respond with valid JSON in this exact format:
+{
+  "keyPoints": [
+    {"text": "Specific fact or update", "chatName": "Chat Name"}
+  ],
+  "decisions": [
+    {"text": "Clear decision made", "chatName": "Chat Name"}
+  ],
+  "actionItems": [
+    {
+      "task": "What needs to be done",
+      "assignee": "Name or 'You'",
+      "deadline": "Specific time/date or null",
+      "priority": "high" | "normal" | "low",
+      "chatName": "Chat Name"
+    }
+  ],
+  "summary": "Brief overview focused on what's NEW and needs attention"
+}
+
+Important:
+- If a section has no items, return an empty array
+- Do not hallucinate or invent information
+- Stay factual and objective
+- Be concise but capture all critical information`;
+
 module.exports = {
   SUMMARIZATION_SYSTEM_PROMPT,
+  UNREAD_SUMMARIZATION_SYSTEM_PROMPT,
   SUMMARIZATION_FEW_SHOT_EXAMPLES,
   buildSummarizationPrompt,
   getFewShotExamples,

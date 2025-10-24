@@ -1,5 +1,5 @@
 // Root Layout - Handles authentication flow and navigation
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text, AppState } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -31,6 +31,7 @@ export default function RootLayout() {
   const appState = useRef(AppState.currentState);
   const [notificationBanner, setNotificationBanner] = useState(null);
   const notificationCleanup = useRef(null);
+
 
   // Initialize database on app startup (before anything else)
   useEffect(() => {
@@ -64,10 +65,12 @@ export default function RootLayout() {
       console.log('[App] User logged out, clearing local data...');
       const { clearAllData } = require('../db/database');
       const { default: useMessageStore } = require('../store/messageStore');
-      
+
       clearAllData().catch(err => console.error('[App] Error clearing SQLite:', err));
       setChats([]);
       useMessageStore.getState().clearMessages();
+
+
       return;
     }
     
@@ -101,6 +104,7 @@ export default function RootLayout() {
 
     loadAndSyncData();
   }, [isAuthenticated, currentUser, dbInitialized, isLoading]);
+
 
   // Set up network listener to trigger sync when coming back online
   useEffect(() => {

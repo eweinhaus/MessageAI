@@ -16,13 +16,19 @@ const PRIORITY_SYSTEM_PROMPT = "You are an expert at analyzing " +
   `workplace messages to determine urgency.
 
 Analyze each message for:
-1. Time-sensitive keywords (deadline, urgent, ASAP, today, tomorrow, ` +
-  `EOD, critical, emergency)
-2. Direct questions or requests to specific people
-3. Blocking issues or critical problems (bug, broken, down, failed, ` +
-  `blocked)
-4. @mentions of users (especially if combined with requests)
-5. Exclamation marks or all-caps text indicating emphasis
+1. Time-sensitive keywords (deadline, urgent, ASAP, as soon as possible, ` +
+  "today, tomorrow, EOD, critical, emergency, important, priority, " +
+  "time-sensitive, before EOD, by end of day, immediately, right away, " +
+  "now, quickly)" +
+  `
+2. Memory/reminder keywords (don't forget, remember, reminder, make sure, ` +
+  "please note, FYI with urgency, heads up with action)" +
+  `
+3. Direct questions or requests to specific people
+4. Blocking issues or critical problems (bug, broken, down, failed, ` +
+  `blocked, not working, issue, problem)
+5. @mentions of users (especially if combined with requests)
+6. Exclamation marks or all-caps text indicating emphasis
 
 Respond with JSON for each message:
 {
@@ -190,6 +196,50 @@ const PRIORITY_FEWSHOTS = [
       ],
     },
   },
+  {
+    conversation: `
+[10:15] Mike: Don't forget to submit your timesheets by EOD!
+[10:16] Lisa: Thanks for the reminder!
+[10:17] Kevin: This is IMPORTANT - client presentation slides need ` +
+      `review ASAP
+[10:18] Sarah: Remember to backup the database before the migration
+[10:20] Tom: The coffee machine is broken again
+    `.trim(),
+    expectedOutput: {
+      priorities: [
+        {
+          messageId: "msg_016",
+          priority: "urgent",
+          reason: "Don't forget + EOD deadline combination",
+          confidence: 0.9,
+        },
+        {
+          messageId: "msg_017",
+          priority: "normal",
+          reason: "Acknowledgment of reminder, no action needed",
+          confidence: 0.85,
+        },
+        {
+          messageId: "msg_018",
+          priority: "urgent",
+          reason: "IMPORTANT keyword + ASAP + client dependency",
+          confidence: 0.95,
+        },
+        {
+          messageId: "msg_019",
+          priority: "urgent",
+          reason: "Remember keyword with critical database action",
+          confidence: 0.88,
+        },
+        {
+          messageId: "msg_020",
+          priority: "normal",
+          reason: "Minor office issue, not time-sensitive",
+          confidence: 0.9,
+        },
+      ],
+    },
+  },
 ];
 
 /**
@@ -211,25 +261,70 @@ ${JSON.stringify(example.expectedOutput, null, 2)}
 }
 
 /**
+ * Batch mode system prompt for chat-level priority signals
+ * Returns overall chat urgency flags instead of per-message analysis
+ */
+const BATCH_PRIORITY_SYSTEM_PROMPT = "You are analyzing a workplace chat " +
+  `to determine its overall priority level.
+
+Analyze the conversation and return boolean signals:
+{
+  "highImportance": boolean,
+  "unansweredQuestion": boolean,
+  "mentionsDeadline": boolean,
+  "requiresAction": boolean,
+  "hasBlocker": boolean,
+  "summary": "Brief 1-sentence urgency summary"
+}
+
+Signal definitions:
+- highImportance: Contains urgent keywords (ASAP, as soon as possible, ` +
+  "critical, urgent, emergency, important, priority, immediately, " +
+  "right away, now, quickly)" +
+  `
+- unansweredQuestion: Has direct questions without clear answers
+- mentionsDeadline: References time-sensitive dates (today, EOD, deadline, ` +
+  "before EOD, by end of day, tomorrow)" +
+  `
+- requiresAction: Requests specific actions or decisions (don't forget, ` +
+  "remember, reminder, make sure, please note)" +
+  `
+- hasBlocker: Mentions blocking issues (blocked, broken, down, failed, ` +
+  "not working, issue, problem)" +
+  `
+
+Be conservative - only set true if there's clear evidence in the messages.`;
+
+/**
  * Build complete prompt with system instructions and examples
  * @param {string} conversationContext - Conversation to analyze
- * @param {boolean} [includeExamples=false] - Include few-shot examples
+ * @param {boolean} [batchMode=false] - Use batch mode (chat-level signals)
  * @return {string} Complete prompt for OpenAI
  */
-function buildPriorityPrompt(conversationContext, includeExamples = false) {
-  let prompt = PRIORITY_SYSTEM_PROMPT;
+function buildPriorityPrompt(conversationContext, batchMode = false) {
+  let prompt;
 
-  if (includeExamples) {
-    prompt += "\n\n" + formatFewShotExamples();
-  }
+  if (batchMode) {
+    // Batch mode: chat-level signals
+    prompt = BATCH_PRIORITY_SYSTEM_PROMPT;
+    prompt += `
 
-  prompt += `
+Analyze this chat:
+
+${conversationContext}
+
+Return JSON with the signal flags as specified above.`;
+  } else {
+    // Single mode: per-message priorities
+    prompt = PRIORITY_SYSTEM_PROMPT;
+    prompt += `
 
 Now analyze this conversation:
 
 ${conversationContext}
 
 Return JSON with the priorities array as specified above.`;
+  }
 
   return prompt;
 }
@@ -237,6 +332,7 @@ Return JSON with the priorities array as specified above.`;
 // Export all prompt components
 module.exports = {
   PRIORITY_SYSTEM_PROMPT,
+  BATCH_PRIORITY_SYSTEM_PROMPT,
   PRIORITY_FEWSHOTS,
   formatFewShotExamples,
   buildPriorityPrompt,

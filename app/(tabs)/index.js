@@ -1,252 +1,278 @@
-// Home Screen - Chat List
+// AI Summary Page - Shows global unread message summary
 import React, { useEffect, useState, useCallback } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
-  FlatList, 
+  ScrollView,
   RefreshControl, 
   ActivityIndicator,
-  TouchableOpacity 
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../../config/firebaseConfig';
-import useUserStore from '../../store/userStore';
-import useChatStore from '../../store/chatStore';
-import ChatListItem from '../../components/ChatListItem';
-import Icon from '../../components/Icon';
+import { Ionicons } from '@expo/vector-icons';
 import colors from '../../constants/colors';
-import { getAllChats, insertChat } from '../../db/messageDb';
-import { syncChatsFromFirestore } from '../../utils/syncManager';
-import { registerListener, unregisterListener } from '../../utils/listenerManager';
+import { summarizeUnreadGlobal } from '../../services/aiService';
+import useUserStore from '../../store/userStore';
 
-export default function HomeScreen() {
+/**
+ * Badge component for chat names in key points
+ */
+function ChatBadge({ chatName }) {
+  return (
+    <View style={styles.chatBadge}>
+      <Text style={styles.chatBadgeText}>{chatName}</Text>
+    </View>
+  );
+}
+
+/**
+ * Section component for organizing content
+ */
+function SummarySection({ title, icon, children }) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHeader}>
+        <Ionicons name={icon} size={20} color={colors.primary} />
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+export default function SummaryPage() {
   const router = useRouter();
   const { currentUser } = useUserStore();
-  const { chats, setChats, addChat, updateChat } = useChatStore();
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [error, setError] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  // Load chats from SQLite on mount (instant display)
-  useEffect(() => {
-    async function loadChatsFromCache() {
-      if (!currentUser) return;
-      
-      try {
-        console.log('[HomeScreen] Loading chats from SQLite cache...');
-        const cachedChats = await getAllChats();
-        setChats(cachedChats);
-        console.log(`[HomeScreen] Loaded ${cachedChats.length} chats from cache`);
-      } catch (error) {
-        console.error('[HomeScreen] Error loading chats from cache:', error);
-      } finally {
-        setIsLoading(false);
+  // Load summary on mount
+  const loadSummary = useCallback(async (forceRefresh = false) => {
+    if (!currentUser) return;
+    
+    try {
+      setError(null);
+
+      const result = await summarizeUnreadGlobal({
+        forceRefresh,
+        mode: 'rich', // Use rich mode for better summaries
+      });
+
+      if (result.success) {
+        if (result.data?.hasUnread) {
+          setSummary(result.data);
+          setUnreadCount(result.data.totalMessageCount || 0);
+        } else {
+          // No unread messages
+          setSummary(null);
+          setUnreadCount(0);
+        }
+      } else {
+        setError(result.message || 'Failed to load summary');
       }
-    }
-    
-    loadChatsFromCache();
-  }, [currentUser]);
-  
-  // Set up Firestore real-time listener
-  useEffect(() => {
-    if (!currentUser) return;
-    
-    const listenerId1 = `home-chats-participants-${currentUser.userID}`;
-    const listenerId2 = `home-chats-members-${currentUser.userID}`;
-    
-    const setupListeners = () => {
-      console.log('[HomeScreen] Setting up Firestore listeners...');
-      
-      // Query chats where user is a participant (1:1 chats)
-      const chatsQuery1 = query(
-        collection(db, 'chats'),
-        where('participantIDs', 'array-contains', currentUser.userID)
-      );
-      
-      // Query chats where user is a member (group chats)
-      const chatsQuery2 = query(
-        collection(db, 'chats'),
-        where('memberIDs', 'array-contains', currentUser.userID)
-      );
-      
-      // Subscribe to both queries
-      const unsubscribe1 = onSnapshot(
-        chatsQuery1,
-        (snapshot) => {
-          handleSnapshot(snapshot);
-        },
-        (error) => {
-          console.error('[HomeScreen] Firestore listener error (query 1):', error);
-        }
-      );
-      
-      const unsubscribe2 = onSnapshot(
-        chatsQuery2,
-        (snapshot) => {
-          handleSnapshot(snapshot);
-        },
-        (error) => {
-          console.error('[HomeScreen] Firestore listener error (query 2):', error);
-        }
-      );
-      
-      // Register listeners with manager
-      registerListener(listenerId1, unsubscribe1, {
-        collection: 'chats',
-        setupFn: setupListeners,
-      });
-      registerListener(listenerId2, unsubscribe2, {
-        collection: 'chats',
-        setupFn: setupListeners,
-      });
-      
-      console.log('[HomeScreen] Registered both chat listeners');
-      
-      return () => {
-        unsubscribe1();
-        unsubscribe2();
-      };
-    };
-    
-    setupListeners();
-    
-    // Cleanup listeners on unmount
-    return () => {
-      console.log('[HomeScreen] Cleaning up Firestore listeners');
-      unregisterListener(listenerId1);
-      unregisterListener(listenerId2);
-    };
-  }, [currentUser]);
-  
-  // Handle Firestore snapshot updates
-  const handleSnapshot = useCallback(async (snapshot) => {
-    try {
-      snapshot.docChanges().forEach(async (change) => {
-        const chatData = { ...change.doc.data(), chatID: change.doc.id };
-        
-        // Convert Firestore timestamps to milliseconds
-        const chat = {
-          chatID: chatData.chatID,
-          type: chatData.type,
-          participantIDs: chatData.participantIDs || [],
-          participantNames: chatData.participantNames || [],
-          memberIDs: chatData.memberIDs || [],
-          memberNames: chatData.memberNames || [],
-          groupName: chatData.groupName || null,
-          createdBy: chatData.createdBy || null,
-          lastMessageText: chatData.lastMessageText || null,
-          lastMessageTimestamp: chatData.lastMessageTimestamp?.toMillis?.() || chatData.lastMessageTimestamp || null,
-          lastMessageSenderID: chatData.lastMessageSenderID || null,
-          createdAt: chatData.createdAt?.toMillis?.() || chatData.createdAt || Date.now(),
-          updatedAt: chatData.updatedAt?.toMillis?.() || chatData.updatedAt || Date.now(),
-        };
-        
-        if (change.type === 'added' || change.type === 'modified') {
-          console.log(`[HomeScreen] Chat ${change.type}: ${chat.chatID}`);
-          
-          // Write to SQLite
-          await insertChat(chat);
-          
-          // Update Zustand store
-          if (change.type === 'added') {
-            addChat(chat);
-          } else {
-            updateChat(chat.chatID, chat);
-          }
-        } else if (change.type === 'removed') {
-          console.log(`[HomeScreen] Chat removed: ${chat.chatID}`);
-          // TODO: Handle chat deletion (future feature)
-        }
-      });
-    } catch (error) {
-      console.error('[HomeScreen] Error handling snapshot:', error);
-    }
-  }, [addChat, updateChat]);
-  
-  // Pull-to-refresh handler
-  const handleRefresh = useCallback(async () => {
-    if (!currentUser) return;
-    
-    setIsRefreshing(true);
-    try {
-      console.log('[HomeScreen] Manual refresh triggered');
-      const syncedChats = await syncChatsFromFirestore(currentUser.userID);
-      setChats(syncedChats);
-      console.log('[HomeScreen] Refresh complete');
-    } catch (error) {
-      console.error('[HomeScreen] Error refreshing chats:', error);
+    } catch (err) {
+      console.error('[SummaryPage] Error loading summary:', err);
+      setError('Failed to load summary. Please try again.');
     } finally {
-      setIsRefreshing(false);
+      setLoading(false);
+      setRefreshing(false);
     }
-  }, [currentUser, setChats]);
+  }, [currentUser]);
+
+  // Initial load
+  useEffect(() => {
+    loadSummary(false);
+  }, [loadSummary]);
   
-  // Navigate to new chat screen
-  const handleNewChat = () => {
-    router.push('/contacts/newChat');
+  // Pull to refresh handler
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadSummary(true); // Force refresh
+  }, [loadSummary]);
+
+  // Navigate to chat
+  const handleChatPress = (chatId) => {
+    router.push(`/chat/${chatId}`);
   };
-  
-  // Render chat list item
-  const renderChatItem = ({ item }) => (
-    <ChatListItem chat={item} />
-  );
-  
-  // Render empty state
-  const renderEmptyState = () => {
-    if (isLoading) {
-      return null; // Show loading spinner instead
-    }
-    
-    return (
-      <View style={styles.emptyState}>
-        <Icon name="message" size="xxlarge" color={colors.mediumGray} style={styles.emptyStateIcon} />
-        <Text style={styles.emptyStateTitle}>No conversations yet</Text>
-        <Text style={styles.emptyStateText}>
-          Start a conversation by tapping the + button above
-        </Text>
-        <TouchableOpacity 
-          style={styles.emptyStateButton}
-          onPress={handleNewChat}
-        >
-          <Text style={styles.emptyStateButtonText}>Start Chatting</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-  
-  // Show loading spinner on initial load
-  if (isLoading) {
+
+  // Error state
+  if (error) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Loading chats...</Text>
-        </View>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={64} color={colors.error} />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => {
+                setLoading(true);
+                loadSummary(true);
+              }}
+            >
+              <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
   
+  // No unread messages state
+  if (!summary || !summary.hasUnread) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          <View style={styles.emptyContainer}>
+            <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
+            <Text style={styles.emptyTitle}>All Caught Up!</Text>
+            <Text style={styles.emptyText}>
+              No unread messages to summarize
+            </Text>
+            <Text style={styles.emptySubtext}>
+              Pull down to refresh
+            </Text>
+        </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+  
+  // Summary content
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <View style={styles.container}>
-      <FlatList
-        data={chats}
-        renderItem={renderChatItem}
-        keyExtractor={(item) => item.chatID}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
+            refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#4CAF50']}
-            tintColor="#4CAF50"
+            colors={[colors.primary]}
+            tintColor={colors.primary}
           />
         }
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={chats.length === 0 ? styles.emptyContainer : null}
-      />
-      </View>
+      >
+        {/* Header with unread count */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>
+            {unreadCount} Unread Message{unreadCount !== 1 ? 's' : ''}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            Across {summary.chatCount || 0} conversation{summary.chatCount !== 1 ? 's' : ''}
+          </Text>
+        </View>
+
+        {/* Overall Summary */}
+        {summary.summary && (
+          <View style={styles.overallSummary}>
+            <Text style={styles.overallSummaryText}>{summary.summary}</Text>
+          </View>
+        )}
+        
+        {/* Key Points */}
+        {summary.keyPoints && summary.keyPoints.length > 0 && (
+          <SummarySection title="Key Points" icon="list">
+            {summary.keyPoints.map((point, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.listItem}
+                onPress={() => point.chatId && handleChatPress(point.chatId)}
+              >
+                <View style={styles.listItemContent}>
+                  <Text style={styles.bullet}>•</Text>
+                  <View style={styles.listItemTextContainer}>
+                    <Text style={styles.listItemText}>{point.text}</Text>
+                    {point.chatName && <ChatBadge chatName={point.chatName} />}
+                  </View>
+                </View>
+                {point.chatId && (
+                  <Ionicons name="chevron-forward" size={20} color={colors.mediumGray} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </SummarySection>
+        )}
+
+        {/* Decisions */}
+        {summary.decisions && summary.decisions.length > 0 && (
+          <SummarySection title="Decisions Made" icon="checkmark-circle">
+            {summary.decisions.map((decision, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.listItem}
+                onPress={() => decision.chatId && handleChatPress(decision.chatId)}
+              >
+                <View style={styles.listItemContent}>
+                  <Text style={styles.decisionIcon}>✓</Text>
+                  <View style={styles.listItemTextContainer}>
+                    <Text style={styles.listItemText}>{decision.text}</Text>
+                    {decision.chatName && <ChatBadge chatName={decision.chatName} />}
+                  </View>
+                </View>
+                {decision.chatId && (
+                  <Ionicons name="chevron-forward" size={20} color={colors.mediumGray} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </SummarySection>
+        )}
+
+        {/* Action Items */}
+        {summary.actionItems && summary.actionItems.length > 0 && (
+          <SummarySection title="Action Items" icon="checkbox">
+            {summary.actionItems.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.listItem}
+                onPress={() => item.chatId && handleChatPress(item.chatId)}
+              >
+                <View style={styles.listItemContent}>
+                  <View style={styles.checkboxIcon} />
+                  <View style={styles.listItemTextContainer}>
+                    <Text style={styles.listItemText}>{item.task || item.text}</Text>
+                    {item.chatName && <ChatBadge chatName={item.chatName} />}
+                  </View>
+                </View>
+                {item.chatId && (
+                  <Ionicons name="chevron-forward" size={20} color={colors.mediumGray} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </SummarySection>
+        )}
+
+        {/* Footer hint */}
+        <Text style={styles.footerHint}>Pull down to refresh summary</Text>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -254,58 +280,201 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F5F5',
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#F5F5F5',
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    paddingHorizontal: 32,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: colors.text,
+    textAlign: 'center',
+    fontWeight: '500',
   },
-  emptyContainer: {
-    flexGrow: 1,
+  loadingSubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: colors.mediumGray,
+    textAlign: 'center',
   },
-  emptyState: {
+  errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 32,
+    paddingVertical: 64,
   },
-  emptyStateIcon: {
-    marginBottom: 16,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.text,
     textAlign: 'center',
   },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  emptyStateButton: {
-    backgroundColor: '#4CAF50',
+  retryButton: {
+    marginTop: 24,
     paddingVertical: 12,
     paddingHorizontal: 32,
+    backgroundColor: colors.primary,
     borderRadius: 24,
   },
-  emptyStateButtonText: {
+  retryButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 64,
+  },
+  emptyTitle: {
+    marginTop: 16,
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: colors.mediumGray,
+    textAlign: 'center',
+  },
+  header: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  headerSubtitle: {
+    marginTop: 4,
+    fontSize: 14,
+    color: colors.mediumGray,
+  },
+  overallSummary: {
+    backgroundColor: colors.primary + '15',
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+  },
+  overallSummaryText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.text,
+  },
+  section: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  sectionTitle: {
+    marginLeft: 8,
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  listItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  listItemTextContainer: {
+    flex: 1,
+  },
+  listItemText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.text,
+    marginBottom: 6,
+  },
+  bullet: {
+    fontSize: 18,
+    color: colors.primary,
+    marginRight: 12,
+    marginTop: 2,
+  },
+  decisionIcon: {
+    fontSize: 16,
+    color: colors.primary,
+    marginRight: 12,
+    marginTop: 3,
+    fontWeight: '700',
+  },
+  checkboxIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    marginRight: 12,
+    marginTop: 2,
+  },
+  chatBadge: {
+    backgroundColor: colors.primary + '20',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  chatBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  footerHint: {
+    marginTop: 16,
+    marginHorizontal: 16,
+    fontSize: 13,
+    color: colors.mediumGray,
+    textAlign: 'center',
   },
 });

@@ -19,13 +19,13 @@ const {RateLimitError} = require("./errors");
  * Default rate limit configuration
  */
 const DEFAULT_LIMITS = {
-  priority: 10, // 10 calls per hour
-  summary: 5, // 5 calls per hour
-  search: 20, // 20 calls per hour
-  actions: 10, // 10 calls per hour (legacy name)
-  actionItems: 10, // 10 calls per hour
-  decisions: 5, // 5 calls per hour
-  default: 10, // Default for any operation
+  priority: 200, // 200 calls per hour (was 10)
+  summary: 100, // 100 calls per hour (was 5)
+  search: 400, // 400 calls per hour (was 20)
+  actions: 200, // 200 calls per hour (was 10, legacy name)
+  actionItems: 200, // 200 calls per hour (was 10)
+  decisions: 100, // 100 calls per hour (was 5)
+  default: 200, // Default for any operation (was 10)
 };
 
 /**

@@ -7,6 +7,7 @@ import { updateChatLastMessage } from './firestore';
 import useMessageStore from '../store/messageStore';
 import useChatStore from '../store/chatStore';
 import { getCurrentNetworkStatus } from '../utils/networkStatus';
+import { analyzePriorities } from './aiService';
 
 /**
  * Send a message with optimistic UI updates
@@ -76,6 +77,20 @@ export async function sendMessage(chatID, senderID, senderName, text) {
           syncStatus: 'synced',
           deliveryStatus: 'sent',
         });
+
+        // IMMEDIATE PRIORITY ANALYSIS
+        // Analyze the chat for urgent messages after sending
+        try {
+          console.log(`[MessageService] Triggering immediate priority analysis for chat ${chatID}`);
+          await analyzePriorities(chatID, {
+            messageCount: 10, // Analyze last 10 messages for context
+            forceRefresh: true, // Always get fresh results
+          });
+          console.log(`[MessageService] Priority analysis complete for chat ${chatID}`);
+        } catch (error) {
+          // Silently handle priority analysis errors - don't disrupt message sending
+          console.warn(`[MessageService] Priority analysis failed for chat ${chatID}:`, error);
+        }
 
         console.log(`[MessageService] Message ${messageID} sent successfully`);
       }

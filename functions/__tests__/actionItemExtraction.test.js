@@ -68,7 +68,8 @@ describe("Action Item Extraction Prompts", () => {
           expect(item).toHaveProperty("sourceMessageId");
 
           // Type validation
-          expect(["commitment", "question", "task"]).toContain(item.type);
+          const validTypes = ["commitment", "question", "task", "decision"];
+          expect(validTypes).toContain(item.type);
 
           // Priority validation
           expect(["high", "medium", "low"]).toContain(item.priority);
@@ -86,6 +87,12 @@ describe("Action Item Extraction Prompts", () => {
           expect(
               item.deadline === null || typeof item.deadline === "string",
           ).toBe(true);
+
+          // sourceMessageId must be non-empty string (NEVER null)
+          expect(typeof item.sourceMessageId).toBe("string");
+          expect(item.sourceMessageId.length).toBeGreaterThan(0);
+          expect(item.sourceMessageId).not.toBe("null");
+          expect(item.sourceMessageId).not.toBe("undefined");
         });
       });
     });

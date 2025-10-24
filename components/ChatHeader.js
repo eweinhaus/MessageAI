@@ -1,6 +1,6 @@
 // ChatHeader Component - Custom Header for Chat Screens
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { PRIMARY_GREEN, STATUS_ONLINE, TEXT_SECONDARY } from '../constants/color
 import { usePresence } from '../hooks/usePresence';
 import { useTyping } from '../hooks/useTyping';
 import { getInitials } from '../utils/avatarUtils';
+import useUserStore from '../store/userStore';
 
 /**
  * ChatHeader Component
@@ -25,6 +26,7 @@ import { getInitials } from '../utils/avatarUtils';
  * @param {string} props.chatId - Chat ID (for typing indicators)
  * @param {boolean} props.showAIButton - Whether to show the AI insights button
  * @param {Function} props.onAIPress - Callback when AI button is tapped
+ * @param {Object} props.aiLoading - Object with loading states for AI operations
  */
 /**
  * Get group initials from the first 2 members
@@ -43,7 +45,7 @@ function getGroupInitials(memberNames = []) {
   return (first + second).toUpperCase();
 }
 
-export default function ChatHeader({ chat, currentUserID, onPress, chatId, showAIButton, onAIPress }) {
+export default function ChatHeader({ chat, currentUserID, onPress, chatId, showAIButton, onAIPress, aiLoading = {} }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   
@@ -74,8 +76,11 @@ export default function ChatHeader({ chat, currentUserID, onPress, chatId, showA
   // Get presence data for 1:1 chats
   const { isOnline, lastSeen } = usePresence(isGroup ? null : otherUserID);
   
+  // Get current user's display name for typing cleanup
+  const currentUserName = useUserStore((state) => state.currentUser?.displayName);
+  
   // Get typing indicators (for both 1:1 and group chats)
-  const { typingUsers } = useTyping(chatId, currentUserID, null);
+  const { typingUsers } = useTyping(chatId, currentUserID, currentUserName);
   
   // Format last seen time
   const getLastSeenText = () => {
@@ -184,17 +189,25 @@ export default function ChatHeader({ chat, currentUserID, onPress, chatId, showA
         
         {/* AI Insights button (optional) */}
         {showAIButton && (
-          <TouchableOpacity
-            onPress={onAIPress}
-            style={styles.aiButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name="sparkles"
-              size={24}
-              color="#fff"
-            />
-          </TouchableOpacity>
+          <View style={styles.aiButtonContainer}>
+            <TouchableOpacity
+              onPress={onAIPress}
+              style={styles.aiButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name="sparkles"
+                size={24}
+                color="#fff"
+              />
+            </TouchableOpacity>
+            {/* Loading indicator for background priority analysis */}
+            {aiLoading.priorities && (
+              <View style={styles.aiLoadingBadge}>
+                <ActivityIndicator size={12} color="#FFA726" />
+              </View>
+            )}
+          </View>
         )}
         
         {/* Right action - Info button */}
@@ -282,9 +295,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.85)',
   },
+  aiButtonContainer: {
+    position: 'relative',
+    marginLeft: 4,
+  },
   aiButton: {
     padding: 4,
-    marginLeft: 4,
+  },
+  aiLoadingBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   infoButton: {
     padding: 4,

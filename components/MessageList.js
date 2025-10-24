@@ -1,5 +1,5 @@
 // MessageList Component - Scrollable list of messages
-import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import MessageBubble from './MessageBubble';
 import Icon from './Icon';
@@ -18,15 +18,18 @@ import { BACKGROUND_CHAT, TEXT_SECONDARY } from '../constants/colors';
  * @param {boolean} props.isLoading - Loading state
  * @param {Object} props.priorities - Message priorities (messageId -> priority data)
  */
-export default function MessageList({
+const MessageList = forwardRef(({
   chatID,
   isGroup = false,
   isLoading = false,
   topInset = 0,
   bottomInset = 0,
   priorities = {},
-}) {
+  initialMessageId = null, // Optional: highlight specific message after scrolling to bottom
+}, ref) => {
   const flatListRef = useRef(null);
+  const highlightTimeoutRef = useRef(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   
   // Use a stable selector to avoid infinite loops
   const messages = useMessageStore(
@@ -39,39 +42,256 @@ export default function MessageList({
       return a === b;
     }
   ) || [];
+  const markAsRead = useMessageStore((state) => state.markAsRead);
   const currentUser = useUserStore((state) => state.currentUser);
   
   // Track which messages have been marked as read to avoid duplicate writes
   const [markedAsRead, setMarkedAsRead] = useState(new Set());
   
-  // Track if we've done initial scroll
-  const [hasInitialScrolled, setHasInitialScrolled] = useState(false);
+  // Track if we've done initial scroll - use ref to avoid stale state
+  const hasInitialScrolledRef = useRef(false);
+  const shouldAutoScrollRef = useRef(true);
+  const pendingMessageIdRef = useRef(null);
+  const isNearBottomRef = useRef(true);
+  const scrollRetryTimerRef = useRef(null);
+  const isInitialLoadRef = useRef(true); // Track if this is the initial load
 
   // Reset initial scroll flag when chatID changes
   useEffect(() => {
-    setHasInitialScrolled(false);
-  }, [chatID]);
-
-  // Auto-scroll to bottom on initial load
-  useEffect(() => {
-    if (!isLoading && messages.length > 0 && flatListRef.current && !hasInitialScrolled) {
-      // Delay to ensure FlatList has rendered
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-        setHasInitialScrolled(true);
-      }, 100);
+    console.log('[MessageList] Chat changed, resetting scroll state for chatID:', chatID);
+    hasInitialScrolledRef.current = false;
+    isInitialLoadRef.current = true; // Reset initial load flag
+    setHighlightedMessageId(null);
+    shouldAutoScrollRef.current = true;
+    pendingMessageIdRef.current = initialMessageId || null;
+    isNearBottomRef.current = true;
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = null;
     }
-  }, [isLoading, messages.length, hasInitialScrolled]);
+    if (scrollRetryTimerRef.current) {
+      clearTimeout(scrollRetryTimerRef.current);
+      scrollRetryTimerRef.current = null;
+    }
+  }, [chatID, initialMessageId]);
+
+  // Cleanup highlight timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Expose scrollToMessage method via ref
+  useImperativeHandle(ref, () => ({
+    scrollToMessage(messageId) {
+      const index = messages.findIndex(m => m.messageID === messageId);
+      if (index !== -1 && flatListRef.current) {
+        try {
+          // Scroll to the message
+          flatListRef.current.scrollToIndex({
+            index,
+            animated: true,
+            viewPosition: 0.5, // Center the message
+          });
+          
+          // Highlight the message
+          setHighlightedMessageId(messageId);
+          
+          // Clear any existing timeout
+          if (highlightTimeoutRef.current) {
+            clearTimeout(highlightTimeoutRef.current);
+          }
+          
+          // Clear highlight after 2 seconds
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedMessageId(null);
+            highlightTimeoutRef.current = null;
+          }, 2000);
+        } catch (error) {
+          console.warn('[MessageList] scrollToIndex failed, falling back to scrollToOffset:', error);
+          // Fallback: estimate offset (60px per message)
+          const offset = index * 60;
+          flatListRef.current?.scrollToOffset({ offset, animated: true });
+          setHighlightedMessageId(messageId);
+          
+          // Clear any existing timeout
+          if (highlightTimeoutRef.current) {
+            clearTimeout(highlightTimeoutRef.current);
+          }
+          
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedMessageId(null);
+            highlightTimeoutRef.current = null;
+          }, 2000);
+        }
+      } else {
+        console.warn('[MessageList] Message not found:', messageId);
+      }
+    }
+  }), [messages]);
+
+  // Helper function to scroll to bottom with calculated offset
+  const scrollToCalculatedBottom = useCallback(() => {
+    if (!flatListRef.current) return;
+
+    const contentHeight = messages.length * 60;
+    const layoutHeight = 530;
+    const exactOffset = Math.max(0, contentHeight - layoutHeight);
+
+    console.log('[MessageList] Scrolling to calculated bottom:', {
+      messageCount: messages.length,
+      contentHeight,
+      layoutHeight,
+      exactOffset
+    });
+
+    flatListRef.current.scrollToOffset({
+      offset: exactOffset,
+      animated: false
+    });
+  }, [messages.length]);
+
+  const scrollToSpecificMessage = useCallback((messageId, attempt = 0) => {
+    if (!flatListRef.current) {
+      return;
+    }
+    const index = messages.findIndex((m) => m.messageID === messageId);
+    if (index === -1) {
+      pendingMessageIdRef.current = messageId;
+      return;
+    }
+    try {
+      flatListRef.current.scrollToIndex({
+        index,
+        animated: false,
+        viewPosition: 0.5,
+      });
+      setHighlightedMessageId(messageId);
+      highlightTimeoutRef.current = setTimeout(() => {
+        setHighlightedMessageId(null);
+        highlightTimeoutRef.current = null;
+      }, 2000);
+      hasInitialScrolledRef.current = true;
+      isNearBottomRef.current = false;
+      pendingMessageIdRef.current = null;
+    } catch (error) {
+      if (attempt < 4) {
+        scrollRetryTimerRef.current = setTimeout(() => scrollToSpecificMessage(messageId, attempt + 1), 80);
+      } else {
+        console.warn('[MessageList] Failed to scroll to specific message:', error);
+        const offset = index * 60;
+        flatListRef.current?.scrollToOffset({ offset, animated: false });
+        hasInitialScrolledRef.current = true;
+        pendingMessageIdRef.current = null;
+      }
+    }
+  }, [messages]);
+
+  // Highlight a specific message without scrolling (used after scrolling to bottom)
+  const highlightSpecificMessage = useCallback((messageId) => {
+    console.log('[MessageList] Highlighting message without scrolling:', messageId);
+    setHighlightedMessageId(messageId);
+
+    // Clear any existing timeout
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+    }
+
+    // Clear highlight after 2 seconds
+    highlightTimeoutRef.current = setTimeout(() => {
+      setHighlightedMessageId(null);
+      highlightTimeoutRef.current = null;
+    }, 2000);
+
+    pendingMessageIdRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    // Only trigger initial scroll once, when messages are first loaded
+    if (isLoading || !flatListRef.current || messages.length === 0 || hasInitialScrolledRef.current) {
+      return;
+    }
+
+    console.log('[MessageList] Initial scroll effect - first time setup:', {
+      isLoading,
+      hasRef: !!flatListRef.current,
+      messageCount: messages.length,
+      hasInitialScrolled: hasInitialScrolledRef.current,
+      pendingMessageId: pendingMessageIdRef.current
+    });
+
+    // Always scroll to bottom first when opening a chat (user preference)
+    // This ensures the most recent messages are visible immediately
+    console.log('[MessageList] Triggering initial scroll to bottom (always prioritize recent messages)');
+
+    // Use a longer delay to ensure all messages are loaded and rendered before scrolling
+    setTimeout(() => {
+      scrollToCalculatedBottom();
+
+      // Double-scroll to ensure exact bottom
+      setTimeout(() => {
+        scrollToCalculatedBottom();
+        console.log('[MessageList] Final initial scroll to exact bottom');
+
+        hasInitialScrolledRef.current = true;
+        isInitialLoadRef.current = false;
+      }, 100);
+    }, 300);
+  }, [isLoading, messages.length, scrollToCalculatedBottom]); // Include scroll function dependency
+
+  // Handle highlighting of specific message after initial scroll is complete
+  useEffect(() => {
+    if (!hasInitialScrolledRef.current || isInitialLoadRef.current || !pendingMessageIdRef.current) {
+      return;
+    }
+
+    console.log('[MessageList] Highlighting specific message after initial scroll:', pendingMessageIdRef.current);
+
+    // Wait longer to ensure initial scroll is completely stable
+    setTimeout(() => {
+      highlightSpecificMessage(pendingMessageIdRef.current);
+    }, 500);
+  }, [hasInitialScrolledRef.current, isInitialLoadRef.current]); // Only depend on scroll completion flags
 
   // Auto-scroll to bottom when new messages arrive (after initial load)
   useEffect(() => {
-    if (hasInitialScrolled && messages.length > 0 && flatListRef.current) {
-      // Small delay to ensure layout has completed
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+    // Don't interfere during initial load or if not scrolled yet
+    if (isInitialLoadRef.current || !hasInitialScrolledRef.current) {
+      return;
     }
-  }, [messages.length, hasInitialScrolled]);
+
+    if (!flatListRef.current || messages.length === 0) {
+      return;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const isOwnMessage = lastMessage && lastMessage.senderID === currentUser?.userID;
+
+    // Only auto-scroll for own messages or if user is already near bottom
+    const shouldScroll = isOwnMessage || (shouldAutoScrollRef.current && isNearBottomRef.current);
+
+    console.log('[MessageList] Auto-scroll decision:', {
+      messageCount: messages.length,
+      isOwnMessage,
+      shouldAutoScroll: shouldAutoScrollRef.current,
+      isNearBottom: isNearBottomRef.current,
+      shouldScroll,
+      hasInitialScrolled: hasInitialScrolledRef.current,
+      isInitialLoad: isInitialLoadRef.current,
+      currentUserId: currentUser?.userID,
+      lastMessageSender: lastMessage?.senderID
+    });
+
+    if (shouldScroll) {
+      // Use requestAnimationFrame for smooth auto-scroll on new messages
+      requestAnimationFrame(() => {
+        scrollToCalculatedBottom();
+      });
+    }
+  }, [messages.length, currentUser, scrollToCalculatedBottom]); // Include scroll function dependency
 
   /**
    * Determine if a message should be grouped with the previous one
@@ -150,6 +370,7 @@ export default function MessageList({
         priority={priorityData?.priority}
         priorityReason={priorityData?.reason}
         priorityConfidence={priorityData?.confidence}
+        isHighlighted={item.messageID === highlightedMessageId}
       />
     );
   };
@@ -199,10 +420,15 @@ export default function MessageList({
         // Mark locally to prevent duplicate writes
         setMarkedAsRead((prev) => new Set([...prev, message.messageID]));
         
-        // Mark as read in Firestore (with debounce)
+        // Mark as read in Firestore and update local store (with debounce)
         setTimeout(async () => {
           try {
             console.log(`[MessageList] Marking message ${message.messageID} as read`);
+            
+            // Update local message store first (optimistic update for instant UI feedback)
+            markAsRead(chatID, message.messageID, currentUser.userID);
+            
+            // Then update Firestore
             await markMessageAsRead(chatID, message.messageID, currentUser.userID);
           } catch (error) {
             console.error('[MessageList] Error marking message as read:', error);
@@ -216,7 +442,7 @@ export default function MessageList({
         }, 500); // 500ms debounce
       });
     },
-    [currentUser, chatID, markedAsRead]
+    [currentUser, chatID, markedAsRead, markAsRead]
   );
 
   /**
@@ -235,12 +461,62 @@ export default function MessageList({
   /**
    * Get item layout for performance optimization
    * Assumes average message height of 60px
+   * Note: This is an approximation - actual heights vary (sender name, multi-line, urgent)
+   * onScrollToIndexFailed provides fallback for mis-estimates
    */
   const getItemLayout = (data, index) => ({
     length: 60,
     offset: 60 * index,
     index,
   });
+
+  const handleScroll = useCallback((event) => {
+    // Don't interfere with initial scroll positioning
+    if (isInitialLoadRef.current || !hasInitialScrolledRef.current) {
+      return;
+    }
+
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    isNearBottomRef.current = distanceFromBottom < 120;
+    shouldAutoScrollRef.current = distanceFromBottom < 120; // Set based on actual position
+
+    console.log('[MessageList] Scroll position:', {
+      contentOffsetY: contentOffset.y,
+      contentHeight: contentSize.height,
+      layoutHeight: layoutMeasurement.height,
+      distanceFromBottom,
+      isNearBottom: isNearBottomRef.current,
+      shouldAutoScroll: shouldAutoScrollRef.current
+    });
+  }, []);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    // Don't interfere with initial scroll positioning
+    if (isInitialLoadRef.current || !hasInitialScrolledRef.current) {
+      return;
+    }
+    shouldAutoScrollRef.current = false;
+    console.log('[MessageList] User scroll drag started, auto-scroll disabled');
+  }, []);
+
+  const handleMomentumScrollEnd = useCallback((event) => {
+    // Don't interfere with initial scroll positioning
+    if (isInitialLoadRef.current || !hasInitialScrolledRef.current) {
+      return;
+    }
+
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    isNearBottomRef.current = distanceFromBottom < 120;
+    shouldAutoScrollRef.current = distanceFromBottom < 120;
+
+    console.log('[MessageList] User scroll ended:', {
+      distanceFromBottom,
+      isNearBottom: isNearBottomRef.current,
+      shouldAutoScroll: shouldAutoScrollRef.current
+    });
+  }, []);
 
   return (
     <FlatList
@@ -252,28 +528,36 @@ export default function MessageList({
         styles.contentContainer,
         messages.length === 0 && styles.emptyContainer,
         { paddingTop: 4 + Math.max(topInset, 0) },
-        { paddingBottom: 8 + Math.max(bottomInset, 0) },
+        { paddingBottom: 20 + Math.max(bottomInset, 0) }, // Minimal space for MessageInput
       ]}
       ListEmptyComponent={renderEmptyState}
       showsVerticalScrollIndicator={true}
       removeClippedSubviews={true}
+      onScroll={!isInitialLoadRef.current ? handleScroll : undefined}
+      onScrollBeginDrag={!isInitialLoadRef.current ? handleScrollBeginDrag : undefined}
+      onMomentumScrollEnd={!isInitialLoadRef.current ? handleMomentumScrollEnd : undefined}
+      scrollEventThrottle={16}
       maxToRenderPerBatch={10}
       updateCellsBatchingPeriod={50}
       initialNumToRender={20}
-      windowSize={21}
+      windowSize={7}
       // PR9: Viewability tracking for read receipts
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig}
-      // Note: getItemLayout commented out for now as message heights vary
-      // Will optimize in future if needed
-      // getItemLayout={getItemLayout}
+      getItemLayout={getItemLayout}
+      onScrollToIndexFailed={(info) => {
+        // Fallback when scrollToIndex fails
+        const offset = info.averageItemLength * info.index;
+        flatListRef.current?.scrollToOffset({ offset, animated: true });
+      }}
     />
   );
-}
+});
+
+export default MessageList;
 
 const styles = StyleSheet.create({
   contentContainer: {
-    paddingBottom: 8,
     backgroundColor: BACKGROUND_CHAT,
   },
   emptyContainer: {

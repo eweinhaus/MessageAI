@@ -20,18 +20,32 @@ const ICONS = {
   checkCircle: '✓',    // Find Action Items (check)
   search: '⌕',         // Smart Search (magnifying glass)
   target: '⊙',         // Track Decisions (target/bullseye)
-  
+
   // Status & Alerts
   warning: '⚠',        // Warning/Priority
   info: 'i',           // Information
   success: '✓',        // Success
   error: '✕',          // Error
   close: '✕',          // Close button
-  
+
   // Actions & UI
   wave: '☺',           // Empty state greeting
   chevronRight: '›',   // Navigation arrow
   message: '◈',        // Message/Chat bubble
+
+  // Action Items & Meta
+  person: '👤',        // Assignee/Person icon
+  calendar: '📅',      // Calendar/Deadline icon
+  chatbubbles: '💬',   // Chat source icon
+
+  // Checkboxes & Lists
+  checkbox: '☑',       // Checked checkbox for decisions
+  checkboxOutline: '☐', // Unchecked checkbox outline
+  listOutline: '☰',    // List outline for empty states
+
+  // Actions
+  checkmark: '✓',      // Check mark for done/complete
+  refresh: '↻',        // Refresh/reopen icon
 };
 
 /**

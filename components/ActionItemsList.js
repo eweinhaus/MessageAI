@@ -23,7 +23,7 @@ import colors from "../constants/colors";
  * Format date/time string for display
  */
 function formatDeadline(deadline) {
-  if (!deadline) return null;
+  if (!deadline || deadline === "null") return null;
 
   // If it's already a descriptive string (like "EOD", "tomorrow"), use it
   if (typeof deadline === "string" && deadline.length < 30) {
@@ -53,6 +53,7 @@ function formatDeadline(deadline) {
  */
 function ActionItemCard({
   item,
+  chatName,
   onViewMessage,
   onMarkComplete,
   onMarkPending,
@@ -94,12 +95,20 @@ function ActionItemCard({
       )}
 
       {/* Deadline */}
-      {item.deadline && (
+      {item.deadline && item.deadline !== "null" && (
         <View style={styles.metaRow}>
           <Icon name="calendar" size="small" color={colors.mediumGray} />
           <Text style={styles.metaText}>
             {formatDeadline(item.deadline)}
           </Text>
+        </View>
+      )}
+
+      {/* Chat Name (Source) */}
+      {chatName && (
+        <View style={styles.metaRow}>
+          <Icon name="chatbubbles" size="small" color={colors.mediumGray} />
+          <Text style={styles.metaText}>from {chatName}</Text>
         </View>
       )}
 
@@ -114,10 +123,18 @@ function ActionItemCard({
       <View style={styles.cardActions}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => onViewMessage(item.sourceMessageId)}
+          onPress={() => onViewMessage && onViewMessage(item)}
+          accessibilityLabel="View the original message in chat"
+          accessibilityRole="button"
         >
-          <Icon name="search" size="small" color={colors.primary} />
-          <Text style={styles.actionButtonText}>View Context</Text>
+          <Icon
+            name="search"
+            size="small"
+            color={colors.primary}
+          />
+          <Text style={styles.actionButtonText}>
+            View Context
+          </Text>
         </TouchableOpacity>
 
         {!isCompleted ? (
@@ -223,6 +240,7 @@ function SortButtons({activeSort, onSortChange}) {
 export default function ActionItemsList({
   actionItems = [],
   loading = false,
+  chatNames = {},
   onViewMessage,
   onMarkComplete,
   onMarkPending,
@@ -245,9 +263,13 @@ export default function ActionItemsList({
       return priorityOrder[a.priority] - priorityOrder[b.priority];
     } else if (sort === "deadline") {
       // Items with deadlines first, then sort by deadline
-      if (!a.deadline && !b.deadline) return 0;
-      if (!a.deadline) return 1;
-      if (!b.deadline) return -1;
+      // Treat null, "null", or empty deadline as no deadline
+      const aHasDeadline = a.deadline && a.deadline !== "null";
+      const bHasDeadline = b.deadline && b.deadline !== "null";
+
+      if (!aHasDeadline && !bHasDeadline) return 0;
+      if (!aHasDeadline) return 1;
+      if (!bHasDeadline) return -1;
 
       try {
         const dateA = new Date(a.deadline);
@@ -270,7 +292,7 @@ export default function ActionItemsList({
       <View style={styles.emptyContainer}>
         <FilterTabs activeFilter={filter} onFilterChange={setFilter} />
         <View style={styles.emptyContent}>
-          <Text style={styles.emptyIcon}>📋</Text>
+          <Icon name="list-outline" size={64} color="#ccc" />
           <Text style={styles.emptyTitle}>
             {filter === "all" ? "No Action Items" : `No ${filter} items`}
           </Text>
@@ -305,6 +327,7 @@ export default function ActionItemsList({
             <ActionItemCard
               key={item.id || index}
               item={item}
+              chatName={chatNames[item.chatId]}
               onViewMessage={onViewMessage}
               onMarkComplete={onMarkComplete}
               onMarkPending={onMarkPending}

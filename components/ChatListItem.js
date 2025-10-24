@@ -1,6 +1,6 @@
 // Chat List Item Component - Display chat in list
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, memo, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import Avatar from './Avatar';
 import { formatTimestamp, truncateText } from '../utils/timeUtils';
@@ -15,16 +15,38 @@ import { usePresence } from '../hooks/usePresence';
  * - Last message preview
  * - Timestamp
  * - Unread badge (optional)
+ * - Urgent badge (red "!" for priority chats)
  * - Online status indicator for 1:1 chats (optional)
  * 
  * @param {Object} props
  * @param {Object} props.chat - Chat object from store/database
+ * @param {boolean} [props.isUnread] - Chat has unread messages
+ * @param {boolean} [props.isUrgent] - Chat requires urgent attention
+ * @param {number} [props.priorityScore] - Priority score (0-100) for debugging
+ * @param {Object} [props.signals] - AI priority signals object
  */
-export default function ChatListItem({ chat }) {
+function ChatListItem({ 
+  chat, 
+  isUnread = false, 
+  isUrgent = false,
+  priorityScore,
+  signals 
+}) {
   const router = useRouter();
   const { currentUser } = useUserStore();
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipTimerRef = useRef(null);
   
   if (!chat || !currentUser) return null;
+  
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
+      }
+    };
+  }, []);
   
   // Determine if this is a 1:1 or group chat
   const isGroup = chat.type === 'group';
@@ -74,12 +96,45 @@ export default function ChatListItem({ chat }) {
     router.push(`/chat/${chat.chatID}`);
   };
   
+  // Handle long press - show priority tooltip
+  const handleLongPress = () => {
+    // Check if we have meaningful priority data
+    const hasMeaningfulSignals = signals && Object.values(signals).some(v => v === true);
+    const shouldShow = priorityScore !== undefined || hasMeaningfulSignals;
+    
+    if (shouldShow) {
+      setShowTooltip(true);
+      
+      // Clear existing timer
+      if (tooltipTimerRef.current) {
+        clearTimeout(tooltipTimerRef.current);
+      }
+      
+      // Set new timer for auto-close
+      tooltipTimerRef.current = setTimeout(() => {
+        setShowTooltip(false);
+        tooltipTimerRef.current = null;
+      }, 4000);
+    }
+  };
+  
+  // Handle manual close of tooltip
+  const handleCloseTooltip = () => {
+    if (tooltipTimerRef.current) {
+      clearTimeout(tooltipTimerRef.current);
+      tooltipTimerRef.current = null;
+    }
+    setShowTooltip(false);
+  };
+  
   return (
-    <TouchableOpacity 
-      style={styles.container} 
-      onPress={handlePress}
-      activeOpacity={0.7}
-    >
+    <>
+      <TouchableOpacity 
+        style={styles.container} 
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        activeOpacity={0.7}
+      >
       {/* Avatar with online indicator */}
       <View style={styles.avatarContainer}>
         <Avatar 
@@ -95,11 +150,31 @@ export default function ChatListItem({ chat }) {
       
       {/* Chat Content */}
       <View style={styles.content}>
-        {/* Top row: Name and Timestamp */}
+        {/* Top row: Name, Urgent Badge, and Timestamp */}
         <View style={styles.topRow}>
-          <Text style={styles.chatName} numberOfLines={1}>
-            {chatName}
-          </Text>
+          <View style={styles.topRowLeft}>
+            <Text
+              style={[
+                styles.chatName,
+                isUnread && styles.chatNameUnread
+              ]}
+              numberOfLines={1}
+            >
+              {chatName}
+            </Text>
+
+            {/* Urgent badge (red "!") */}
+            {isUrgent && (
+              <View
+                style={styles.urgentBadge}
+                accessibilityLabel="Urgent chat"
+                accessibilityRole="alert"
+              >
+                <Text style={styles.urgentText}>!</Text>
+              </View>
+            )}
+          </View>
+
           {timestamp && (
             <Text style={styles.timestamp}>{timestamp}</Text>
           )}
@@ -120,6 +195,74 @@ export default function ChatListItem({ chat }) {
         </View>
       </View>
     </TouchableOpacity>
+
+    {/* Blue dot indicator for unread messages (iMessage style) - CENTERED RIGHT */}
+    {isUnread && (
+      <View style={styles.blueDot} testID="unread-blue-dot" />
+    )}
+    
+    {/* Priority Tooltip Modal */}
+    <Modal
+      visible={showTooltip}
+      transparent
+      animationType="fade"
+      onRequestClose={handleCloseTooltip}
+    >
+      <TouchableOpacity
+        style={styles.tooltipOverlay}
+        activeOpacity={1}
+        onPress={handleCloseTooltip}
+      >
+        <View style={styles.tooltipCard}>
+          <Text style={styles.tooltipTitle}>Priority Information</Text>
+          
+          {priorityScore !== undefined && (
+            <Text style={styles.tooltipScore}>
+              Priority Score: {priorityScore}/100
+            </Text>
+          )}
+          
+          {signals && (
+            <View style={styles.signalsList}>
+              <Text style={styles.signalsTitle}>AI Signals:</Text>
+              {signals.hasUnansweredQuestion && (
+                <View style={styles.signalItem}>
+                  <Text style={styles.signalBullet}>•</Text>
+                  <Text style={styles.signalText}>Unanswered question</Text>
+                </View>
+              )}
+              {signals.hasActionItem && (
+                <View style={styles.signalItem}>
+                  <Text style={styles.signalBullet}>•</Text>
+                  <Text style={styles.signalText}>Action item detected</Text>
+                </View>
+              )}
+              {signals.hasUrgentKeywords && (
+                <View style={styles.signalItem}>
+                  <Text style={styles.signalBullet}>•</Text>
+                  <Text style={styles.signalText}>Urgent keywords present</Text>
+                </View>
+              )}
+              {signals.hasDecision && (
+                <View style={styles.signalItem}>
+                  <Text style={styles.signalBullet}>•</Text>
+                  <Text style={styles.signalText}>Decision made</Text>
+                </View>
+              )}
+              {signals.highMessageVelocity && (
+                <View style={styles.signalItem}>
+                  <Text style={styles.signalBullet}>•</Text>
+                  <Text style={styles.signalText}>High activity</Text>
+                </View>
+              )}
+            </View>
+          )}
+          
+          <Text style={styles.tooltipHint}>Tap anywhere to close</Text>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+    </>
   );
 }
 
@@ -129,9 +272,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
+    paddingRight: 28, // Space for blue dot (reduced from 32)
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    position: 'relative', // For absolute positioning of blue dot
+  },
+  blueDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#007AFF', // iOS blue color
+    position: 'absolute',
+    right: 12, // Adjusted for new padding
+    top: '50%',
+    marginTop: -5, // Center vertically
   },
   avatarContainer: {
     position: 'relative',
@@ -143,31 +298,62 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
+    minHeight: 20, // Ensure consistent height for alignment
+  },
+  topRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8, // Space before timestamp
   },
   chatName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#000',
     flex: 1,
+    flexShrink: 1, // Allow shrinking if needed
     marginRight: 8,
+  },
+  chatNameUnread: {
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  urgentBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#F44336',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8, // Space before timestamp
+    flexShrink: 0, // Don't shrink the badge
+  },
+  urgentText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   timestamp: {
     fontSize: 12,
     color: '#999',
+    textAlign: 'right',
+    width: 45, // Fixed width for consistent right alignment
+    flexShrink: 0, // Don't shrink
   },
   bottomRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 18, // Ensure consistent height
+    paddingRight: 16, // Space for potential future elements
   },
   lastMessage: {
     fontSize: 14,
     color: '#666',
     flex: 1,
-    marginRight: 8,
+    flexShrink: 1,
   },
   // For future use (PR 9)
   unreadBadge: {
@@ -196,5 +382,72 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
+  
+  // Priority Tooltip
+  tooltipOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  tooltipCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    maxWidth: 320,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  tooltipTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 12,
+  },
+  tooltipScore: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginBottom: 16,
+  },
+  signalsList: {
+    marginTop: 8,
+  },
+  signalsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+  },
+  signalItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+    paddingLeft: 8,
+  },
+  signalBullet: {
+    fontSize: 14,
+    color: '#007AFF',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  signalText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  tooltipHint: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 16,
+  },
 });
 
+// Memoize to prevent unnecessary re-renders
+export default memo(ChatListItem);

@@ -42,10 +42,18 @@ const {
 
 /**
  * Analyze priorities in chat messages
+ * Supports both single-chat and batch modes
  *
+ * Single mode:
  * @param {Object} data - Request data
  * @param {string} data.chatId - Chat ID to analyze
  * @param {number} [data.messageCount=30] - Number of messages to analyze
+ *
+ * Batch mode (for global priority ordering):
+ * @param {Object} data - Request data
+ * @param {Array} data.chats - Array of {chatId, messages}
+ * @param {number} [data.messageCount=30] - Max messages per chat
+ *
  * @param {Object} context - Function context with auth
  * @return {Promise<Object>} Priority analysis results
  */
@@ -54,7 +62,8 @@ exports.analyzePriorities = onCall(async (request) => {
 
   try {
     // Extract data and context
-    const {chatId, messageCount = 30, forceRefresh = false} = request.data;
+    const {chatId, chats, messageCount = 30, forceRefresh = false} =
+      request.data;
     const userId = request.auth?.uid;
 
     // 1. Authentication check
@@ -65,9 +74,31 @@ exports.analyzePriorities = onCall(async (request) => {
       );
     }
 
+    // 2. Validate input parameters - must have either chatId OR chats
+    if (!chatId && !chats) {
+      throw new HttpsError(
+          "invalid-argument",
+          "Must provide either chatId or chats array",
+      );
+    }
+
+    // BATCH MODE: Process multiple chats for global priority ordering
+    if (chats && Array.isArray(chats)) {
+      logger.info(
+          `[Priority] User ${userId} batch analyzing ${chats.length} chats`,
+      );
+      return await processBatchPriorities(
+          userId,
+          chats,
+          messageCount,
+          forceRefresh,
+          startTime,
+      );
+    }
+
+    // SINGLE MODE: Original per-chat logic
     logger.info(`[Priority] User ${userId} analyzing chat ${chatId}`);
 
-    // 2. Validate input parameters
     if (!chatId || typeof chatId !== "string") {
       throw new HttpsError(
           "invalid-argument",
@@ -129,8 +160,57 @@ exports.analyzePriorities = onCall(async (request) => {
 
     logger.info(`[Priority] Cache miss, analyzing chat ${chatId}`);
 
-    // 6. Fetch messages from Firestore
+    // 6. Check for incremental analysis opportunity
+    // Get the most recent priority analysis timestamp for this chat
+    const prioritiesRef = admin.firestore()
+        .collection("chats")
+        .doc(chatId)
+        .collection("priorities");
+
+    const recentPrioritiesSnapshot = await prioritiesRef
+        .orderBy("analyzedAt", "desc")
+        .limit(1)
+        .get();
+
+    let lastAnalyzedTimestamp = null;
+    if (!recentPrioritiesSnapshot.empty) {
+      const lastPriority = recentPrioritiesSnapshot.docs[0].data();
+      lastAnalyzedTimestamp = lastPriority.analyzedAt?.toMillis?.() ||
+        lastPriority.analyzedAt;
+      logger.info(
+          `[Priority] Last analysis at ${lastAnalyzedTimestamp}`,
+      );
+    }
+
+    // 7. Fetch messages from Firestore
     const messages = await getLastNMessages(chatId, messageCount);
+
+    // 8. Check if there are any new messages since last analysis
+    if (lastAnalyzedTimestamp && messages.length > 0) {
+      const newestMessageTimestamp = Math.max(
+          ...messages.map((m) => m.timestamp),
+      );
+
+      if (newestMessageTimestamp <= lastAnalyzedTimestamp) {
+        logger.info(
+            "[Priority] No new messages since last analysis, " +
+            "returning cached result",
+        );
+        // Return empty result - no new priorities to analyze
+        return {
+          priorities: [],
+          messageCount: messages.length,
+          cached: true,
+          skipReason: "no_new_messages",
+          lastAnalyzedAt: lastAnalyzedTimestamp,
+        };
+      }
+
+      logger.info(
+          "[Priority] New messages detected since last analysis, " +
+          "proceeding with analysis",
+      );
+    }
 
     if (messages.length === 0) {
       logger.info(`[Priority] No messages found in chat ${chatId}`);
@@ -143,7 +223,7 @@ exports.analyzePriorities = onCall(async (request) => {
 
     logger.info(`[Priority] Fetched ${messages.length} messages`);
 
-    // 7. Build context for OpenAI with message IDs
+    // 9. Build context for OpenAI with message IDs
     const contextData = buildMessageContext(messages, {
       format: "detailed",
       maxMessages: messageCount,
@@ -154,14 +234,14 @@ exports.analyzePriorities = onCall(async (request) => {
       return `${index}. [${msg.messageID}] ${msg.senderName}: ${msg.text}`;
     }).join("\n");
 
-    // 8. Build complete prompt
+    // 10. Build complete prompt
     const prompt = buildPriorityPrompt(numberedMessages, false);
 
     logger.info(
         `[Priority] Prompt: ${contextData.estimatedTokens} tokens`,
     );
 
-    // 9. Call OpenAI API
+    // 11. Call OpenAI API
     let aiResponse;
     try {
       const openai = getOpenAIClient();
@@ -192,7 +272,7 @@ exports.analyzePriorities = onCall(async (request) => {
       );
     }
 
-    // 10. Parse JSON response
+    // 12. Parse JSON response
     let priorityData;
     try {
       priorityData = parseJSONResponse(aiResponse);
@@ -212,7 +292,7 @@ exports.analyzePriorities = onCall(async (request) => {
         `[Priority] Found ${priorityData.priorities.length} priorities`,
     );
 
-    // 11. Store priorities in Firestore
+    // 13. Store priorities in Firestore
     const batch = admin.firestore().batch();
     const prioritiesCollection = admin.firestore()
         .collection("chats")
@@ -265,7 +345,7 @@ exports.analyzePriorities = onCall(async (request) => {
         `stored ${priorityData.priorities.length} in Firestore`,
     );
 
-    // 12. Cache the result
+    // 14. Cache the result
     const resultToCache = {
       priorities: priorityData.priorities,
       messageCount: messages.length,
@@ -284,10 +364,10 @@ exports.analyzePriorities = onCall(async (request) => {
       },
     });
 
-    // 13. Increment rate limit counter
+    // 15. Increment rate limit counter
     await incrementRateLimit(userId, "priority");
 
-    // 14. Return results
+    // 16. Return results
     const duration = Date.now() - startTime;
     logger.info(`[Priority] Completed in ${duration}ms`);
 
@@ -310,4 +390,199 @@ exports.analyzePriorities = onCall(async (request) => {
     );
   }
 });
+
+/**
+ * Process batch priority analysis for multiple chats
+ * Used for global chat list priority ordering
+ *
+ * @param {string} userId - User ID
+ * @param {Array} chats - Array of {chatId, messages}
+ * @param {number} messageCount - Max messages per chat
+ * @param {boolean} forceRefresh - Skip cache
+ * @param {number} startTime - Request start timestamp
+ * @return {Promise<Object>} Batch results
+ */
+async function processBatchPriorities(
+    userId,
+    chats,
+    messageCount,
+    forceRefresh,
+    startTime,
+) {
+  // Guard: Limit batch size to prevent token explosion
+  const maxBatchSize = 10;
+  const limitedChats = chats.slice(0, maxBatchSize);
+
+  if (chats.length > maxBatchSize) {
+    logger.warn(
+        `[Priority] Batch size ${chats.length} exceeds max ` +
+        `${maxBatchSize}, processing first ${maxBatchSize} chats`,
+    );
+  }
+
+  // Validate each chat in batch
+  if (!Array.isArray(limitedChats) || limitedChats.length === 0) {
+    throw new HttpsError(
+        "invalid-argument",
+        "chats must be a non-empty array",
+    );
+  }
+
+  // Rate limiting check for batch operations
+  try {
+    await checkRateLimit(userId, "priority");
+  } catch (error) {
+    logger.warn(
+        `[Priority] Rate limit exceeded for user ${userId} (batch mode)`,
+    );
+    throw new HttpsError(
+        "resource-exhausted",
+        error.message || "Rate limit exceeded. Please try again later.",
+    );
+  }
+
+  // Process each chat in parallel
+  const results = await Promise.all(
+      limitedChats.map(async (chat) => {
+        try {
+          // Validate chat object
+          if (!chat.chatId || !chat.messages) {
+            logger.warn(
+                "[Priority] Invalid chat object in batch, skipping",
+            );
+            return null;
+          }
+
+          // Validate user has access to this chat
+          try {
+            await validateChatAccess(userId, chat.chatId);
+          } catch (error) {
+            logger.warn(
+                `[Priority] Access denied: user ${userId}, ` +
+                `chat ${chat.chatId}`,
+            );
+            return null;
+          }
+
+          // Skip if no messages
+          if (!Array.isArray(chat.messages) ||
+              chat.messages.length === 0) {
+            logger.info(
+                `[Priority] No messages in chat ${chat.chatId}, skipping`,
+            );
+            return {
+              chatId: chat.chatId,
+              signals: {},
+              messageCount: 0,
+            };
+          }
+
+          // Truncate messages to limit
+          const messages = chat.messages.slice(0, messageCount);
+
+          // Build context for AI analysis
+          const contextData = buildMessageContext(messages, {
+            format: "detailed",
+            maxMessages: messageCount,
+          });
+
+          // Create numbered message list
+          const numberedMessages = messages.map((msg, index) => {
+            const msgId = msg.messageID || `msg-${index}`;
+            const sender = msg.senderName || "Unknown";
+            const text = msg.text || "";
+            return `${index}. [${msgId}] ${sender}: ${text}`;
+          }).join("\n");
+
+          // Build prompt for batch analysis (lightweight)
+          const prompt = buildPriorityPrompt(numberedMessages, true);
+
+          logger.info(
+              `[Priority] Analyzing chat ${chat.chatId}: ` +
+              `${messages.length} messages, ` +
+              `~${contextData.estimatedTokens} tokens`,
+          );
+
+          // Call OpenAI for this chat
+          const openai = getOpenAIClient();
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {role: "system", content: prompt},
+              {
+                role: "user",
+                content: "Analyze the chat and return signals in JSON.",
+              },
+            ],
+            temperature: 0.3,
+            max_tokens: 200, // Smaller for batch (just signals, not details)
+            response_format: {type: "json_object"},
+          });
+
+          const aiResponse = completion.choices[0].message.content;
+          const parsed = parseJSONResponse(aiResponse);
+
+          // Extract signals (boolean flags)
+          const signals = {
+            highImportance: parsed.highImportance === true,
+            unansweredQuestion: parsed.unansweredQuestion === true,
+            mentionsDeadline: parsed.mentionsDeadline === true,
+            requiresAction: parsed.requiresAction === true,
+            hasBlocker: parsed.hasBlocker === true,
+            summary: parsed.summary || "",
+          };
+
+          return {
+            chatId: chat.chatId,
+            signals,
+            messageCount: messages.length,
+          };
+        } catch (error) {
+          logger.error(
+              `[Priority] Error analyzing chat ${chat.chatId}:`,
+              error,
+          );
+          // Return null for failed chats (don't fail entire batch)
+          return null;
+        }
+      }),
+  );
+
+  // Filter out null results (failed chats)
+  const successfulResults = results.filter((r) => r !== null);
+
+  logger.info(
+      `[Priority] Batch complete: ${successfulResults.length}` +
+      `/${limitedChats.length} chats analyzed`,
+  );
+
+  // Cache the batch result (user-level cache)
+  await setCacheResult(userId, {
+    type: "priorityAnalysis",
+    result: {
+      mode: "batch",
+      chats: successfulResults,
+    },
+    metadata: {
+      chatCount: successfulResults.length,
+      analyzedAt: Date.now(),
+      model: "gpt-4o-mini",
+    },
+  });
+
+  // Increment rate limit once for the batch
+  await incrementRateLimit(userId, "priority");
+
+  const duration = Date.now() - startTime;
+  logger.info(`[Priority] Batch completed in ${duration}ms`);
+
+  return {
+    mode: "batch",
+    chats: successfulResults,
+    processedCount: successfulResults.length,
+    requestedCount: chats.length,
+    cached: false,
+    duration,
+  };
+}
 
