@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
+import {useRouter} from "expo-router";
 import {collection, query, where, onSnapshot, collectionGroup} from "firebase/firestore";
 import {db} from "../../config/firebaseConfig";
 import useUserStore from "../../store/userStore";
@@ -17,10 +18,33 @@ import Icon from "../../components/Icon";
 import colors from "../../constants/colors";
 
 export default function GlobalActionItemsScreen() {
+  const router = useRouter();
   const {currentUser} = useUserStore();
   const [actionItems, setActionItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDecisionsOnly, setShowDecisionsOnly] = useState(false);
+  
+  // Handler to navigate to chat with specific message
+  const handleViewContext = (item) => {
+    if (item.chatId && item.sourceMessageId) {
+      router.push({
+        pathname: `/chat/${item.chatId}`,
+        params: { messageId: item.sourceMessageId }
+      });
+    }
+  };
+  
+  // Handler to mark action item as complete
+  const handleMarkComplete = async (itemId) => {
+    // TODO: Implement mark complete functionality
+    console.log("[Action Items] Mark complete:", itemId);
+  };
+  
+  // Handler to mark action item as pending
+  const handleMarkPending = async (itemId) => {
+    // TODO: Implement mark pending functionality
+    console.log("[Action Items] Mark pending:", itemId);
+  };
 
   // Real-time listener for all action items
   useEffect(() => {
@@ -137,9 +161,11 @@ export default function GlobalActionItemsScreen() {
       ) : (
         <ScrollView style={styles.listContainer}>
           <ActionItemsList
-            items={filteredItems}
-            chatId={null} // Global view, no specific chat
-            onViewContext={null} // TODO: Implement navigation to source message
+            actionItems={filteredItems}
+            loading={false}
+            onViewMessage={handleViewContext}
+            onMarkComplete={handleMarkComplete}
+            onMarkPending={handleMarkPending}
           />
         </ScrollView>
       )}

@@ -26,7 +26,7 @@ import ErrorToast from '../../components/ErrorToast';
 
 export default function ChatDetailScreen() {
   const router = useRouter();
-  const { chatId } = useLocalSearchParams();
+  const { chatId, messageId } = useLocalSearchParams(); // messageId from search navigation
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight() || 0;
   const topInset = Math.max(insets.top - headerHeight, 0);
@@ -621,6 +621,7 @@ export default function ChatDetailScreen() {
               topInset={0}
               bottomInset={bottomInset}
               priorities={priorities}
+              initialMessageId={messageId} // Scroll to specific message if provided
             />
             <MessageInput
               chatID={chatId}

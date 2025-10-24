@@ -50,6 +50,24 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
+        name="summary"
+        options={{
+          title: 'AI Summary',
+          tabBarLabel: 'Summary',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sparkles" size={size} color={color} />
+          ),
+          headerLeft: () => (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={26} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="index"
         options={{
           title: 'Messages',

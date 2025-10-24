@@ -114,7 +114,7 @@ function ActionItemCard({
       <View style={styles.cardActions}>
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={() => onViewMessage(item.sourceMessageId)}
+          onPress={() => onViewMessage && onViewMessage(item)}
         >
           <Icon name="search" size="small" color={colors.primary} />
           <Text style={styles.actionButtonText}>View Context</Text>

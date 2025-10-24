@@ -7,6 +7,40 @@
 **Firebase Project**: MessageAI-dev  
 **Major Change**: Successfully migrated from per-chat AI features to global, proactive intelligence
 
+## 🚀 Latest Enhancement: Automatic Priority Recalculation (October 24, 2025)
+
+**Feature**: Chat priority order now automatically updates on app open and when new messages arrive
+
+**Implementation Details:**
+1. ✅ **Priority on App Open** - Resets throttle when loading chats from cache
+2. ✅ **Priority on New Messages** - Detects message count changes and triggers recalculation
+3. ✅ **Smart Throttling** - 30-second minimum between runs to prevent excessive API calls
+4. ✅ **Reduced Internal Throttle** - From 5 minutes to 1 minute for more responsive updates
+
+**Code Changes** (`app/(tabs)/index.js`):
+- Added `lastMessageCount` state to track total messages across chats
+- Reset `lastPriorityRunAt` to null on app startup (line 88)
+- New useEffect to detect message count changes (lines 100-134)
+- 30-second throttle with countdown logging
+- Reduced `shouldRunAI` throttle from 5 min → 1 min (line 312)
+
+**User Experience:**
+- Chat list automatically reorders on app open (no manual refresh needed)
+- New messages trigger priority recalculation within 30 seconds
+- Urgent conversations surface to the top automatically
+- Seamless, proactive AI experience
+
+**Cost Control:**
+- 30-second minimum prevents rapid-fire API calls
+- Top 5 chat limit per analysis
+- Cache-first approach (6hr TTL)
+- Batch analysis reduces round trips
+
+**Documentation:**
+- `md_files/AUTO_PRIORITY_IMPLEMENTATION.md` - Full implementation guide with testing scenarios
+
+**Lines Changed:** ~40 lines added/modified
+
 ## 🔧 Recent Critical Bug Fixes (October 24, 2025)
 
 **Fixed Issues:**

@@ -10,7 +10,6 @@ import OfflineBanner from '../components/OfflineBanner';
 import NotificationBanner from '../components/NotificationBanner';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorToast from '../components/ErrorToast';
-import SummaryModal from '../components/SummaryModal';
 import { initDatabase, flushPendingWrites } from '../db/database';
 import { getAllChats } from '../db/messageDb';
 import { performFullSync } from '../utils/syncManager';
@@ -32,9 +31,6 @@ export default function RootLayout() {
   const appState = useRef(AppState.currentState);
   const [notificationBanner, setNotificationBanner] = useState(null);
   const notificationCleanup = useRef(null);
-  const [globalSummary, setGlobalSummary] = useState(null);
-  const [showGlobalSummaryModal, setShowGlobalSummaryModal] = useState(false);
-  const lastSummaryCheck = useRef(0);
 
   // Initialize database on app startup (before anything else)
   useEffect(() => {
@@ -73,11 +69,6 @@ export default function RootLayout() {
       setChats([]);
       useMessageStore.getState().clearMessages();
       
-      // Clear global summary modal state on logout
-      setGlobalSummary(null);
-      setShowGlobalSummaryModal(false);
-      lastSummaryCheck.current = 0;
-      
       return;
     }
     
@@ -103,27 +94,6 @@ export default function RootLayout() {
         
         // Step 3: Process any pending offline messages
         await processPendingMessages();
-        
-        // Step 4: Check for unread messages and show global summary (on fresh start)
-        try {
-          const now = Date.now();
-          lastSummaryCheck.current = now;
-          
-          lifecycleLog('Checking for unread messages on fresh start...');
-          const { summarizeUnreadGlobal } = require('../services/aiService');
-          const result = await summarizeUnreadGlobal({ forceRefresh: false });
-          
-          if (result.success && result.data?.hasUnread) {
-            lifecycleLog('Found unread messages, showing global summary modal');
-            setGlobalSummary(result.data);
-            setShowGlobalSummaryModal(true);
-          } else {
-            lifecycleLog('No unread messages found on start');
-          }
-        } catch (error) {
-          // Silent fail - don't bother user with AI errors on app start
-          lifecycleLog('Error fetching global summary on start', error);
-        }
         
       } catch (error) {
         console.error('[App] Error loading/syncing data:', error);
@@ -183,41 +153,6 @@ export default function RootLayout() {
           // 3. Process pending messages queue
           lifecycleLog('Processing pending messages after foreground...');
           await processPendingMessages();
-          
-          // 4. Check for unread messages and show global summary (throttled)
-          // Only check if user is still authenticated
-          if (!currentUser) {
-            lifecycleLog('Skipping summary check (user not authenticated)');
-          } else {
-            const now = Date.now();
-            const timeSinceLastCheck = now - lastSummaryCheck.current;
-            const MIN_CHECK_INTERVAL = 120000; // 2 minute throttle
-            
-            if (timeSinceLastCheck > MIN_CHECK_INTERVAL) {
-              lastSummaryCheck.current = now;
-              lifecycleLog('Checking for unread messages...');
-              
-              // Import dynamically to avoid circular dependency
-              const { summarizeUnreadGlobal } = require('../services/aiService');
-              
-              try {
-                const result = await summarizeUnreadGlobal({ forceRefresh: false });
-                
-                if (result.success && result.data?.hasUnread) {
-                  lifecycleLog('Found unread messages, showing global summary modal');
-                  setGlobalSummary(result.data);
-                  setShowGlobalSummaryModal(true);
-                } else {
-                  lifecycleLog('No unread messages found');
-                }
-              } catch (error) {
-                // Silent fail - don't bother user with AI errors on app open
-                lifecycleLog('Error fetching global summary', error);
-              }
-            } else {
-              lifecycleLog(`Skipping summary check (throttled, ${Math.round(timeSinceLastCheck/1000)}s since last check)`);
-            }
-          }
           
           lifecycleLog('Foreground operations complete');
         } catch (error) {
@@ -335,42 +270,6 @@ export default function RootLayout() {
     }
   }, [isAuthenticated, isLoading, segments]);
 
-  // Global summary quick action handlers
-  const handleGlobalMarkComplete = async (item) => {
-    try {
-      if (!item || !item.id) {
-        console.warn('[Layout] Action item missing ID:', item);
-        return;
-      }
-      
-      // Import dynamically to avoid circular dependency
-      const { updateActionItemStatus } = require('../services/aiService');
-      const itemChatId = item.chatId || currentUser?.userID || 'global';
-      
-      const result = await updateActionItemStatus(itemChatId, item.id, 'completed');
-      
-      if (result.success) {
-        console.log('[Layout] Action item marked as complete');
-        setShowGlobalSummaryModal(false);
-      }
-    } catch (error) {
-      console.error('[Layout] Error marking action complete:', error);
-    }
-  };
-
-  const handleGlobalJumpToChat = (item) => {
-    try {
-      setShowGlobalSummaryModal(false);
-      
-      if (item.chatId) {
-        // Navigate to the chat
-        router.push(`/chat/${item.chatId}`);
-      }
-    } catch (error) {
-      console.error('[Layout] Error navigating to chat:', error);
-    }
-  };
-
   // Show loading screen while initializing database or checking auth state
   if (!dbInitialized || isLoading) {
     return (
@@ -417,16 +316,6 @@ export default function RootLayout() {
         onDismiss={clearError}
         type="error"
       />
-      {globalSummary && (
-        <SummaryModal
-          visible={showGlobalSummaryModal}
-          onClose={() => setShowGlobalSummaryModal(false)}
-          summary={globalSummary}
-          isGlobal={true}
-          onMarkComplete={handleGlobalMarkComplete}
-          onJumpToChat={handleGlobalJumpToChat}
-        />
-      )}
     </ErrorBoundary>
   );
 }

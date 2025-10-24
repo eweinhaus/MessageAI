@@ -25,6 +25,7 @@ const MessageList = forwardRef(({
   topInset = 0,
   bottomInset = 0,
   priorities = {},
+  initialMessageId = null, // Optional: scroll to specific message on mount
 }, ref) => {
   const flatListRef = useRef(null);
   const highlightTimeoutRef = useRef(null);
@@ -41,6 +42,7 @@ const MessageList = forwardRef(({
       return a === b;
     }
   ) || [];
+  const markAsRead = useMessageStore((state) => state.markAsRead);
   const currentUser = useUserStore((state) => state.currentUser);
   
   // Track which messages have been marked as read to avoid duplicate writes
@@ -118,16 +120,63 @@ const MessageList = forwardRef(({
     }
   }), [messages]);
 
-  // Auto-scroll to bottom on initial load
+  // Auto-scroll to bottom on initial load (unless we have a specific message to jump to)
   useEffect(() => {
     if (!isLoading && messages.length > 0 && flatListRef.current && !hasInitialScrolled) {
-      // Delay to ensure FlatList has rendered
+      // If we have an initial message to scroll to, do that instead
+      // Check for truthy value and not empty string
+      if (initialMessageId && typeof initialMessageId === 'string' && initialMessageId.trim().length > 0) {
+        const index = messages.findIndex(m => m.messageID === initialMessageId);
+        if (index !== -1) {
+          setTimeout(() => {
+            try {
+              flatListRef.current?.scrollToIndex({
+                index,
+                animated: false,
+                viewPosition: 0.5, // Center the message
+              });
+              // Highlight the message
+              setHighlightedMessageId(initialMessageId);
+              // Clear highlight after 2 seconds
+              highlightTimeoutRef.current = setTimeout(() => {
+                setHighlightedMessageId(null);
+                highlightTimeoutRef.current = null;
+              }, 2000);
+              setHasInitialScrolled(true);
+            } catch (error) {
+              console.warn('[MessageList] scrollToIndex failed on initial load, falling back:', error);
+              // Fallback: estimate offset
+              const offset = index * 60;
+              flatListRef.current?.scrollToOffset({ offset, animated: false });
+              setHighlightedMessageId(initialMessageId);
+              highlightTimeoutRef.current = setTimeout(() => {
+                setHighlightedMessageId(null);
+                highlightTimeoutRef.current = null;
+              }, 2000);
+              setHasInitialScrolled(true);
+            }
+          }, 250);
+          return;
+        } else {
+          // Message not found yet, keep waiting for it to load
+          console.log('[MessageList] Waiting for initial message to load:', initialMessageId);
+          return;
+        }
+      }
+      
+      // Default behavior: scroll to bottom (most recent messages)
+      console.log('[MessageList] Scrolling to bottom, messages:', messages.length);
+      // Use longer timeout for group chats with many messages
+      const scrollTimeout = messages.length > 20 ? 200 : 100;
       setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-        setHasInitialScrolled(true);
-      }, 100);
+        if (flatListRef.current) {
+          flatListRef.current.scrollToEnd({ animated: false });
+          setHasInitialScrolled(true);
+          console.log('[MessageList] Scrolled to bottom');
+        }
+      }, scrollTimeout);
     }
-  }, [isLoading, messages.length, hasInitialScrolled]);
+  }, [isLoading, messages.length, hasInitialScrolled, initialMessageId]);
 
   // Auto-scroll to bottom when new messages arrive (after initial load)
   useEffect(() => {
@@ -266,10 +315,15 @@ const MessageList = forwardRef(({
         // Mark locally to prevent duplicate writes
         setMarkedAsRead((prev) => new Set([...prev, message.messageID]));
         
-        // Mark as read in Firestore (with debounce)
+        // Mark as read in Firestore and update local store (with debounce)
         setTimeout(async () => {
           try {
             console.log(`[MessageList] Marking message ${message.messageID} as read`);
+            
+            // Update local message store first (optimistic update for instant UI feedback)
+            markAsRead(chatID, message.messageID, currentUser.userID);
+            
+            // Then update Firestore
             await markMessageAsRead(chatID, message.messageID, currentUser.userID);
           } catch (error) {
             console.error('[MessageList] Error marking message as read:', error);
@@ -283,7 +337,7 @@ const MessageList = forwardRef(({
         }, 500); // 500ms debounce
       });
     },
-    [currentUser, chatID, markedAsRead]
+    [currentUser, chatID, markedAsRead, markAsRead]
   );
 
   /**

@@ -22,6 +22,7 @@ import { getAllChats, insertChat, getMessagesForChat } from '../../db/messageDb'
 import { syncChatsFromFirestore } from '../../utils/syncManager';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
 import { analyzePriorities } from '../../services/aiService';
+import useMessageStore from '../../store/messageStore';
 import {
   calculateLocalScore,
   shouldRunAI,
@@ -61,6 +62,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { currentUser } = useUserStore();
   const { chats, setChats, addChat, updateChat } = useChatStore();
+  const messagesByChat = useMessageStore((state) => state.messagesByChat);
   
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -69,6 +71,7 @@ export default function HomeScreen() {
   const [sortedChats, setSortedChats] = useState([]);
   const [isRefiningPriorities, setIsRefiningPriorities] = useState(false);
   const [lastPriorityRunAt, setLastPriorityRunAt] = useState(null);
+  const [lastMessageCount, setLastMessageCount] = useState(0);
   
   // Load chats from SQLite on mount (instant display)
   useEffect(() => {
@@ -80,6 +83,10 @@ export default function HomeScreen() {
         const cachedChats = await getAllChats();
         setChats(cachedChats);
         console.log(`[HomeScreen] Loaded ${cachedChats.length} chats from cache`);
+        
+        // Trigger priority calculation on app open by resetting throttle
+        setLastPriorityRunAt(null);
+        console.log('[HomeScreen] Priority calculation will run on app open');
       } catch (error) {
         console.error('[HomeScreen] Error loading chats from cache:', error);
       } finally {
@@ -89,6 +96,42 @@ export default function HomeScreen() {
     
     loadChatsFromCache();
   }, [currentUser]);
+  
+  // Detect new messages and trigger priority recalculation
+  useEffect(() => {
+    // Calculate total message count across all chats
+    const totalMessages = Object.values(messagesByChat).reduce(
+      (sum, messages) => sum + (messages?.length || 0),
+      0
+    );
+    
+    // If message count increased, consider triggering priority recalculation
+    if (totalMessages > lastMessageCount && lastMessageCount > 0) {
+      console.log(
+        `[HomeScreen] New messages detected (${lastMessageCount} → ${totalMessages})`
+      );
+      
+      // Only reset throttle if enough time has passed (30 seconds minimum)
+      // This prevents excessive API calls when messages arrive rapidly
+      const minTimeBetweenRuns = 30 * 1000; // 30 seconds
+      const timeSinceLastRun = lastPriorityRunAt 
+        ? Date.now() - lastPriorityRunAt 
+        : minTimeBetweenRuns + 1;
+      
+      if (timeSinceLastRun >= minTimeBetweenRuns) {
+        console.log('[HomeScreen] Triggering priority recalculation');
+        setLastPriorityRunAt(null);
+      } else {
+        const remainingSeconds = Math.ceil((minTimeBetweenRuns - timeSinceLastRun) / 1000);
+        console.log(
+          `[HomeScreen] Throttling priority recalculation ` +
+          `(${remainingSeconds}s remaining)`
+        );
+      }
+    }
+    
+    setLastMessageCount(totalMessages);
+  }, [messagesByChat, lastMessageCount, lastPriorityRunAt]);
   
   // Set up Firestore real-time listener
   useEffect(() => {
@@ -220,11 +263,24 @@ export default function HomeScreen() {
         // Step 1: Calculate unread counts and local scores for all chats
         const chatsWithScores = await Promise.all(
           chats.map(async (chat) => {
-            // Calculate unread count from messages
-            const unreadCount = await calculateUnreadCount(
-              chat.chatID,
-              currentUser.userID
-            );
+            // Calculate unread count from messages in store first (fast)
+            // If not in store, fall back to SQLite
+            let unreadCount = 0;
+            const messagesInStore = messagesByChat[chat.chatID];
+            
+            if (messagesInStore && messagesInStore.length > 0) {
+              // Use messages from store (up-to-date with read status changes)
+              unreadCount = messagesInStore.filter((msg) => {
+                const readBy = Array.isArray(msg.readBy) ? msg.readBy : [];
+                return !readBy.includes(currentUser.userID) && msg.senderID !== currentUser.userID;
+              }).length;
+            } else {
+              // Fall back to SQLite
+              unreadCount = await calculateUnreadCount(
+                chat.chatID,
+                currentUser.userID
+              );
+            }
             
             // Calculate local score (now with accurate unread count)
             const chatWithUnread = {...chat, unreadCount};
@@ -263,12 +319,13 @@ export default function HomeScreen() {
         }
 
         // Step 3: Determine which chats need AI analysis
+        // Use shorter throttle (1 minute) since we want responsive updates on new messages
         const candidates = chatsWithScores.filter((chat) => 
           shouldRunAI({
             localScore: chat.localScore,
             unreadCount: chat.unreadCount || 0,
             lastPriorityRunAt,
-            throttleMinutes: 5,
+            throttleMinutes: 1,
           })
         );
 
@@ -395,7 +452,7 @@ export default function HomeScreen() {
     return () => {
       cancelled = true;
     };
-  }, [chats, lastPriorityRunAt]);
+  }, [chats, messagesByChat, lastPriorityRunAt, currentUser]);
 
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {

@@ -311,6 +311,25 @@ None. MVP is complete and tested.
   - Target: > 90%
 
 ## Recent Changes
+- October 24, 2025: **Automatic Priority Recalculation - COMPLETE** 🚀✅
+  - **Enhancement**: Chat priority order now automatically updates on app open and message receipt
+  - **Implementation** (`app/(tabs)/index.js`):
+    - Added message count tracking (`lastMessageCount` state)
+    - Reset throttle on app open (line 88)
+    - New useEffect to detect message changes (lines 100-134)
+    - 30-second minimum between recalculations
+    - Reduced internal throttle from 5 min → 1 min
+  - **User Experience**:
+    - ✅ Priority calculates automatically on app open
+    - ✅ Recalculates within 30s when new messages arrive
+    - ✅ No manual refresh needed
+    - ✅ Urgent chats surface automatically
+  - **Cost Control**:
+    - Smart throttling (30s minimum + 1 min per-chat)
+    - Top 5 chat limit per analysis
+    - Cache-first approach (6hr TTL)
+  - **Documentation**: `md_files/AUTO_PRIORITY_IMPLEMENTATION.md`
+  - **Lines Changed**: ~40 lines added/modified
 - October 24, 2025: **Critical Bug Fixes - Race Condition & Navigation - COMPLETE** 🔧✅
   - **Fix #1: Race Condition in Delivery Status** (`app/chat/[chatId].js:122-141`)
     - Problem: Delivery status updated locally BEFORE Firestore write

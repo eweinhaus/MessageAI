@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import {SafeAreaView} from "react-native-safe-area-context";
 import {useRouter} from "expo-router";
+import {Ionicons} from "@expo/vector-icons";
 import Icon from "../../components/Icon";
 import colors from "../../constants/colors";
 import {searchMessagesGlobal} from "../../services/aiService";
@@ -137,7 +138,7 @@ export default function GlobalSearchScreen() {
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Icon name="search" size={20} color="#999" />
+          <Icon name="search" size={24} color="#999" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search messages by meaning..."
@@ -148,11 +149,6 @@ export default function GlobalSearchScreen() {
             autoCapitalize="none"
             autoCorrect={false}
           />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery("")}>
-              <Icon name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
-          )}
         </View>
 
         <TouchableOpacity
@@ -163,7 +159,7 @@ export default function GlobalSearchScreen() {
           {isSearching ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Icon name="search" size={20} color="#fff" />
+            <Ionicons name="sparkles" size={20} color="#fff" />
           )}
         </TouchableOpacity>
       </View>

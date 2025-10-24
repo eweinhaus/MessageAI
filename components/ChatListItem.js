@@ -135,11 +135,6 @@ function ChatListItem({
         onLongPress={handleLongPress}
         activeOpacity={0.7}
       >
-      {/* Blue dot indicator for unread messages (iMessage style) */}
-      {isUnread && (
-        <View style={styles.blueDot} />
-      )}
-      
       {/* Avatar with online indicator */}
       <View style={styles.avatarContainer}>
         <Avatar 
@@ -197,6 +192,11 @@ function ChatListItem({
           )} */}
         </View>
       </View>
+      
+      {/* Blue dot indicator for unread messages (iMessage style) - RIGHT SIDE */}
+      {isUnread && (
+        <View style={styles.blueDot} />
+      )}
     </TouchableOpacity>
     
     {/* Priority Tooltip Modal */}
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#007AFF', // iOS blue color
-    marginRight: 8,
+    marginLeft: 12,
   },
   avatarContainer: {
     position: 'relative',
