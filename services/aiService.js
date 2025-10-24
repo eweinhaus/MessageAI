@@ -321,24 +321,58 @@ export async function extractActionItems(chatId, options = {}) {
 }
 
 /**
- * Update action item status (mark complete, etc.)
+ * Update action item status (mark complete, reopen, etc.)
  *
  * @param {string} chatId - Chat ID
  * @param {string} itemId - Action item document ID
- * @param {string} status - New status ("completed", "pending", etc.)
+ * @param {string} status - New status ("completed", "pending")
  * @return {Promise<Object>} Result
+ *
+ * @example
+ * const result = await updateActionItemStatus(chatId, itemId, "completed");
+ * if (result.success) {
+ *   console.log("Action item marked complete");
+ * }
  */
 export async function updateActionItemStatus(chatId, itemId, status) {
   try {
-    const {getFirestore, updateDoc, doc} = await import("firebase/firestore");
+    // Check authentication first
+    const user = auth.currentUser;
+    if (!user) {
+      console.warn("[AI Service] updateActionItemStatus: User not authenticated");
+      return {
+        success: false,
+        error: "unauthenticated",
+        message: "Please sign in to update action items",
+      };
+    }
+
+    // Validate status
+    if (!["completed", "pending"].includes(status)) {
+      return {
+        success: false,
+        error: "invalid-argument",
+        message: "Status must be 'completed' or 'pending'",
+      };
+    }
+
+    const {getFirestore, updateDoc, doc, serverTimestamp} = await import(
+      "firebase/firestore"
+    );
     const db = getFirestore();
+
+    const updateData = {
+      status,
+      completedAt: status === "completed" ? serverTimestamp() : null,
+    };
 
     await updateDoc(
         doc(db, "chats", chatId, "actionItems", itemId),
-        {
-          status,
-          completedAt: status === "completed" ? new Date() : null,
-        },
+        updateData,
+    );
+
+    console.log(
+        `[AI Service] Action item ${itemId} updated to ${status}`,
     );
 
     return {success: true};
@@ -346,7 +380,8 @@ export async function updateActionItemStatus(chatId, itemId, status) {
     console.error("[AI Service] Failed to update action item:", error);
     return {
       success: false,
-      error: error.message,
+      error: error.code || "UNKNOWN",
+      message: error.message || "Failed to update action item",
     };
   }
 }

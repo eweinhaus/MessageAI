@@ -68,7 +68,8 @@ describe("Action Item Extraction Prompts", () => {
           expect(item).toHaveProperty("sourceMessageId");
 
           // Type validation
-          expect(["commitment", "question", "task"]).toContain(item.type);
+          const validTypes = ["commitment", "question", "task", "decision"];
+          expect(validTypes).toContain(item.type);
 
           // Priority validation
           expect(["high", "medium", "low"]).toContain(item.priority);

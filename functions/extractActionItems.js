@@ -209,7 +209,7 @@ exports.extractActionItems = onCall(async (request) => {
         if (!item.task || typeof item.task !== "string") {
           throw new Error(`Action item ${index}: task is required`);
         }
-        if (!item.type || !["commitment", "question", "task"]
+        if (!item.type || !["commitment", "question", "task", "decision"]
             .includes(item.type)) {
           throw new Error(`Action item ${index}: invalid type`);
         }
@@ -219,6 +219,11 @@ exports.extractActionItems = onCall(async (request) => {
         }
         if (!item.sourceMessageId) {
           throw new Error(`Action item ${index}: sourceMessageId required`);
+        }
+        // isDecision is optional but must be boolean if present
+        if (item.isDecision !== undefined &&
+            typeof item.isDecision !== "boolean") {
+          throw new Error(`Action item ${index}: isDecision must be boolean`);
         }
       });
     } catch (error) {
@@ -250,18 +255,29 @@ exports.extractActionItems = onCall(async (request) => {
 
       itemsInBatch.forEach((item) => {
         const docRef = actionItemsCollection.doc();
+        // Build data object, filtering out undefined values
+        // (Firestore requirement)
         const dataToWrite = {
           task: item.task,
-          assignee: item.assignee || null,
-          deadline: item.deadline || null,
           type: item.type,
           priority: item.priority,
           sourceMessageId: item.sourceMessageId,
           context: item.context || "",
           status: "pending",
+          // Required for global collection queries
+          userId: userId,
+          chatId: chatId,
+          // Decision tracking
+          isDecision: item.isDecision || false,
+          // Timestamps
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          extractedBy: userId,
+          completedAt: null,
         };
+
+        // Only add optional fields if they exist (avoid undefined)
+        if (item.assignee) dataToWrite.assignee = item.assignee;
+        if (item.deadline) dataToWrite.deadline = item.deadline;
+
         batch.set(docRef, dataToWrite);
       });
 

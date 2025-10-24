@@ -53,6 +53,7 @@ function formatDeadline(deadline) {
  */
 function ActionItemCard({
   item,
+  chatName,
   onViewMessage,
   onMarkComplete,
   onMarkPending,
@@ -100,6 +101,14 @@ function ActionItemCard({
           <Text style={styles.metaText}>
             {formatDeadline(item.deadline)}
           </Text>
+        </View>
+      )}
+
+      {/* Chat Name (Source) */}
+      {chatName && (
+        <View style={styles.metaRow}>
+          <Icon name="chatbubbles" size="small" color={colors.mediumGray} />
+          <Text style={styles.metaText}>from {chatName}</Text>
         </View>
       )}
 
@@ -223,6 +232,7 @@ function SortButtons({activeSort, onSortChange}) {
 export default function ActionItemsList({
   actionItems = [],
   loading = false,
+  chatNames = {},
   onViewMessage,
   onMarkComplete,
   onMarkPending,
@@ -305,6 +315,7 @@ export default function ActionItemsList({
             <ActionItemCard
               key={item.id || index}
               item={item}
+              chatName={chatNames[item.chatId]}
               onViewMessage={onViewMessage}
               onMarkComplete={onMarkComplete}
               onMarkPending={onMarkPending}

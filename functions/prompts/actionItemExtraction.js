@@ -25,10 +25,11 @@ For each action item, identify:
 - **Task Description**: Clear, actionable statement of what needs to be done
 - **Assignee**: Person responsible (name if mentioned, null if unclear)
 - **Deadline**: Date/time if mentioned (null otherwise)
-- **Type**: "commitment" | "question" | "task"
+- **Type**: "commitment" | "question" | "task" | "decision"
 - **Priority**: "high" | "medium" | "low" based on urgency indicators
 - **Source Message ID**: The message where this item appears
 - **Context**: Brief surrounding context (1 sentence)
+- **Is Decision**: true if this represents an agreed-upon choice or resolution
 
 Respond with JSON in this exact format:
 {
@@ -37,10 +38,11 @@ Respond with JSON in this exact format:
       "task": "Clear description of what needs to be done",
       "assignee": "Name or null",
       "deadline": "ISO date string or descriptive text like 'EOD today', or null",
-      "type": "commitment" | "question" | "task",
+      "type": "commitment" | "question" | "task" | "decision",
       "priority": "high" | "medium" | "low",
       "sourceMessageId": "string",
-      "context": "Brief surrounding context"
+      "context": "Brief surrounding context",
+      "isDecision": true | false
     }
   ]
 }
@@ -49,6 +51,12 @@ Type definitions:
 - **commitment**: Personal promise or commitment by speaker ("I'll...", "I will...")
 - **question**: Question directed at someone that needs an answer
 - **task**: Explicit assignment or request to someone ("Can you...", "Please...")
+- **decision**: Agreed-upon choice, conclusion, or resolution ("Let's go with...", "We decided...")
+
+Decision detection:
+- **isDecision**: Set to true when the item represents a team decision, agreed-upon approach, or consensus
+- Examples: "Let's use Plan B", "We agreed to postpone", "Everyone approved the design"
+- Only mark as decision if there's clear agreement or resolution (not just suggestions)
 
 Priority guidelines:
 - **high**: Has deadline today/tomorrow, marked urgent, or blocks other work
@@ -84,6 +92,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "high",
           sourceMessageId: "msg-002",
           context: "Preparing slides for client meeting",
+          isDecision: false,
         },
         {
           task: "Review presentation slides",
@@ -93,6 +102,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "high",
           sourceMessageId: "msg-003",
           context: "Review before client meeting",
+          isDecision: false,
         },
         {
           task: "Send meeting agenda to the client",
@@ -102,6 +112,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "high",
           sourceMessageId: "msg-005",
           context: "Share agenda before client meeting",
+          isDecision: false,
         },
         {
           task: "Answer: What time is the meeting?",
@@ -111,6 +122,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "medium",
           sourceMessageId: "msg-006",
           context: "David asking about meeting time",
+          isDecision: false,
         },
       ],
     },
@@ -134,6 +146,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "medium",
           sourceMessageId: "msg-011",
           context: "Manager requested documentation update",
+          isDecision: false,
         },
         {
           task: "Review the security audit findings",
@@ -143,6 +156,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "medium",
           sourceMessageId: "msg-013",
           context: "Security audit needs review",
+          isDecision: false,
         },
         {
           task: "Answer: Has anyone tested the new deployment pipeline?",
@@ -152,6 +166,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "medium",
           sourceMessageId: "msg-015",
           context: "Emily asking about deployment pipeline testing",
+          isDecision: false,
         },
         {
           task: "Test the new deployment pipeline",
@@ -161,6 +176,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "medium",
           sourceMessageId: "msg-016",
           context: "Added to Tom's task list",
+          isDecision: false,
         },
       ],
     },
@@ -182,6 +198,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "high",
           sourceMessageId: "msg-021",
           context: "Urgent fix for database storage issue",
+          isDecision: false,
         },
         {
           task: "Analyze database growth patterns and generate report",
@@ -191,6 +208,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "high",
           sourceMessageId: "msg-025",
           context: "Investigation after urgent storage fix",
+          isDecision: false,
         },
       ],
     },
@@ -213,6 +231,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "low",
           sourceMessageId: "msg-046",
           context: "Casual conversation about interesting article",
+          isDecision: false,
         },
       ],
     },
@@ -226,6 +245,41 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
 [2024-10-22 15:04] Jamie: Me too!`,
     expectedOutput: {
       actionItems: [],
+    },
+  },
+  {
+    name: "Team Decisions and Agreements",
+    conversation: `[2024-10-22 10:00] Manager: We need to decide on the deployment strategy for v2.0.
+[2024-10-22 10:02] Tech Lead: I propose we do a gradual rollout over 3 days.
+[2024-10-22 10:04] Product: That sounds safer. What about monitoring?
+[2024-10-22 10:06] DevOps: I can set up alerts for error rates and performance metrics.
+[2024-10-22 10:08] Manager: Great. Everyone agreed on the gradual rollout approach?
+[2024-10-22 10:09] Tech Lead: Yes, makes sense.
+[2024-10-22 10:10] Product: Agreed.
+[2024-10-22 10:11] Manager: Perfect. Let's go with the 3-day gradual rollout plan. DevOps, please prepare the monitoring setup.`,
+    expectedOutput: {
+      actionItems: [
+        {
+          task: "Use gradual rollout over 3 days for v2.0 deployment",
+          assignee: null,
+          deadline: null,
+          type: "decision",
+          priority: "high",
+          sourceMessageId: "msg-051",
+          context: "Team decision on deployment strategy",
+          isDecision: true,
+        },
+        {
+          task: "Set up alerts for error rates and performance metrics",
+          assignee: "DevOps",
+          deadline: null,
+          type: "task",
+          priority: "high",
+          sourceMessageId: "msg-051",
+          context: "Monitoring setup for gradual rollout",
+          isDecision: false,
+        },
+      ],
     },
   },
   {
@@ -249,6 +303,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "medium",
           sourceMessageId: "msg-032",
           context: "Ongoing refactoring work",
+          isDecision: false,
         },
         {
           task: "Document the hotfix in the changelog",
@@ -258,6 +313,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "medium",
           sourceMessageId: "msg-034",
           context: "Changelog documentation needed",
+          isDecision: false,
         },
         {
           task: "Answer: Do we need regression testing for the hotfix?",
@@ -267,6 +323,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "medium",
           sourceMessageId: "msg-037",
           context: "QA asking about testing requirements",
+          isDecision: false,
         },
         {
           task: "Run regression tests on login flow",
@@ -276,6 +333,7 @@ const ACTION_ITEM_FEW_SHOT_EXAMPLES = [
           priority: "high",
           sourceMessageId: "msg-041",
           context: "Testing hotfix to ensure safety",
+          isDecision: false,
         },
       ],
     },
