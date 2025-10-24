@@ -168,6 +168,10 @@ exports.searchMessages = searchMessages;
 const {summarizeUnread} = require("./summarizeUnread");
 exports.summarizeUnread = summarizeUnread;
 
+// Maintenance Features - Cleanup Old Priorities
+const {cleanupOldPriorities} = require("./cleanupOldPriorities");
+exports.cleanupOldPriorities = cleanupOldPriorities;
+
 /**
  * Triggered when new message created in
  * /chats/{chatID}/messages/{messageID}

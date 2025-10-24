@@ -24,6 +24,41 @@ import { PRIMARY_GREEN } from '../../constants/colors';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
 import ErrorToast from '../../components/ErrorToast';
 
+// Module-level debounce timers for background priority analysis
+const priorityDebounceTimers = {};
+
+/**
+ * Debounced background priority check
+ * Waits 5 seconds after the last new message before analyzing
+ * Only analyzes last 5 messages to minimize cost
+ * @param {string} chatId - Chat ID to analyze
+ */
+function debouncePriorityCheck(chatId) {
+  // Clear existing timer for this chat
+  if (priorityDebounceTimers[chatId]) {
+    clearTimeout(priorityDebounceTimers[chatId]);
+  }
+
+  // Set new timer - analyze after 5 seconds of no new messages
+  priorityDebounceTimers[chatId] = setTimeout(async () => {
+    try {
+      console.log(`[ChatDetail] Background priority check for chat ${chatId}`);
+      await analyzePriorities(chatId, {
+        messageCount: 5, // Only analyze recent messages
+        forceRefresh: false, // Use cache when available
+      });
+      console.log(`[ChatDetail] Background priority check complete for ${chatId}`);
+    } catch (error) {
+      // Silently swallow errors (rate limits, network issues, etc.)
+      // Don't disrupt user experience with background operations
+      console.warn(`[ChatDetail] Background priority check failed (silent):`, error);
+    } finally {
+      // Clean up timer reference
+      delete priorityDebounceTimers[chatId];
+    }
+  }, 5000); // 5 second debounce
+}
+
 export default function ChatDetailScreen() {
   const router = useRouter();
   const { chatId, messageId } = useLocalSearchParams(); // messageId from search navigation
@@ -143,6 +178,13 @@ export default function ChatDetailScreen() {
                   }
                 }
 
+                // BACKGROUND PRIORITY ANALYSIS (Task 3)
+                // Trigger automatic priority detection for new inbound messages
+                if (change.type === 'added' && normalized.senderID !== currentUser?.userID) {
+                  console.log(`[ChatDetail] New inbound message, triggering background priority check`);
+                  debouncePriorityCheck(chatId);
+                }
+
                 // Write to SQLite (wrapped in try-catch to prevent crashes)
                 try {
                   await insertMessage({ ...normalized, syncStatus: 'synced' });
@@ -181,6 +223,12 @@ export default function ChatDetailScreen() {
     return () => {
       console.log(`[ChatDetail] Cleaning up listener for chat ${chatId}`);
       unregisterListener(listenerId);
+      
+      // Clear any pending priority check timers for this chat
+      if (priorityDebounceTimers[chatId]) {
+        clearTimeout(priorityDebounceTimers[chatId]);
+        delete priorityDebounceTimers[chatId];
+      }
     };
   }, [chatId, currentUser]);
 
@@ -264,7 +312,7 @@ export default function ChatDetailScreen() {
     try {
       const result = await analyzePriorities(chatId, { 
         messageCount: 30,
-        forceRefresh: true, // Always get fresh results
+        forceRefresh: false, // Use cache when available (24hr TTL)
       });
 
       if (result.success) {
@@ -605,6 +653,7 @@ export default function ChatDetailScreen() {
           chatId={chatId}
           showAIButton={true}
           onAIPress={() => setShowAIPanel(true)}
+          aiLoading={aiLoading}
         />
         
         <KeyboardAvoidingView

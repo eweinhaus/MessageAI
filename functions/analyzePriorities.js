@@ -160,8 +160,57 @@ exports.analyzePriorities = onCall(async (request) => {
 
     logger.info(`[Priority] Cache miss, analyzing chat ${chatId}`);
 
-    // 6. Fetch messages from Firestore
+    // 6. Check for incremental analysis opportunity
+    // Get the most recent priority analysis timestamp for this chat
+    const prioritiesRef = admin.firestore()
+        .collection("chats")
+        .doc(chatId)
+        .collection("priorities");
+
+    const recentPrioritiesSnapshot = await prioritiesRef
+        .orderBy("analyzedAt", "desc")
+        .limit(1)
+        .get();
+
+    let lastAnalyzedTimestamp = null;
+    if (!recentPrioritiesSnapshot.empty) {
+      const lastPriority = recentPrioritiesSnapshot.docs[0].data();
+      lastAnalyzedTimestamp = lastPriority.analyzedAt?.toMillis?.() ||
+        lastPriority.analyzedAt;
+      logger.info(
+          `[Priority] Last analysis at ${lastAnalyzedTimestamp}`,
+      );
+    }
+
+    // 7. Fetch messages from Firestore
     const messages = await getLastNMessages(chatId, messageCount);
+
+    // 8. Check if there are any new messages since last analysis
+    if (lastAnalyzedTimestamp && messages.length > 0) {
+      const newestMessageTimestamp = Math.max(
+          ...messages.map((m) => m.timestamp),
+      );
+
+      if (newestMessageTimestamp <= lastAnalyzedTimestamp) {
+        logger.info(
+            "[Priority] No new messages since last analysis, " +
+            "returning cached result",
+        );
+        // Return empty result - no new priorities to analyze
+        return {
+          priorities: [],
+          messageCount: messages.length,
+          cached: true,
+          skipReason: "no_new_messages",
+          lastAnalyzedAt: lastAnalyzedTimestamp,
+        };
+      }
+
+      logger.info(
+          "[Priority] New messages detected since last analysis, " +
+          "proceeding with analysis",
+      );
+    }
 
     if (messages.length === 0) {
       logger.info(`[Priority] No messages found in chat ${chatId}`);
@@ -174,7 +223,7 @@ exports.analyzePriorities = onCall(async (request) => {
 
     logger.info(`[Priority] Fetched ${messages.length} messages`);
 
-    // 7. Build context for OpenAI with message IDs
+    // 9. Build context for OpenAI with message IDs
     const contextData = buildMessageContext(messages, {
       format: "detailed",
       maxMessages: messageCount,
@@ -185,14 +234,14 @@ exports.analyzePriorities = onCall(async (request) => {
       return `${index}. [${msg.messageID}] ${msg.senderName}: ${msg.text}`;
     }).join("\n");
 
-    // 8. Build complete prompt
+    // 10. Build complete prompt
     const prompt = buildPriorityPrompt(numberedMessages, false);
 
     logger.info(
         `[Priority] Prompt: ${contextData.estimatedTokens} tokens`,
     );
 
-    // 9. Call OpenAI API
+    // 11. Call OpenAI API
     let aiResponse;
     try {
       const openai = getOpenAIClient();
@@ -223,7 +272,7 @@ exports.analyzePriorities = onCall(async (request) => {
       );
     }
 
-    // 10. Parse JSON response
+    // 12. Parse JSON response
     let priorityData;
     try {
       priorityData = parseJSONResponse(aiResponse);
@@ -243,7 +292,7 @@ exports.analyzePriorities = onCall(async (request) => {
         `[Priority] Found ${priorityData.priorities.length} priorities`,
     );
 
-    // 11. Store priorities in Firestore
+    // 13. Store priorities in Firestore
     const batch = admin.firestore().batch();
     const prioritiesCollection = admin.firestore()
         .collection("chats")
@@ -296,7 +345,7 @@ exports.analyzePriorities = onCall(async (request) => {
         `stored ${priorityData.priorities.length} in Firestore`,
     );
 
-    // 12. Cache the result
+    // 14. Cache the result
     const resultToCache = {
       priorities: priorityData.priorities,
       messageCount: messages.length,
@@ -315,10 +364,10 @@ exports.analyzePriorities = onCall(async (request) => {
       },
     });
 
-    // 13. Increment rate limit counter
+    // 15. Increment rate limit counter
     await incrementRateLimit(userId, "priority");
 
-    // 14. Return results
+    // 16. Return results
     const duration = Date.now() - startTime;
     logger.info(`[Priority] Completed in ${duration}ms`);
 
