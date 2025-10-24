@@ -9,6 +9,7 @@ import { PRIMARY_GREEN, STATUS_ONLINE, TEXT_SECONDARY } from '../constants/color
 import { usePresence } from '../hooks/usePresence';
 import { useTyping } from '../hooks/useTyping';
 import { getInitials } from '../utils/avatarUtils';
+import useUserStore from '../store/userStore';
 
 /**
  * ChatHeader Component
@@ -74,8 +75,11 @@ export default function ChatHeader({ chat, currentUserID, onPress, chatId, showA
   // Get presence data for 1:1 chats
   const { isOnline, lastSeen } = usePresence(isGroup ? null : otherUserID);
   
+  // Get current user's display name for typing cleanup
+  const currentUserName = useUserStore((state) => state.currentUser?.displayName);
+  
   // Get typing indicators (for both 1:1 and group chats)
-  const { typingUsers } = useTyping(chatId, currentUserID, null);
+  const { typingUsers } = useTyping(chatId, currentUserID, currentUserName);
   
   // Format last seen time
   const getLastSeenText = () => {

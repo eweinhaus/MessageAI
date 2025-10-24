@@ -55,6 +55,8 @@ export default function SummaryModal({
   error,
   onRefresh,
   isGlobal = false,
+  onMarkComplete,
+  onJumpToChat,
 }) {
   // Loading state
   if (loading) {
@@ -325,6 +327,38 @@ export default function SummaryModal({
                           <Text style={styles.chatBadgeText}>{String(chatName)}</Text>
                         </View>
                       )}
+                      
+          {/* Quick Actions */}
+          {(onMarkComplete || onJumpToChat) && (
+            <View style={styles.quickActions}>
+              {onMarkComplete && (
+                <TouchableOpacity
+                  style={styles.quickActionButton}
+                  onPress={() => onMarkComplete(item)}
+                  testID={`action-complete-${index}`}
+                  hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                  accessibilityLabel="Mark action item as complete"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.quickActionIcon}>✓</Text>
+                  <Text style={styles.quickActionText}>Done</Text>
+                </TouchableOpacity>
+              )}
+              {onJumpToChat && (
+                <TouchableOpacity
+                  style={[styles.quickActionButton, styles.quickActionButtonSecondary]}
+                  onPress={() => onJumpToChat(item)}
+                  testID={`action-view-${index}`}
+                  hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+                  accessibilityLabel="View action item in chat"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.quickActionIcon}>→</Text>
+                  <Text style={styles.quickActionText}>View</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
                     </View>
                   );
                 })}
@@ -375,14 +409,16 @@ export default function SummaryModal({
             <TouchableOpacity
               style={styles.refreshButton}
               onPress={onRefresh}
+              testID="summary-refresh-button"
             >
               <Text style={styles.refreshButtonText}>🔄 Refresh</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.doneButton}
               onPress={onClose}
+              testID="summary-close-button"
             >
-              <Text style={styles.doneButtonText}>Done</Text>
+              <Text style={styles.doneButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -680,6 +716,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#1976d2',
     fontWeight: '500',
+  },
+  
+  // Quick Actions
+  quickActions: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+  quickActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4caf50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  quickActionButtonSecondary: {
+    backgroundColor: '#2196f3',
+  },
+  quickActionIcon: {
+    fontSize: 14,
+    color: '#fff',
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  quickActionText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '600',
   },
 });
 

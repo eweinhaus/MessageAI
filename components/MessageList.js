@@ -1,5 +1,5 @@
 // MessageList Component - Scrollable list of messages
-import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 import { FlatList, View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import MessageBubble from './MessageBubble';
 import Icon from './Icon';
@@ -18,15 +18,17 @@ import { BACKGROUND_CHAT, TEXT_SECONDARY } from '../constants/colors';
  * @param {boolean} props.isLoading - Loading state
  * @param {Object} props.priorities - Message priorities (messageId -> priority data)
  */
-export default function MessageList({
+const MessageList = forwardRef(({
   chatID,
   isGroup = false,
   isLoading = false,
   topInset = 0,
   bottomInset = 0,
   priorities = {},
-}) {
+}, ref) => {
   const flatListRef = useRef(null);
+  const highlightTimeoutRef = useRef(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   
   // Use a stable selector to avoid infinite loops
   const messages = useMessageStore(
@@ -50,7 +52,71 @@ export default function MessageList({
   // Reset initial scroll flag when chatID changes
   useEffect(() => {
     setHasInitialScrolled(false);
+    setHighlightedMessageId(null);
+    // Clear any pending highlight timeout
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
+      highlightTimeoutRef.current = null;
+    }
   }, [chatID]);
+
+  // Cleanup highlight timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Expose scrollToMessage method via ref
+  useImperativeHandle(ref, () => ({
+    scrollToMessage(messageId) {
+      const index = messages.findIndex(m => m.messageID === messageId);
+      if (index !== -1 && flatListRef.current) {
+        try {
+          // Scroll to the message
+          flatListRef.current.scrollToIndex({
+            index,
+            animated: true,
+            viewPosition: 0.5, // Center the message
+          });
+          
+          // Highlight the message
+          setHighlightedMessageId(messageId);
+          
+          // Clear any existing timeout
+          if (highlightTimeoutRef.current) {
+            clearTimeout(highlightTimeoutRef.current);
+          }
+          
+          // Clear highlight after 2 seconds
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedMessageId(null);
+            highlightTimeoutRef.current = null;
+          }, 2000);
+        } catch (error) {
+          console.warn('[MessageList] scrollToIndex failed, falling back to scrollToOffset:', error);
+          // Fallback: estimate offset (60px per message)
+          const offset = index * 60;
+          flatListRef.current?.scrollToOffset({ offset, animated: true });
+          setHighlightedMessageId(messageId);
+          
+          // Clear any existing timeout
+          if (highlightTimeoutRef.current) {
+            clearTimeout(highlightTimeoutRef.current);
+          }
+          
+          highlightTimeoutRef.current = setTimeout(() => {
+            setHighlightedMessageId(null);
+            highlightTimeoutRef.current = null;
+          }, 2000);
+        }
+      } else {
+        console.warn('[MessageList] Message not found:', messageId);
+      }
+    }
+  }), [messages]);
 
   // Auto-scroll to bottom on initial load
   useEffect(() => {
@@ -150,6 +216,7 @@ export default function MessageList({
         priority={priorityData?.priority}
         priorityReason={priorityData?.reason}
         priorityConfidence={priorityData?.confidence}
+        isHighlighted={item.messageID === highlightedMessageId}
       />
     );
   };
@@ -235,6 +302,8 @@ export default function MessageList({
   /**
    * Get item layout for performance optimization
    * Assumes average message height of 60px
+   * Note: This is an approximation - actual heights vary (sender name, multi-line, urgent)
+   * onScrollToIndexFailed provides fallback for mis-estimates
    */
   const getItemLayout = (data, index) => ({
     length: 60,
@@ -260,16 +329,21 @@ export default function MessageList({
       maxToRenderPerBatch={10}
       updateCellsBatchingPeriod={50}
       initialNumToRender={20}
-      windowSize={21}
+      windowSize={7}
       // PR9: Viewability tracking for read receipts
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig}
-      // Note: getItemLayout commented out for now as message heights vary
-      // Will optimize in future if needed
-      // getItemLayout={getItemLayout}
+      getItemLayout={getItemLayout}
+      onScrollToIndexFailed={(info) => {
+        // Fallback when scrollToIndex fails
+        const offset = info.averageItemLength * info.index;
+        flatListRef.current?.scrollToOffset({ offset, animated: true });
+      }}
     />
   );
-}
+});
+
+export default MessageList;
 
 const styles = StyleSheet.create({
   contentContainer: {

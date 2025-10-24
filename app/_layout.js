@@ -111,7 +111,7 @@ export default function RootLayout() {
           
           lifecycleLog('Checking for unread messages on fresh start...');
           const { summarizeUnreadGlobal } = require('../services/aiService');
-          const result = await summarizeUnreadGlobal(false);
+          const result = await summarizeUnreadGlobal({ forceRefresh: false });
           
           if (result.success && result.data?.hasUnread) {
             lifecycleLog('Found unread messages, showing global summary modal');
@@ -191,7 +191,7 @@ export default function RootLayout() {
           } else {
             const now = Date.now();
             const timeSinceLastCheck = now - lastSummaryCheck.current;
-            const MIN_CHECK_INTERVAL = 60000; // 1 minute throttle
+            const MIN_CHECK_INTERVAL = 120000; // 2 minute throttle
             
             if (timeSinceLastCheck > MIN_CHECK_INTERVAL) {
               lastSummaryCheck.current = now;
@@ -201,7 +201,7 @@ export default function RootLayout() {
               const { summarizeUnreadGlobal } = require('../services/aiService');
               
               try {
-                const result = await summarizeUnreadGlobal(false);
+                const result = await summarizeUnreadGlobal({ forceRefresh: false });
                 
                 if (result.success && result.data?.hasUnread) {
                   lifecycleLog('Found unread messages, showing global summary modal');
@@ -335,6 +335,42 @@ export default function RootLayout() {
     }
   }, [isAuthenticated, isLoading, segments]);
 
+  // Global summary quick action handlers
+  const handleGlobalMarkComplete = async (item) => {
+    try {
+      if (!item || !item.id) {
+        console.warn('[Layout] Action item missing ID:', item);
+        return;
+      }
+      
+      // Import dynamically to avoid circular dependency
+      const { updateActionItemStatus } = require('../services/aiService');
+      const itemChatId = item.chatId || currentUser?.userID || 'global';
+      
+      const result = await updateActionItemStatus(itemChatId, item.id, 'completed');
+      
+      if (result.success) {
+        console.log('[Layout] Action item marked as complete');
+        setShowGlobalSummaryModal(false);
+      }
+    } catch (error) {
+      console.error('[Layout] Error marking action complete:', error);
+    }
+  };
+
+  const handleGlobalJumpToChat = (item) => {
+    try {
+      setShowGlobalSummaryModal(false);
+      
+      if (item.chatId) {
+        // Navigate to the chat
+        router.push(`/chat/${item.chatId}`);
+      }
+    } catch (error) {
+      console.error('[Layout] Error navigating to chat:', error);
+    }
+  };
+
   // Show loading screen while initializing database or checking auth state
   if (!dbInitialized || isLoading) {
     return (
@@ -387,6 +423,8 @@ export default function RootLayout() {
           onClose={() => setShowGlobalSummaryModal(false)}
           summary={globalSummary}
           isGlobal={true}
+          onMarkComplete={handleGlobalMarkComplete}
+          onJumpToChat={handleGlobalJumpToChat}
         />
       )}
     </ErrorBoundary>

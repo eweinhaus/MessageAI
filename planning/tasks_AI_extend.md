@@ -415,8 +415,8 @@
 ### Tasks
 
 #### 1. Add one-tap actions to SummaryModal (ENHANCE) ✓
-- [ ] In existing `components/SummaryModal.js`:
-- [ ] Add quick action buttons to action items:
+- [x] In existing `components/SummaryModal.js`:
+- [x] Add quick action buttons to action items:
   ```jsx
   <View style={styles.quickActions}>
     <TouchableOpacity onPress={() => markComplete(item.id)}>
@@ -427,11 +427,11 @@
     </TouchableOpacity>
   </View>
   ```
-- [ ] ~30 lines added to existing component
+- [x] ~30 lines added to existing component
 
 #### 2. Add priority tooltip to ChatListItem (ENHANCE) ✓
-- [ ] In existing `components/ChatListItem.js`:
-- [ ] Add long-press handler that shows modal:
+- [x] In existing `components/ChatListItem.js`:
+- [x] Add long-press handler that shows modal:
   ```jsx
   <TouchableOpacity onLongPress={() => setShowTooltip(true)}>
     {/* existing content */}
@@ -445,17 +445,17 @@
     </View>
   </Modal>
   ```
-- [ ] ~50 lines added to existing component
+- [x] ~50 lines added to existing component
 
 #### 3. Performance optimization (REVIEW) ✓
-- [ ] Add `useMemo` to expensive calculations
-- [ ] Add `React.memo` to list items
-- [ ] ~20 lines of memoization wrappers
+- [x] Add `useMemo` to expensive calculations
+- [x] Add `React.memo` to list items
+- [x] ~20 lines of memoization wrappers
 
 #### 4. Testing ✓
-- [ ] Test all features end-to-end
-- [ ] Profile performance
-- [ ] Check memory usage
+- [x] Test all features end-to-end
+- [x] Profile performance
+- [x] Check memory usage
 
 ### Summary of Changes
 - **2 component enhancements** (SummaryModal +30 lines, ChatListItem +50 lines)

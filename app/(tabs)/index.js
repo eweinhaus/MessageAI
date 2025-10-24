@@ -428,6 +428,7 @@ export default function HomeScreen() {
       isUnread={item.isUnread}
       isUrgent={item.isUrgent}
       priorityScore={item.priorityScore}
+      signals={item.aiSignals}
     />
   );
   

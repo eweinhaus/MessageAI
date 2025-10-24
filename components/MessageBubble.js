@@ -1,6 +1,6 @@
 // MessageBubble Component - Individual message display
-import React, { memo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { memo, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { formatMessageTime } from '../utils/timeUtils';
 import { retryFailedMessage } from '../services/messageService';
 import Avatar from './Avatar';
@@ -26,6 +26,7 @@ import {
  * @param {string} props.priority - Priority level ("urgent" or "normal")
  * @param {string} props.priorityReason - Reason for priority
  * @param {number} props.priorityConfidence - Confidence score (0-1)
+ * @param {boolean} props.isHighlighted - Whether this message should be highlighted
  */
 function MessageBubble({ 
   message, 
@@ -36,7 +37,9 @@ function MessageBubble({
   priority,
   priorityReason,
   priorityConfidence,
+  isHighlighted = false,
 }) {
+  const highlightAnim = useRef(new Animated.Value(0)).current;
   const {
     messageID,
     chatID,
@@ -61,6 +64,30 @@ function MessageBubble({
   const handleRetry = async () => {
     await retryFailedMessage(messageID, chatID);
   };
+
+  // Animate highlight when isHighlighted changes
+  useEffect(() => {
+    if (isHighlighted) {
+      // Flash yellow background
+      Animated.sequence([
+        Animated.timing(highlightAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.timing(highlightAnim, {
+          toValue: 0,
+          duration: 1700,
+          useNativeDriver: false,
+        }),
+      ]).start();
+    }
+  }, [isHighlighted, highlightAnim]);
+
+  const highlightBackgroundColor = highlightAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255, 255, 255, 0)', 'rgba(255, 235, 59, 0.4)'], // Yellow highlight
+  });
 
   return (
     <View style={[
@@ -106,6 +133,19 @@ function MessageBubble({
             priority === 'urgent' && styles.urgentBubble,
           ]}
         >
+          {/* Highlight overlay - preserves underlying bubble color */}
+          {isHighlighted && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  backgroundColor: highlightBackgroundColor,
+                  borderRadius: 18,
+                },
+              ]}
+            />
+          )}
           <Text style={[
             styles.messageText, 
             isOwn ? styles.messageTextOwn : styles.messageTextOther,
@@ -132,6 +172,13 @@ function MessageBubble({
                 {getStatusText({ deliveryStatus, isRead: readBy.length > 0, syncStatus })}
               </Text>
             )}
+          </View>
+        )}
+
+        {/* Queued badge for pending messages */}
+        {isOwn && syncStatus === 'pending' && deliveryStatus !== 'failed' && (
+          <View style={styles.queuedBadge}>
+            <Text style={styles.queuedText}>Queued</Text>
           </View>
         )}
 
@@ -304,6 +351,19 @@ const styles = StyleSheet.create({
   },
   retryText: {
     fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  queuedBadge: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: '#FFA726', // Orange for queued
+  },
+  queuedText: {
+    fontSize: 10,
     color: '#fff',
     fontWeight: '600',
   },

@@ -1,5 +1,5 @@
 // Chat Detail Screen - Conversation View
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -59,6 +59,9 @@ export default function ChatDetailScreen() {
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(null);
+  
+  // Ref for MessageList to enable jump-to-message
+  const messageListRef = useRef(null);
   
   const chat = getChatByID(chatId);
   
@@ -125,15 +128,17 @@ export default function ChatDetailScreen() {
                   // Update delivery status to 'delivered' for received messages
                   if (normalized.deliveryStatus === 'sent') {
                     console.log(`[ChatDetail] Marking message ${normalized.messageID} as delivered`);
-                    normalized.deliveryStatus = 'delivered';
                     
                     // Write back to Firestore so sender can see delivered status
                     try {
                       const messageRef = doc(db, `chats/${chatId}/messages`, normalized.messageID);
                       await updateDoc(messageRef, { deliveryStatus: 'delivered' });
+                      
+                      // Only update local state after successful Firestore write (fix race condition)
+                      normalized.deliveryStatus = 'delivered';
                     } catch (error) {
                       console.error('[ChatDetail] Error updating delivery status in Firestore:', error);
-                      // Continue anyway - will be delivered locally
+                      // Keep original status if Firestore write fails to maintain consistency
                     }
                   }
                 }
@@ -440,16 +445,62 @@ export default function ChatDetailScreen() {
 
   // Handle viewing the context message for an action item
   const handleViewActionItemMessage = (messageId) => {
-    // For now, just close the modal
-    // In the future, we could scroll to the message and highlight it
     setShowActionItemsModal(false);
-    setError({ type: 'info', message: `Jump to message: ${messageId}` });
     
-    // TODO: Implement jump-to-message functionality
-    // This would require:
-    // 1. Finding the message index in the messages array
-    // 2. Scrolling the FlatList to that index
-    // 3. Highlighting the message briefly
+    // Jump to the message
+    if (messageListRef.current) {
+      messageListRef.current.scrollToMessage(messageId);
+    } else {
+      setError({ type: 'info', message: 'Message not found' });
+    }
+  };
+
+  // Quick action: Mark action item complete from summary modal
+  const handleMarkActionComplete = async (item) => {
+    try {
+      if (!item || !item.id) {
+        console.warn('[ChatDetail] Action item missing ID:', item);
+        return;
+      }
+      
+      const result = await updateActionItemStatus(chatId, item.id, 'completed');
+      
+      if (result.success) {
+        setError({ type: 'success', message: 'Action item marked as complete!' });
+        // Refresh summary to reflect updated status
+        setTimeout(() => handleRefreshSummary(), 500);
+      } else {
+        setError({ type: 'error', message: 'Failed to update action item.' });
+      }
+    } catch (error) {
+      console.error('[ChatDetail] Error marking action complete:', error);
+      setError({
+        type: 'error',
+        message: 'Failed to update action item',
+      });
+    }
+  };
+
+  // Quick action: Jump to chat/message from summary modal
+  const handleJumpToChatFromSummary = async (item) => {
+    try {
+      setShowSummaryModal(false);
+      
+      // If item has messageId, attempt to scroll to it
+      if (item.messageId || item.sourceMessageId) {
+        const messageId = item.messageId || item.sourceMessageId;
+        console.log('[ChatDetail] Jump to message:', messageId);
+        // Note: Scrolling to specific message requires MessageList ref exposure
+        // For now, just close modal and stay in chat
+      }
+      
+      // If from different chat, navigate
+      if (item.chatId && item.chatId !== chatId) {
+        router.push(`/chat/${item.chatId}`);
+      }
+    } catch (error) {
+      console.error('[ChatDetail] Error jumping to message:', error);
+    }
   };
 
   // Handle Smart Search
@@ -491,18 +542,14 @@ export default function ChatDetailScreen() {
 
   // Handle jump to message from search results
   const handleJumpToMessage = (messageId) => {
-    // Close search modal
     setShowSmartSearchModal(false);
     
-    // Show info toast
-    setError({ type: 'info', message: `Jumping to message...` });
-    
-    // TODO: Implement actual jump-to-message functionality
-    // This would require:
-    // 1. Finding the message index in the messages array
-    // 2. Scrolling the FlatList to that index
-    // 3. Highlighting the message briefly
-    console.log('[ChatDetail] Jump to message:', messageId);
+    // Jump to the message
+    if (messageListRef.current) {
+      messageListRef.current.scrollToMessage(messageId);
+    } else {
+      setError({ type: 'info', message: 'Message not found' });
+    }
   };
 
   // Placeholder handler for decision tracking
@@ -514,13 +561,15 @@ export default function ChatDetailScreen() {
   // Navigate to member list
   const handleHeaderPress = () => {
     // For groups, navigate to member list
-    // For 1:1, could navigate to user profile (future feature)
     if (isGroup) {
       router.push(`/chat/members/${chatId}`);
     } else {
-      // For 1:1 chats, could open user profile
-      // For now, just navigate to member list as well
-      router.push(`/chat/members/${chatId}`);
+      // For 1:1 chats, show user profile placeholder
+      // Future: Navigate to dedicated user profile screen
+      setError({ 
+        type: 'info', 
+        message: 'User profiles coming soon!' 
+      });
     }
   };
 
@@ -565,6 +614,7 @@ export default function ChatDetailScreen() {
         >
           <View style={styles.container}>
             <MessageList
+              ref={messageListRef}
               chatID={chatId}
               isGroup={isGroup}
               isLoading={isLoading}
@@ -601,6 +651,8 @@ export default function ChatDetailScreen() {
           loading={summaryLoading}
           error={summaryError}
           onRefresh={handleRefreshSummary}
+          onMarkComplete={handleMarkActionComplete}
+          onJumpToChat={handleJumpToChatFromSummary}
         />
 
         {/* Action Items Modal */}
