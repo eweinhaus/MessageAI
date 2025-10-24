@@ -166,7 +166,7 @@ Action Items                    [Sort: Priority ▾]
   - Source chat name
 - **Actions:**
   - Mark Complete / Reopen
-  - View Context (opens chat, scrolls to source message)
+  - View Context (opens chat to recent messages, highlights source message)
 - **Filter button:** "Show Decisions Only" (meets rubric requirement for decision tracking)
 - **Auto-refresh:** Real-time listener on all action items
 

@@ -152,27 +152,29 @@ function ChatListItem({
       <View style={styles.content}>
         {/* Top row: Name, Urgent Badge, and Timestamp */}
         <View style={styles.topRow}>
-          <Text 
-            style={[
-              styles.chatName, 
-              isUnread && styles.chatNameUnread
-            ]} 
-            numberOfLines={1}
-          >
-            {chatName}
-          </Text>
-          
-          {/* Urgent badge (red "!") */}
-          {isUrgent && (
-            <View 
-              style={styles.urgentBadge}
-              accessibilityLabel="Urgent chat"
-              accessibilityRole="alert"
+          <View style={styles.topRowLeft}>
+            <Text
+              style={[
+                styles.chatName,
+                isUnread && styles.chatNameUnread
+              ]}
+              numberOfLines={1}
             >
-              <Text style={styles.urgentText}>!</Text>
-            </View>
-          )}
-          
+              {chatName}
+            </Text>
+
+            {/* Urgent badge (red "!") */}
+            {isUrgent && (
+              <View
+                style={styles.urgentBadge}
+                accessibilityLabel="Urgent chat"
+                accessibilityRole="alert"
+              >
+                <Text style={styles.urgentText}>!</Text>
+              </View>
+            )}
+          </View>
+
           {timestamp && (
             <Text style={styles.timestamp}>{timestamp}</Text>
           )}
@@ -192,12 +194,12 @@ function ChatListItem({
           )} */}
         </View>
       </View>
-      
-      {/* Blue dot indicator for unread messages (iMessage style) - RIGHT SIDE */}
-      {isUnread && (
-        <View style={styles.blueDot} />
-      )}
     </TouchableOpacity>
+
+    {/* Blue dot indicator for unread messages (iMessage style) - CENTERED RIGHT */}
+    {isUnread && (
+      <View style={styles.blueDot} testID="unread-blue-dot" />
+    )}
     
     {/* Priority Tooltip Modal */}
     <Modal
@@ -270,16 +272,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
+    paddingRight: 28, // Space for blue dot (reduced from 32)
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+    position: 'relative', // For absolute positioning of blue dot
   },
   blueDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: '#007AFF', // iOS blue color
-    marginLeft: 12,
+    position: 'absolute',
+    right: 12, // Adjusted for new padding
+    top: '50%',
+    marginTop: -5, // Center vertically
   },
   avatarContainer: {
     position: 'relative',
@@ -291,15 +298,23 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 4,
+    minHeight: 20, // Ensure consistent height for alignment
+  },
+  topRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8, // Space before timestamp
   },
   chatName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#000',
     flex: 1,
+    flexShrink: 1, // Allow shrinking if needed
     marginRight: 8,
   },
   chatNameUnread: {
@@ -313,7 +328,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F44336',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 6,
+    marginRight: 8, // Space before timestamp
+    flexShrink: 0, // Don't shrink the badge
   },
   urgentText: {
     color: '#fff',
@@ -323,17 +339,21 @@ const styles = StyleSheet.create({
   timestamp: {
     fontSize: 12,
     color: '#999',
+    textAlign: 'right',
+    width: 45, // Fixed width for consistent right alignment
+    flexShrink: 0, // Don't shrink
   },
   bottomRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 18, // Ensure consistent height
+    paddingRight: 16, // Space for potential future elements
   },
   lastMessage: {
     fontSize: 14,
     color: '#666',
     flex: 1,
-    marginRight: 8,
+    flexShrink: 1,
   },
   // For future use (PR 9)
   unreadBadge: {

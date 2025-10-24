@@ -67,10 +67,10 @@ export function shouldRunAI({localScore, unreadCount, lastPriorityRunAt, throttl
   }
 
   // Run AI if local score indicates potential importance
-  if (localScore > 0.5) return true;
+  if (localScore > 0.3) return true; // Lowered from 0.5 to 0.3 for more responsive analysis
 
   // Run AI if many unread messages
-  if (unreadCount > 5) return true;
+  if (unreadCount > 2) return true; // Lowered from 5 to 2 for more responsive analysis
 
   return false;
 }
@@ -120,19 +120,28 @@ export function calculateLocalScore(chat, currentUserId = null) {
     score += recencyScore * 0.2;
   }
 
-  // Affinity (10% weight) - prioritize chats you engage with
-  // Simple heuristic: if last message was from you, boost slightly
-  if (currentUserId && chat.lastMessageSenderID === currentUserId) {
-    score += 0.1;
+  // Response priority (15% weight) - prioritize chats needing your response
+  // If last message was from you, penalize (you don't need to respond to yourself)
+  // If last message was from someone else, boost (they might be waiting for response)
+  if (currentUserId && chat.lastMessageSenderID) {
+    if (chat.lastMessageSenderID === currentUserId) {
+      // You sent the last message - lower priority (you don't need to respond)
+      score -= 0.15;
+    } else {
+      // Someone else sent the last message - higher priority (they might need response)
+      score += 0.15;
+    }
   }
 
-  // Unanswered question bonus (0.5 bonus if last message has "?")
+  // Unanswered question bonus (0.5 bonus if last message has "?" and is from someone else)
+  // Only boost if someone else asked a question (they might be waiting for your answer)
   if (chat.lastMessageText?.includes("?") &&
-      (!currentUserId || chat.lastMessageSenderID !== currentUserId)) {
+      currentUserId &&
+      chat.lastMessageSenderID !== currentUserId) {
     score += 0.5;
   }
 
-  return Math.min(score, 1.0); // Cap at 1.0
+  return Math.max(-0.2, Math.min(score, 1.0)); // Floor at -0.2, cap at 1.0
 }
 
 /**

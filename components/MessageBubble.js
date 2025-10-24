@@ -157,7 +157,7 @@ function MessageBubble({
 
         {/* Timestamp and delivery status - only show for last message in group */}
         {isLastInGroup && (
-          <View style={[styles.metaContainer, isOwn ? styles.metaContainerOwn : styles.metaContainerOther]}>
+          <View style={styles.metaContainer}>
             <Text style={styles.timestamp}>{formatMessageTime(validTimestamp)}</Text>
             
             {/* Delivery status for own messages */}
@@ -224,7 +224,7 @@ function getStatusText({ deliveryStatus, isRead, syncStatus }) {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    marginVertical: 2,
+    marginVertical: 1,
     paddingHorizontal: 12,
     alignItems: 'center', // Changed from flex-end to center for inline alignment
   },
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   containerFirstInGroup: {
-    marginTop: 12, // Extra spacing when starting a new message group
+    marginTop: 4, // Minimal spacing when starting a new message group
   },
   avatarWrapper: {
     width: 32,
@@ -314,12 +314,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
     marginHorizontal: 4,
+    justifyContent: 'flex-end', // Always right-align timestamps
   },
   metaContainerOwn: {
-    justifyContent: 'flex-end',
+    // No longer needed - timestamps always right-aligned
   },
   metaContainerOther: {
-    justifyContent: 'flex-start',
+    // No longer needed - timestamps always right-aligned
   },
   timestamp: {
     fontSize: 11,

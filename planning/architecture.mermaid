@@ -96,11 +96,11 @@ graph TB
     end
     
     subgraph "Data Flow: Global Action Items Tab (NEW)"
-        AIACTION["1️⃣ User taps Action Items tab<br/>2️⃣ Query /actionItems collection<br/>   (collectionGroup where userId)<br/>3️⃣ Real-time listener active<br/>4️⃣ Sort by priority or deadline<br/>5️⃣ Display with chat name context<br/>6️⃣ User taps 'Mark Complete'<br/>7️⃣ Update status in Firestore<br/>8️⃣ Listener fires → UI updates<br/>9️⃣ User taps 'View Context'<br/>🔟 Navigate to chat, scroll to message"]
+        AIACTION["1️⃣ User taps Action Items tab<br/>2️⃣ Query /actionItems collection<br/>   (collectionGroup where userId)<br/>3️⃣ Real-time listener active<br/>4️⃣ Sort by priority or deadline<br/>5️⃣ Display with chat name context<br/>6️⃣ User taps 'Mark Complete'<br/>7️⃣ Update status in Firestore<br/>8️⃣ Listener fires → UI updates<br/>9️⃣ User taps 'View Context'<br/>🔟 Navigate to chat (shows recent messages), highlight source message"]
     end
     
     subgraph "Data Flow: Global Smart Search (NEW)"
-        AISEARCH["1️⃣ User types search query<br/>2️⃣ Stage 1: Fast Search (< 1.5s)<br/>   - Context: Last 500 messages<br/>   - Model: GPT-4o-mini<br/>   - Return top 5-10 results<br/>3️⃣ Show Stage 1 results immediately<br/>4️⃣ Stage 2: Deep Search (2-4s)<br/>   - Context: All messages (5000)<br/>   - Model: GPT-4-turbo<br/>   - Return top 20 results<br/>5️⃣ Merge and re-rank<br/>6️⃣ Show refined results<br/>7️⃣ Cache (session-based)<br/>8️⃣ User taps result → jump to message"]
+        AISEARCH["1️⃣ User types search query<br/>2️⃣ Stage 1: Fast Search (< 1.5s)<br/>   - Context: Last 500 messages<br/>   - Model: GPT-4o-mini<br/>   - Return top 5-10 results<br/>3️⃣ Show Stage 1 results immediately<br/>4️⃣ Stage 2: Deep Search (2-4s)<br/>   - Context: All messages (5000)<br/>   - Model: GPT-4-turbo<br/>   - Return top 20 results<br/>5️⃣ Merge and re-rank<br/>6️⃣ Show refined results<br/>7️⃣ Cache (session-based)<br/>8️⃣ User taps result → navigate to chat (shows recent messages), highlight message"]
     end
     
     %% Connections - User A Flow

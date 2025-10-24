@@ -61,13 +61,21 @@ describe('ChatListItem', () => {
   });
 
   test('shows blue dot when isUnread is true', () => {
-    const { getByTestId, UNSAFE_root } = render(
+    const { getByTestId } = render(
       <ChatListItem {...defaultProps} isUnread={true} />
     );
-    
+
     // Blue dot should be rendered
-    const component = UNSAFE_root;
-    expect(component).toBeTruthy();
+    expect(getByTestId('unread-blue-dot')).toBeTruthy();
+  });
+
+  test('does not show blue dot when isUnread is false', () => {
+    const { queryByTestId } = render(
+      <ChatListItem {...defaultProps} isUnread={false} />
+    );
+
+    // Blue dot should not be rendered
+    expect(queryByTestId('unread-blue-dot')).toBeNull();
   });
 
   test('does not show tooltip initially', () => {

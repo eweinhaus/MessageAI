@@ -87,6 +87,12 @@ describe("Action Item Extraction Prompts", () => {
           expect(
               item.deadline === null || typeof item.deadline === "string",
           ).toBe(true);
+
+          // sourceMessageId must be non-empty string (NEVER null)
+          expect(typeof item.sourceMessageId).toBe("string");
+          expect(item.sourceMessageId.length).toBeGreaterThan(0);
+          expect(item.sourceMessageId).not.toBe("null");
+          expect(item.sourceMessageId).not.toBe("undefined");
         });
       });
     });

@@ -152,13 +152,13 @@
 - [x] **PR 20**: Global Summary Infrastructure ✅ (October 23-24, 2025)
   - Created `functions/summarizeUnread.js` for delta-based cross-chat summaries (563 lines)
   - Added `services/watermarkService.js` for per-chat watermarks
-  - Integrated `app/_layout.js` with AppState listener to auto-show modal on foreground and on fresh start
   - Enhanced `components/SummaryModal.js` with `isGlobal` prop and chat badges
   - Added client `summarizeUnreadGlobal()` in `services/aiService.js`
   - Caching: 15 min TTL via `summaryGlobal` per user; rate limit 5 ops/hr
   - Cost control: Cap per-chat messages, batch queries, merge summaries
   - Throttled summary checks (60s minimum interval) to prevent spam
   - Truly unread messages (using readBy array) not watermark-only
+  - **Note**: Auto-popup functionality removed - users now access via dedicated AI Summary tab
 - [x] **PR 21**: AI Priority Ordering Migration ✅ (October 23-24, 2025)
   - Created `services/priorityService.js` for hybrid local + AI scoring (257 lines)
   - Implemented calculateLocalScore (instant, no AI), calculateFinalScore, shouldRunAI
@@ -311,6 +311,40 @@ None. MVP is complete and tested.
   - Target: > 90%
 
 ## Recent Changes
+- October 24, 2025: **Removed Global Summary Auto-popup - COMPLETE** ✅
+  - **Rationale**: User now has dedicated AI Summary tab, auto-popup no longer needed
+  - **Changes Made**:
+    - Removed auto-popup state and logic from `app/_layout.js`
+    - Removed `loadAndShowGlobalSummary` function and related useEffect hooks
+    - Removed `SummaryModal` import and rendering from root layout
+    - Removed `summarizeUnreadGlobal` import and related AI service calls
+    - Updated authentication flow to no longer trigger auto-popup on login
+  - **Impact**: Cleaner UX - users access summaries on-demand via dedicated tab
+  - **Files Modified**: `app/_layout.js` (~50 lines removed)
+  - **Documentation Updated**: Memory bank files reflect removal of auto-popup functionality
+- October 24, 2025: **INSTANT Priority Badges - COMPLETE** 🚀✅
+  - **Issue**: Red urgent badges were not appearing immediately with messages; user wanted instant detection
+  - **Solution**: Complete overhaul - removed ALL delays, integrated immediate priority analysis
+  - **Fix #1**: **REMOVED debounce entirely** - 0ms delay vs 2-5s before (lines 29-47)
+  - **Fix #2**: **Integrated into message sending** - Priority analysis happens immediately after Firestore write (lines 81-93)
+  - **Fix #3**: **Immediate analysis on chat open** - Analyzes existing messages instantly (lines 122-124)
+  - **Fix #4**: **Priority listener loads from cache** - Existing priorities appear instantly (lines 241-267)
+  - **Fix #5**: **Both sent AND received** messages analyzed immediately (lines 177-179)
+  - **Impact**:
+    - **INSTANT badges**: Red badges appear same time as messages (0ms additional delay)
+    - **100% coverage**: All messages analyzed immediately (sent + received)
+    - **Zero wait time**: No delay between message display and priority detection
+    - **Cache-first**: Existing priorities load instantly from Firestore cache
+  - **Architecture**:
+    - **Message send**: SQLite → Firestore → **Immediate priority analysis** → Cache
+    - **Message receive**: Firestore listener → **Immediate priority analysis** → Cache
+    - **Chat open**: Load messages + **Load cached priorities instantly**
+  - **Cost Control**: Same rate limits (200/hour), 10-message analysis, 6hr cache TTL
+  - **Files Modified**:
+    - `app/chat/[chatId].js` - Removed debounce, added immediate triggers (~20 lines)
+    - `services/messageService.js` - Integrated priority analysis into send flow (~15 lines)
+  - **Documentation**: Updated `activeContext.md` with instant priority architecture
+  - **Status**: ✅ Complete, ready for testing
 - October 24, 2025: **Automatic Priority Recalculation - COMPLETE** 🚀✅
   - **Enhancement**: Chat priority order now automatically updates on app open and message receipt
   - **Implementation** (`app/(tabs)/index.js`):

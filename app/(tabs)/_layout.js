@@ -50,7 +50,7 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="summary"
+        name="index"
         options={{
           title: 'AI Summary',
           tabBarLabel: 'Summary',
@@ -68,7 +68,7 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="index"
+        name="summary"
         options={{
           title: 'Messages',
           tabBarLabel: 'Chats',

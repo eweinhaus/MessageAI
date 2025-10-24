@@ -19,6 +19,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import Icon from './Icon';
 import colors from '../constants/colors';
 
 /**
@@ -94,7 +95,7 @@ export default function SummaryModal({
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.errorContainer}>
-              <Text style={styles.errorIcon}>⚠️</Text>
+              <Icon name="warning" size={48} color={colors.text} />
               <Text style={styles.errorText}>{error}</Text>
               <TouchableOpacity
                 style={styles.closeButton}
@@ -311,13 +312,13 @@ export default function SummaryModal({
                       <View style={styles.actionMetaContainer}>
                         {assignee && (
                           <View style={styles.actionMeta}>
-                            <Text style={styles.actionMetaIcon}>👤</Text>
+                            <Icon name="person" size="small" color={colors.mediumGray} />
                             <Text style={styles.actionMetaText}>{String(assignee)}</Text>
                           </View>
                         )}
-                        {deadline && (
+                        {deadline && deadline !== "null" && (
                           <View style={styles.actionMeta}>
-                            <Text style={styles.actionMetaIcon}>📅</Text>
+                            <Icon name="calendar" size="small" color={colors.mediumGray} />
                             <Text style={styles.actionMetaText}>{String(deadline)}</Text>
                           </View>
                         )}
@@ -354,7 +355,9 @@ export default function SummaryModal({
                   accessibilityRole="button"
                 >
                   <Text style={styles.quickActionIcon}>→</Text>
-                  <Text style={styles.quickActionText}>View</Text>
+                  <Text style={styles.quickActionText}>
+                    View
+                  </Text>
                 </TouchableOpacity>
               )}
             </View>

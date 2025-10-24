@@ -27,9 +27,11 @@ For each action item, identify:
 - **Deadline**: Date/time if mentioned (null otherwise)
 - **Type**: "commitment" | "question" | "task" | "decision"
 - **Priority**: "high" | "medium" | "low" based on urgency indicators
-- **Source Message ID**: The message where this item appears
+- **Source Message ID**: REQUIRED - The exact message ID where this item appears (never null)
 - **Context**: Brief surrounding context (1 sentence)
 - **Is Decision**: true if this represents an agreed-upon choice or resolution
+
+CRITICAL: Every action item MUST have a valid sourceMessageId. This is required for users to view the original context.
 
 Respond with JSON in this exact format:
 {
@@ -40,7 +42,7 @@ Respond with JSON in this exact format:
       "deadline": "ISO date string or descriptive text like 'EOD today', or null",
       "type": "commitment" | "question" | "task" | "decision",
       "priority": "high" | "medium" | "low",
-      "sourceMessageId": "string",
+      "sourceMessageId": "REQUIRED - exact message ID (never null or empty)",
       "context": "Brief surrounding context",
       "isDecision": true | false
     }

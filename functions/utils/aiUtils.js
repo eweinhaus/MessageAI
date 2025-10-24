@@ -290,13 +290,20 @@ async function validateChatAccess(userId, chatId) {
 
     const chatData = chatDoc.data();
 
-    // Check if user is a participant
-    if (!chatData.participantIDs ||
-        !Array.isArray(chatData.participantIDs)) {
-      throw new ValidationError(`Chat ${chatId} has invalid participant data`);
+    // Check if user is a participant (1:1 chats) or member (group chats)
+    let hasAccess = false;
+
+    // Check 1:1 chat participantIDs
+    if (chatData.participantIDs && Array.isArray(chatData.participantIDs)) {
+      hasAccess = chatData.participantIDs.includes(userId);
     }
 
-    if (!chatData.participantIDs.includes(userId)) {
+    // Check group chat memberIDs (if not already authorized)
+    if (!hasAccess && chatData.memberIDs && Array.isArray(chatData.memberIDs)) {
+      hasAccess = chatData.memberIDs.includes(userId);
+    }
+
+    if (!hasAccess) {
       throw new ValidationError(
           `User ${userId} does not have access to chat ${chatId}`,
       );

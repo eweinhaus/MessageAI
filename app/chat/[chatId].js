@@ -12,7 +12,6 @@ import useUserStore from '../../store/userStore';
 import MessageList from '../../components/MessageList';
 import MessageInput from '../../components/MessageInput';
 import ChatHeader from '../../components/ChatHeader';
-import AIInsightsPanel from '../../components/AIInsightsPanel';
 import SummaryModal from '../../components/SummaryModal';
 import ActionItemsModal from '../../components/ActionItemsModal';
 import SmartSearchModal from '../../components/SmartSearchModal';
@@ -24,39 +23,26 @@ import { PRIMARY_GREEN } from '../../constants/colors';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
 import ErrorToast from '../../components/ErrorToast';
 
-// Module-level debounce timers for background priority analysis
-const priorityDebounceTimers = {};
+// Note: No debounce timers needed - priority analysis is now immediate
 
 /**
- * Debounced background priority check
- * Waits 5 seconds after the last new message before analyzing
- * Only analyzes last 5 messages to minimize cost
+ * Immediate priority analysis - no delay, no debounce
+ * Analyzes last 10 messages immediately when triggered
  * @param {string} chatId - Chat ID to analyze
  */
-function debouncePriorityCheck(chatId) {
-  // Clear existing timer for this chat
-  if (priorityDebounceTimers[chatId]) {
-    clearTimeout(priorityDebounceTimers[chatId]);
+async function immediatePriorityAnalysis(chatId) {
+  try {
+    console.log(`[ChatDetail] Immediate priority analysis for chat ${chatId}`);
+    await analyzePriorities(chatId, {
+      messageCount: 10, // Analyze last 10 messages for better coverage
+      forceRefresh: true, // Always get fresh results to catch new messages
+    });
+    console.log(`[ChatDetail] Immediate priority analysis complete for ${chatId}`);
+  } catch (error) {
+    // Silently swallow errors (rate limits, network issues, etc.)
+    // Don't disrupt user experience with background operations
+    console.warn(`[ChatDetail] Priority analysis failed (silent):`, error);
   }
-
-  // Set new timer - analyze after 5 seconds of no new messages
-  priorityDebounceTimers[chatId] = setTimeout(async () => {
-    try {
-      console.log(`[ChatDetail] Background priority check for chat ${chatId}`);
-      await analyzePriorities(chatId, {
-        messageCount: 5, // Only analyze recent messages
-        forceRefresh: false, // Use cache when available
-      });
-      console.log(`[ChatDetail] Background priority check complete for ${chatId}`);
-    } catch (error) {
-      // Silently swallow errors (rate limits, network issues, etc.)
-      // Don't disrupt user experience with background operations
-      console.warn(`[ChatDetail] Background priority check failed (silent):`, error);
-    } finally {
-      // Clean up timer reference
-      delete priorityDebounceTimers[chatId];
-    }
-  }, 5000); // 5 second debounce
 }
 
 export default function ChatDetailScreen() {
@@ -130,7 +116,14 @@ export default function ChatDetailScreen() {
         setMessagesForChat(chatId, localMessages);
         setIsLoading(false);
 
-        // 2. Set up Firestore listener for real-time updates
+        // 2. Trigger priority analysis on chat open to ensure recent messages are analyzed
+        // This ensures red urgency badges appear for existing messages
+        if (localMessages.length > 0) {
+          console.log(`[ChatDetail] Chat opened with ${localMessages.length} messages, triggering immediate priority analysis`);
+          immediatePriorityAnalysis(chatId);
+        }
+
+        // 3. Set up Firestore listener for real-time updates
         console.log(`[ChatDetail] Setting up Firestore listener for chat ${chatId}`);
         const messagesRef = collection(db, `chats/${chatId}/messages`);
         const q = query(messagesRef, orderBy('timestamp', 'asc'));
@@ -178,11 +171,11 @@ export default function ChatDetailScreen() {
                   }
                 }
 
-                // BACKGROUND PRIORITY ANALYSIS (Task 3)
-                // Trigger automatic priority detection for new inbound messages
-                if (change.type === 'added' && normalized.senderID !== currentUser?.userID) {
-                  console.log(`[ChatDetail] New inbound message, triggering background priority check`);
-                  debouncePriorityCheck(chatId);
+                // IMMEDIATE PRIORITY ANALYSIS
+                // Trigger automatic priority detection for ALL new messages (sent or received)
+                if (change.type === 'added') {
+                  console.log(`[ChatDetail] New message detected, triggering immediate priority analysis`);
+                  immediatePriorityAnalysis(chatId);
                 }
 
                 // Write to SQLite (wrapped in try-catch to prevent crashes)
@@ -223,12 +216,6 @@ export default function ChatDetailScreen() {
     return () => {
       console.log(`[ChatDetail] Cleaning up listener for chat ${chatId}`);
       unregisterListener(listenerId);
-      
-      // Clear any pending priority check timers for this chat
-      if (priorityDebounceTimers[chatId]) {
-        clearTimeout(priorityDebounceTimers[chatId]);
-        delete priorityDebounceTimers[chatId];
-      }
     };
   }, [chatId, currentUser]);
 
@@ -533,15 +520,20 @@ export default function ChatDetailScreen() {
   const handleJumpToChatFromSummary = async (item) => {
     try {
       setShowSummaryModal(false);
-      
+
       // If item has messageId, attempt to scroll to it
       if (item.messageId || item.sourceMessageId) {
         const messageId = item.messageId || item.sourceMessageId;
         console.log('[ChatDetail] Jump to message:', messageId);
-        // Note: Scrolling to specific message requires MessageList ref exposure
-        // For now, just close modal and stay in chat
+
+        // Jump to the message in current chat
+        if (messageListRef.current) {
+          messageListRef.current.scrollToMessage(messageId);
+        } else {
+          setError({ type: 'info', message: 'Message not found' });
+        }
       }
-      
+
       // If from different chat, navigate
       if (item.chatId && item.chatId !== chatId) {
         router.push(`/chat/${item.chatId}`);
@@ -651,7 +643,7 @@ export default function ChatDetailScreen() {
           currentUserID={currentUser?.userID}
           onPress={handleHeaderPress}
           chatId={chatId}
-          showAIButton={true}
+          showAIButton={false}
           onAIPress={() => setShowAIPanel(true)}
           aiLoading={aiLoading}
         />
@@ -670,7 +662,7 @@ export default function ChatDetailScreen() {
               topInset={0}
               bottomInset={bottomInset}
               priorities={priorities}
-              initialMessageId={messageId} // Scroll to specific message if provided
+              initialMessageId={messageId} // Highlight specific message after scrolling to bottom
             />
             <MessageInput
               chatID={chatId}
@@ -681,17 +673,7 @@ export default function ChatDetailScreen() {
           </View>
         </KeyboardAvoidingView>
 
-        {/* AI Insights Panel */}
-        <AIInsightsPanel
-          visible={showAIPanel}
-          onClose={() => setShowAIPanel(false)}
-          onAnalyzePriorities={handleAnalyzePriorities}
-          onSummarizeThread={handleSummarizeThread}
-          onExtractActionItems={handleExtractActionItems}
-          onSmartSearch={handleSmartSearch}
-          onTrackDecisions={handleTrackDecisions}
-          loading={aiLoading}
-        />
+        {/* AI Insights Panel - REMOVED */}
 
         {/* Summary Modal */}
         <SummaryModal

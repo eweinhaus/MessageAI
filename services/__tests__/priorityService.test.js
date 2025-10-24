@@ -89,17 +89,58 @@ describe('priorityService', () => {
       expect(score2).toBeGreaterThan(score1);
     });
 
-    it('should clamp score to 0-100', () => {
+    it('should clamp score to -0.2 to 1.0 range', () => {
       const highValueChat = {
         unreadCount: 100,
-        hasMentions: true,
         lastMessageTimestamp: Date.now(),
         type: 'group',
+        lastMessageSenderID: 'other-user',
+        lastMessageText: 'This is a question?',
       };
-      
+
       const score = calculateLocalScore(highValueChat);
-      expect(score).toBeLessThanOrEqual(100);
-      expect(score).toBeGreaterThanOrEqual(0);
+      expect(score).toBeLessThanOrEqual(1.0);
+      expect(score).toBeGreaterThanOrEqual(-0.2);
+    });
+
+    it('should penalize chats where user sent last message', () => {
+      const currentUserId = 'user-123';
+      const chatWhereUserSentLast = {
+        unreadCount: 0,
+        lastMessageTimestamp: Date.now(),
+        lastMessageSenderID: currentUserId,
+      };
+      const chatWhereSomeoneElseSentLast = {
+        unreadCount: 0,
+        lastMessageTimestamp: Date.now(),
+        lastMessageSenderID: 'other-user',
+      };
+
+      const score1 = calculateLocalScore(chatWhereUserSentLast, currentUserId);
+      const score2 = calculateLocalScore(chatWhereSomeoneElseSentLast, currentUserId);
+
+      expect(score1).toBeLessThan(score2); // User's last message should be lower priority
+    });
+
+    it('should boost chats with unanswered questions from others', () => {
+      const currentUserId = 'user-123';
+      const chatWithQuestionFromOther = {
+        unreadCount: 0,
+        lastMessageTimestamp: Date.now(),
+        lastMessageSenderID: 'other-user',
+        lastMessageText: 'Can you help me with this?',
+      };
+      const chatWithQuestionFromUser = {
+        unreadCount: 0,
+        lastMessageTimestamp: Date.now(),
+        lastMessageSenderID: currentUserId,
+        lastMessageText: 'Can you help me with this?',
+      };
+
+      const score1 = calculateLocalScore(chatWithQuestionFromOther, currentUserId);
+      const score2 = calculateLocalScore(chatWithQuestionFromUser, currentUserId);
+
+      expect(score1).toBeGreaterThan(score2); // Question from other should get bonus
     });
   });
 
@@ -153,41 +194,35 @@ describe('priorityService', () => {
 
   describe('calculateFinalScore', () => {
     it('should return local score when no AI signals', () => {
-      expect(calculateFinalScore(60, null)).toBe(60);
+      expect(calculateFinalScore(0.6, null)).toBe(0.6);
     });
 
     it('should combine local and AI scores', () => {
-      const localScore = 50;
+      const localScore = 0.5;
       const aiSignals = {
-        highImportance: true,
-        unansweredQuestion: false,
-        mentionsDeadline: false,
-        requiresAction: false,
-        hasBlocker: false,
+        hasUrgent: true,
+        urgentCount: 1,
       };
-      
+
       const finalScore = calculateFinalScore(localScore, aiSignals);
       expect(finalScore).toBeGreaterThan(localScore);
-      expect(finalScore).toBeLessThanOrEqual(100);
+      expect(finalScore).toBeLessThanOrEqual(2.0);
     });
 
     it('should boost score with all AI signals', () => {
-      const localScore = 50;
+      const localScore = 0.5;
       const allSignals = {
-        highImportance: true,
-        unansweredQuestion: true,
-        mentionsDeadline: true,
-        requiresAction: true,
-        hasBlocker: true,
+        hasUrgent: true,
+        urgentCount: 3,
       };
-      
+
       const finalScore = calculateFinalScore(localScore, allSignals);
-      expect(finalScore).toBeGreaterThan(80); // Should be quite high
-      expect(finalScore).toBeLessThanOrEqual(100);
+      expect(finalScore).toBeGreaterThan(1.0); // Should be quite high
+      expect(finalScore).toBeLessThanOrEqual(2.0);
     });
 
-    it('should clamp final score to 0-100', () => {
-      const highLocal = 90;
+    it('should clamp final score to 0-2.0 range', () => {
+      const highLocal = 1.5;
       const allSignals = {
         highImportance: true,
         unansweredQuestion: true,
@@ -195,15 +230,16 @@ describe('priorityService', () => {
         requiresAction: true,
         hasBlocker: true,
       };
-      
+
       const finalScore = calculateFinalScore(highLocal, allSignals);
-      expect(finalScore).toBeLessThanOrEqual(100);
+      expect(finalScore).toBeLessThanOrEqual(2.0);
+      expect(finalScore).toBeGreaterThanOrEqual(0);
     });
   });
 
   describe('sanitizeAISignals', () => {
-    it('should return empty object for null', () => {
-      expect(sanitizeAISignals(null)).toEqual({});
+    it('should return default values for null', () => {
+      expect(sanitizeAISignals(null)).toEqual({hasUrgent: false, urgentCount: 0, totalAnalyzed: 0});
     });
 
     it('should filter out undefined values', () => {
@@ -233,16 +269,11 @@ describe('priorityService', () => {
   });
 
   describe('isUrgent', () => {
-    it('should return true for scores >= 80', () => {
-      expect(isUrgent(80)).toBe(true);
-      expect(isUrgent(90)).toBe(true);
-      expect(isUrgent(100)).toBe(true);
-    });
-
-    it('should return false for scores < 80', () => {
-      expect(isUrgent(79)).toBe(false);
-      expect(isUrgent(50)).toBe(false);
-      expect(isUrgent(0)).toBe(false);
+    it('should return true for urgent AI signals', () => {
+      expect(isUrgent({ hasUrgent: true })).toBe(true);
+      expect(isUrgent({ hasUrgent: false })).toBe(false);
+      expect(isUrgent(null)).toBe(false);
+      expect(isUrgent({})).toBe(false);
     });
   });
 });

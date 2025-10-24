@@ -472,11 +472,10 @@
   - [ ] Tap to navigate to that message in chat
 - [ ] Add search button to home screen
   - [ ] Header button to open search screen
-- [ ] Implement jump-to-message in chat
-  - [ ] When navigating from search result:
-    - [ ] Load chat
-    - [ ] Scroll to specific message
-    - [ ] Highlight message briefly
+- [x] Implement jump-to-message in chat
+  - [x] When navigating from search result:
+    - [x] Load chat (scrolls to recent messages)
+    - [x] Highlight specific message briefly
 - [ ] Add search filters (optional)
   - [ ] Filter by chat
   - [ ] Filter by sender

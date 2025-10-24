@@ -38,11 +38,22 @@ export default function GlobalActionItemsScreen() {
   
   // Handler to navigate to chat with specific message
   const handleViewContext = (item) => {
-    if (item.chatId && item.sourceMessageId) {
-      router.push({
-        pathname: `/chat/${item.chatId}`,
-        params: { messageId: item.sourceMessageId }
-      });
+    if (item.chatId) {
+      if (item.sourceMessageId) {
+        console.log('[Action Items] Navigating to chat:', item.chatId, 'message:', item.sourceMessageId);
+        router.push({
+          pathname: `/chat/${item.chatId}`,
+          params: { messageId: item.sourceMessageId }
+        });
+      } else {
+        console.log('[Action Items] Navigating to chat without specific message:', item.chatId);
+        router.push({
+          pathname: `/chat/${item.chatId}`
+        });
+      }
+    } else {
+      console.warn('[Action Items] Missing chatId:', item);
+      setError('Unable to view context - missing chat information');
     }
   };
   
@@ -163,6 +174,16 @@ export default function GlobalActionItemsScreen() {
               completedAt: data.completedAt?.toMillis?.() || data.completedAt || null,
               deadline: data.deadline?.toMillis?.() || data.deadline || null,
             });
+
+            // Log warning for items missing sourceMessageId for debugging
+            if (!data.sourceMessageId) {
+              console.warn('[Action Items] Item missing sourceMessageId:', {
+                id: doc.id,
+                task: data.task,
+                chatId: data.chatId,
+                createdAt: data.createdAt,
+              });
+            }
           });
 
           console.log(`[Global Action Items] Fetched ${items.length} action items`);

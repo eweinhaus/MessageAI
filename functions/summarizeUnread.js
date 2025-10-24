@@ -191,6 +191,80 @@ async function generateSummaryForChat(chatId, unreadMessages, chatName, currentU
     chatName,
   }));
 
+  // Store action items and decisions in Firestore for global Tasks tab
+  const allItemsToStore = [...actionItems, ...decisions];
+  if (allItemsToStore.length > 0) {
+    console.log(`[summarizeUnread] Storing ${allItemsToStore.length} items (${actionItems.length} action items, ${decisions.length} decisions) for chat ${chatId}`);
+
+    const db = admin.firestore();
+    const actionItemsCollection = db.collection("chats").doc(chatId).collection("actionItems");
+
+    // Process in batches (Firestore batch limit: 500 operations)
+    const batchSize = 450;
+    const batches = [];
+
+    for (let i = 0; i < allItemsToStore.length; i += batchSize) {
+      const batch = db.batch();
+      const itemsInBatch = allItemsToStore.slice(i, i + batchSize);
+
+      itemsInBatch.forEach((item, index) => {
+        const docRef = actionItemsCollection.doc();
+
+        // Determine if this is a decision or action item
+        const isDecision = decisions.some((d) =>
+          (d.task === item.task && d.text === item.text) ||
+          (d.text === item.text && d.task === item.task),
+        );
+
+        // Find the source message for this item (best effort matching)
+        const sourceMessage = unreadMessages.find((msg) =>
+          msg.text?.includes((item.task || item.text)?.substring(0, 50)) ||
+          (item.task || item.text)?.includes(msg.text?.substring(0, 50)),
+        );
+
+        // Skip items without sourceMessageId (can't link to context)
+        if (!sourceMessage?.messageID) {
+          console.warn(`[summarizeUnread] Skipping action item without source message: ${item.task || item.text}`);
+          return;
+        }
+
+        const dataToWrite = {
+          task: item.task || item.text || (isDecision ? "Decision made" : "Action item"),
+          type: isDecision ? "decision" : "task", // Use decision type for decisions
+          priority: "medium", // Default priority since summary doesn't specify
+          sourceMessageId: sourceMessage.messageID, // Now guaranteed to exist
+          context: item.context || "",
+          status: "pending",
+          // Required for global collection queries
+          userId: currentUserId,
+          chatId: chatId,
+          // Decision tracking
+          isDecision: isDecision,
+          // Timestamps
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          completedAt: null,
+        };
+
+        // Only add optional fields if they exist
+        if (item.assignee) dataToWrite.assignee = item.assignee;
+        if (item.deadline) dataToWrite.deadline = item.deadline;
+
+        batch.set(docRef, dataToWrite);
+      });
+
+      batches.push(batch.commit());
+    }
+
+    // Execute all batches
+    try {
+      await Promise.all(batches);
+      console.log(`[summarizeUnread] Successfully stored ${allItemsToStore.length} items for chat ${chatId}`);
+    } catch (error) {
+      console.error(`[summarizeUnread] Error storing items for chat ${chatId}:`, error);
+      // Don't fail the entire summary if storage fails
+    }
+  }
+
   return {
     chatId,
     chatName,

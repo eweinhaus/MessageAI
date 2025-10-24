@@ -5,7 +5,7 @@
 ### Frontend / Mobile Client
 
 #### React Native + Expo
-- **Version**: Latest stable Expo SDK
+- **Version**: Expo SDK ~54.0.13, React Native 0.81.4, React 19.1.0
 - **Why**: Cross-platform (iOS/Android), fast development, hot reload
 - **Development Tool**: Expo Go for testing
 - **Production**: EAS Build for final builds
@@ -51,7 +51,8 @@
 ### Backend / Cloud Services
 
 #### Firebase Authentication
-- **Method**: Google Sign-In
+- **Method**: Email/Password (primary), Google OAuth (deferred to Phase 2)
+- **Version**: Firebase v12.4.0
 - **Features**:
   - OAuth 2.0 authentication
   - Session management
@@ -340,16 +341,17 @@ firebase functions:log
 ### Core Dependencies (MVP)
 ```json
 {
-  "expo": "~XX.0.0",
-  "react": "XX.X.X",
-  "react-native": "XX.X.X",
-  "expo-router": "~X.X.X",
-  "firebase": "^10.X.X",
-  "expo-sqlite": "~XX.X.X",
-  "zustand": "^4.X.X",
-  "expo-notifications": "~XX.X.X",
-  "@react-native-community/netinfo": "^11.X.X",
-  "react-native-uuid": "^2.X.X"
+  "expo": "~54.0.13",
+  "react": "19.1.0",
+  "react-native": "0.81.4",
+  "expo-router": "~6.0.12",
+  "firebase": "^12.4.0",
+  "expo-sqlite": "~16.0.8",
+  "zustand": "^5.0.8",
+  "expo-notifications": "~0.32.12",
+  "@react-native-community/netinfo": "^11.4.1",
+  "react-native-uuid": "^2.0.3",
+  "@react-native-async-storage/async-storage": "^1.24.0"
 }
 ```
 
@@ -365,9 +367,15 @@ firebase functions:log
 ```json
 {
   "firebase-functions": "^4.X.X",
-  "firebase-admin": "^12.X.X"
+  "firebase-admin": "^13.5.0"
 }
 ```
+
+### AI Services (Phase 2)
+- **OpenAI Integration**: GPT-4o-mini for fast, cost-effective responses
+- **Langchain**: Orchestration framework for AI pipelines
+- **Caching**: Firestore-based with 24hr TTL and statistics
+- **Rate Limiting**: User-based (200 calls/hour for priority, 100/hour for summaries)
 
 ### Phase 2 Dependencies (AI)
 ```json
@@ -382,20 +390,21 @@ firebase functions:log
 ## Known Issues & Limitations
 
 ### Current Limitations (By Design)
-1. **Foreground notifications only** - Background requires native config (Phase 2)
-2. **Text-only messages** - No media support yet
-3. **No message editing/deletion** - Deferred to Phase 2
-4. **No typing indicators** - Adds complexity
-5. **Initial-based avatars** - No profile pictures yet
-6. **Firestore forbids undefined values** - Always normalize/sanitize objects before writes (conditional assignments or JSON stringify/parse) to avoid errors.
-7. **AI cache envelope** - Use `{ type, result, metadata }` for AI caches; for user-scoped caches, use `userId` as the key and access data via `cached.result.*`.
+1. **Text-only messages** - No media support yet (Phase 2)
+2. **No message editing/deletion** - Deferred to Phase 2
+3. **Initial-based avatars** - No profile pictures yet (Phase 2)
+4. **Firestore forbids undefined values** - Always normalize/sanitize objects before writes (conditional assignments or JSON stringify/parse) to avoid errors.
+5. **AI cache envelope** - Use `{ type, result, metadata }` for AI caches; for user-scoped caches, use `userId` as the key and access data via `cached.result.*`.
 
-### Recently Completed (October 21, 2025)
-1. ✅ **Foreground push notifications** - Working with dual token support
-2. ✅ **Online/offline presence** - Heartbeat + staleness detection
-3. ✅ **Read receipts** - Viewability-based tracking
-4. ✅ **Delivery status** - Full message lifecycle tracking
-5. ✅ **Offline queue** - Automatic retry with exponential backoff
+### Recently Completed (October 24, 2025)
+1. ✅ **Foreground push notifications** - Working with dual token support (Expo + FCM)
+2. ✅ **Typing indicators** - Real-time with throttling and auto-cleanup
+3. ✅ **Online/offline presence** - Heartbeat + staleness detection (8s/20s)
+4. ✅ **Read receipts** - Viewability-based tracking with debouncing
+5. ✅ **Delivery status** - Full message lifecycle tracking
+6. ✅ **AI features** - All 5 core features implemented and deployed
+7. ✅ **Global AI architecture** - Cross-chat analysis and priority scoring
+8. ✅ **Offline queue** - Automatic retry with exponential backoff
 
 ### Common Issues (To Watch For)
 1. **SQLite initialization timing** - Must complete before first read
