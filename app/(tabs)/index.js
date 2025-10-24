@@ -31,6 +31,32 @@ import {
   normalizeTimestamp,
 } from '../../services/priorityService';
 
+/**
+ * Calculate unread count for a chat
+ * Counts messages where readBy array doesn't include current user
+ * @param {string} chatId - Chat ID
+ * @param {string} currentUserId - Current user ID
+ * @return {Promise<number>} Unread count
+ */
+async function calculateUnreadCount(chatId, currentUserId) {
+  try {
+    const messages = await getMessagesForChat(chatId, 100);
+    if (!messages || messages.length === 0) return 0;
+    
+    // Count messages not read by current user
+    // Note: readBy is already parsed as an array by getMessagesForChat()
+    const unreadCount = messages.filter((msg) => {
+      const readBy = Array.isArray(msg.readBy) ? msg.readBy : [];
+      return !readBy.includes(currentUserId) && msg.senderID !== currentUserId;
+    }).length;
+    
+    return unreadCount;
+  } catch (error) {
+    console.error(`[HomeScreen] Error calculating unread count for ${chatId}:`, error);
+    return 0;
+  }
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const { currentUser } = useUserStore();
@@ -191,22 +217,32 @@ export default function HomeScreen() {
 
     async function sortChatsWithPriority() {
       try {
-        // Step 1: Calculate local scores for all chats (instant)
-        const chatsWithLocalScores = chats.map((chat) => {
-          const localScore = calculateLocalScore(chat);
-          const unreadCount = chat.unreadCount || 0;
-          
-          return {
-            ...chat,
-            localScore,
-            priorityScore: localScore, // Default to local score
-            isUnread: unreadCount > 0,
-            isUrgent: false,
-          };
-        });
+        // Step 1: Calculate unread counts and local scores for all chats
+        const chatsWithScores = await Promise.all(
+          chats.map(async (chat) => {
+            // Calculate unread count from messages
+            const unreadCount = await calculateUnreadCount(
+              chat.chatID,
+              currentUser.userID
+            );
+            
+            // Calculate local score (now with accurate unread count)
+            const chatWithUnread = {...chat, unreadCount};
+            const localScore = calculateLocalScore(chatWithUnread);
+            
+            return {
+              ...chat,
+              unreadCount,
+              localScore,
+              priorityScore: localScore, // Default to local score
+              isUnread: unreadCount > 0,
+              isUrgent: false,
+            };
+          })
+        );
 
         // Step 2: Sort by local score as baseline (instant feedback)
-        const baselineSorted = [...chatsWithLocalScores].sort((a, b) => {
+        const baselineSorted = [...chatsWithScores].sort((a, b) => {
           // Primary: priority score
           if (b.localScore !== a.localScore) {
             return b.localScore - a.localScore;
@@ -227,7 +263,7 @@ export default function HomeScreen() {
         }
 
         // Step 3: Determine which chats need AI analysis
-        const candidates = chatsWithLocalScores.filter((chat) => 
+        const candidates = chatsWithScores.filter((chat) => 
           shouldRunAI({
             localScore: chat.localScore,
             unreadCount: chat.unreadCount || 0,
@@ -310,7 +346,7 @@ export default function HomeScreen() {
                 ...chat,
                 priorityScore: finalScore,
                 aiSignals: sanitized,
-                isUrgent: isUrgent(finalScore),
+                isUrgent: isUrgent(sanitized),
               };
             }
             

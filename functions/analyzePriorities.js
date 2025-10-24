@@ -379,6 +379,19 @@ async function processBatchPriorities(
     );
   }
 
+  // Rate limiting check for batch operations
+  try {
+    await checkRateLimit(userId, "priority");
+  } catch (error) {
+    logger.warn(
+        `[Priority] Rate limit exceeded for user ${userId} (batch mode)`,
+    );
+    throw new HttpsError(
+        "resource-exhausted",
+        error.message || "Rate limit exceeded. Please try again later.",
+    );
+  }
+
   // Process each chat in parallel
   const results = await Promise.all(
       limitedChats.map(async (chat) => {

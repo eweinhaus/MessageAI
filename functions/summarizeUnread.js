@@ -13,6 +13,7 @@
 const functions = require("firebase-functions/v2");
 const {onCall} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const pLimit = require("p-limit");
 const {
   checkRateLimit,
   incrementRateLimit,
@@ -23,107 +24,169 @@ const {
   getOpenAIClient,
 } = require("./utils/aiUtils");
 const {handleAIError} = require("./utils/errors");
-const {SUMMARIZATION_SYSTEM_PROMPT} = require("./prompts/threadSummarization");
+const {
+  UNREAD_SUMMARIZATION_SYSTEM_PROMPT,
+} = require("./prompts/threadSummarization");
 
 /**
- * Generate summary for a single chat (extracted from summarizeThread logic)
+ * Build message context with [UNREAD], [READ], [SELF] markers
+ * @param {Array} contextMessages - All messages (with context)
+ * @param {Set} unreadIds - Set of unread message IDs
+ * @param {string} currentUserId - Current user ID
+ * @return {string} Formatted context with markers
+ */
+function buildUnreadMarkedContext(contextMessages, unreadIds, currentUserId) {
+  return contextMessages.map((m) => {
+    const ts = m.timestamp?.toMillis ? m.timestamp.toMillis() :
+      (typeof m.timestamp === "number" ? m.timestamp : null);
+    const timeStr = ts ?
+      new Date(ts).toLocaleTimeString("en-US", {hour: "2-digit", minute: "2-digit"}) :
+      "--:--";
+    const isSelf = m.senderID === currentUserId;
+    const isUnread = unreadIds.has(m.messageID);
+    const marker = isUnread ? "[UNREAD]" : "[READ]";
+    const selfTag = isSelf ? " [SELF]" : "";
+    const sender = m.senderName || m.senderEmail || "Unknown";
+    const text = m.text || m.message || "";
+    return `${marker}${selfTag} [${timeStr}] ${sender}: ${text}`;
+  }).join("\n");
+}
+
+/**
+ * Generate summary for a single chat with hybrid context approach
  * @param {string} chatId - Chat ID
- * @param {Array} messages - Array of message objects
+ * @param {Array} unreadMessages - Array of unread message objects
  * @param {string} chatName - Chat display name
- * @param {string} currentUserId - Current user ID to filter out their messages
+ * @param {string} currentUserId - Current user ID
  * @param {string} currentUserName - Current user name for context
+ * @param {string} mode - "fast" (unread only) or "rich" (context included)
  * @return {Promise<Object>} Summary with keyPoints, decisions, actionItems, etc.
  */
-async function generateSummaryForChat(chatId, messages, chatName, currentUserId, currentUserName) {
-  console.log(`[summarizeUnread] Generating summary for chat ${chatId} (${messages.length} messages)`);
+async function generateSummaryForChat(chatId, unreadMessages, chatName, currentUserId, currentUserName, mode = "rich") {
+  console.log(`[summarizeUnread] Generating ${mode} summary for chat ${chatId} (${unreadMessages.length} unread messages)`);
 
-  // Filter out messages sent by current user (don't summarize what they sent)
-  const incomingMessages = messages.filter((msg) => msg.senderID !== currentUserId);
+  const unreadIds = new Set(unreadMessages.map((m) => m.messageID).filter(Boolean));
 
-  console.log(`[summarizeUnread] Filtered to ${incomingMessages.length} incoming messages (excluding ${currentUserName}'s sent messages)`);
+  // Normalize entry helper
+  const normalizeEntry = (entry, fallbackKey) => {
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      return {...entry};
+    }
+    if (entry === undefined || entry === null) {
+      return {[fallbackKey]: ""};
+    }
+    return {[fallbackKey]: String(entry)};
+  };
 
-  // If no incoming messages, return empty summary
-  if (incomingMessages.length === 0) {
-    console.log(`[summarizeUnread] No incoming messages in ${chatId}, skipping summary`);
-    return null;
+  // Ensure at least one key point fallback
+  const ensureKeyPoint = (summary) => {
+    if (!Array.isArray(summary.keyPoints) || summary.keyPoints.length === 0) {
+      const lastUnread = unreadMessages[unreadMessages.length - 1];
+      const fallback = lastUnread?.text ?
+        `${lastUnread.senderName || "Someone"}: ${lastUnread.text.slice(0, 140)}` :
+        "New activity in this chat";
+      summary.keyPoints = [{text: fallback, chatName}];
+    }
+  };
+
+  let contextText;
+  let systemPrompt;
+
+  // FAST MODE: Unread only with enhanced prompt
+  if (mode === "fast") {
+    const contextData = buildMessageContext(unreadMessages, {format: "detailed", maxMessages: 30});
+    contextText = contextData.text;
+    systemPrompt = UNREAD_SUMMARIZATION_SYSTEM_PROMPT;
+  } else {
+    // RICH MODE: Unread + up to 6 preceding messages for context
+    try {
+      // Get first unread message's timestamp (safety check for empty array)
+      if (unreadMessages.length === 0) {
+        console.log(`[summarizeUnread] No unread messages for ${chatId}, skipping`);
+        return null;
+      }
+
+      const firstUnreadTimestamp = unreadMessages[0].timestamp;
+      console.log(`[summarizeUnread] First unread at ${firstUnreadTimestamp?.toMillis?.() || firstUnreadTimestamp}`);
+
+      // Fetch up to 6 messages that came BEFORE the first unread
+      const db = admin.firestore();
+      const messagesRef = db.collection("chats").doc(chatId).collection("messages");
+
+      const previousMessagesQuery = messagesRef
+          .where("timestamp", "<", firstUnreadTimestamp)
+          .orderBy("timestamp", "desc")
+          .limit(6);
+
+      const previousSnap = await previousMessagesQuery.get();
+
+      // Reverse to get chronological order (oldest first)
+      const previousMessages = previousSnap.docs
+          .map((doc) => ({messageID: doc.id, ...doc.data()}))
+          .reverse();
+
+      console.log(`[summarizeUnread] Fetched ${previousMessages.length} previous messages for context`);
+
+      // Combine: previous (read) + unread (chronological order)
+      const contextMessages = [...previousMessages, ...unreadMessages];
+
+      // Build marked context
+      contextText = buildUnreadMarkedContext(contextMessages, unreadIds, currentUserId);
+      systemPrompt = UNREAD_SUMMARIZATION_SYSTEM_PROMPT;
+    } catch (error) {
+      console.warn(`[summarizeUnread] Failed to fetch context for ${chatId}, falling back to unread only:`, error.message);
+      // Fallback to fast mode
+      const contextData = buildMessageContext(unreadMessages, {format: "detailed", maxMessages: 30});
+      contextText = contextData.text;
+      systemPrompt = UNREAD_SUMMARIZATION_SYSTEM_PROMPT;
+    }
   }
 
-  // Build context (reuse from summarizeThread)
-  const contextData = buildMessageContext(incomingMessages, {format: "detailed"});
-
-  console.log(`[summarizeUnread] Context built for ${chatId}:`, {
-    messageCount: contextData.messageCount,
-    estimatedTokens: contextData.estimatedTokens,
-  });
+  console.log(`[summarizeUnread] Context ready for ${chatId}, estimated tokens: ${Math.ceil(contextText.length / 4)}`);
 
   // Call OpenAI
   const openai = getOpenAIClient();
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
-      {role: "system", content: SUMMARIZATION_SYSTEM_PROMPT},
-      {role: "user", content: contextData.text},
+      {role: "system", content: systemPrompt},
+      {role: "user", content: contextText},
     ],
-    temperature: 0.3,
-    max_tokens: 1500, // Slightly lower for individual chat summaries
+    temperature: 0.2, // Lower for more consistency
+    max_tokens: mode === "fast" ? 1200 : 1500,
     response_format: {type: "json_object"},
   });
 
-  console.log(`[summarizeUnread] OpenAI response received for ${chatId}:`, {
+  console.log(`[summarizeUnread] OpenAI response for ${chatId}:`, {
     finishReason: completion.choices?.[0]?.finish_reason,
     totalTokens: completion.usage?.total_tokens,
   });
 
   // Parse response
-  const summaryText = completion.choices[0].message.content;
-  let summary;
-
+  let summary = {};
   try {
-    summary = JSON.parse(summaryText);
+    summary = JSON.parse(completion.choices[0].message.content || "{}");
   } catch (parseError) {
-    console.error(`[summarizeUnread] Failed to parse response for ${chatId}:`, parseError.message);
-    throw new Error("Failed to parse AI response as JSON");
+    console.error(`[summarizeUnread] Parse error for ${chatId}:`, parseError.message);
+    summary = {keyPoints: [], decisions: [], actionItems: [], summary: `New updates in ${chatName}`};
   }
 
-  // Validate and set defaults
-  if (!summary.keyPoints || !Array.isArray(summary.keyPoints)) {
-    summary.keyPoints = [];
-  }
-  if (!summary.decisions || !Array.isArray(summary.decisions)) {
-    summary.decisions = [];
-  }
-  if (!summary.actionItems || !Array.isArray(summary.actionItems)) {
-    summary.actionItems = [];
-  }
-  if (!summary.summary || typeof summary.summary !== "string") {
-    summary.summary = "No summary available.";
-  }
+  // Ensure at least one key point
+  ensureKeyPoint(summary);
 
-  const normalizeEntry = (entry, fallbackKey) => {
-    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
-      return {...entry};
-    }
-
-    if (entry === undefined || entry === null) {
-      return {[fallbackKey]: ""};
-    }
-
-    return {[fallbackKey]: String(entry)};
-  };
-
-  // Add chat context to each item and normalize structure
-  summary.keyPoints = summary.keyPoints.map((point) => ({
-    ...normalizeEntry(point, "text"),
+  // Validate and normalize structure
+  const keyPoints = (summary.keyPoints || []).map((p) => ({
+    ...normalizeEntry(p, "text"),
     chatId,
     chatName,
   }));
-  summary.decisions = summary.decisions.map((decision) => ({
-    ...normalizeEntry(decision, "text"),
+  const decisions = (summary.decisions || []).map((d) => ({
+    ...normalizeEntry(d, "text"),
     chatId,
     chatName,
   }));
-  summary.actionItems = summary.actionItems.map((item) => ({
-    ...normalizeEntry(item, "task"),
+  const actionItems = (summary.actionItems || []).map((a) => ({
+    ...normalizeEntry(a, "task"),
     chatId,
     chatName,
   }));
@@ -131,11 +194,11 @@ async function generateSummaryForChat(chatId, messages, chatName, currentUserId,
   return {
     chatId,
     chatName,
-    summary: summary.summary,
-    keyPoints: summary.keyPoints,
-    decisions: summary.decisions,
-    actionItems: summary.actionItems,
-    messageCount: messages.length,
+    summary: typeof summary.summary === "string" ? summary.summary : `New updates in ${chatName}`,
+    keyPoints,
+    decisions,
+    actionItems,
+    messageCount: unreadMessages.length,
   };
 }
 
@@ -202,11 +265,12 @@ function mergeSummaries(chatSummaries) {
 exports.summarizeUnread = onCall(async (request) => {
   const startTime = Date.now();
 
-  const {forceRefresh = false} = request.data || {};
+  const {forceRefresh = false, mode = "rich"} = request.data || {};
   const userId = request.auth?.uid;
 
   console.log("[summarizeUnread] Function invoked", {
     forceRefresh,
+    mode,
     userId,
     hasAuth: !!request.auth,
   });
@@ -382,27 +446,36 @@ exports.summarizeUnread = onCall(async (request) => {
       return chat.participantNames?.[otherIndex] || "Unknown";
     };
 
-    // 8. Summarize each chat with unread messages
+    // 8. Summarize each chat with unread messages (parallelized)
     console.log("[summarizeUnread] Generating summaries for each chat");
+    const limit = pLimit(8); // Process up to 8 chats in parallel
     const chatSummaries = [];
 
-    for (const chat of allChats) {
-      const chatId = chat.chatID;
-      if (unreadByChat[chatId]) {
-        const chatName = getChatName(chat);
-        const summary = await generateSummaryForChat(
-            chatId,
-            unreadByChat[chatId],
-            chatName,
-            userId,
-            currentUserName,
-        );
-        // Only include non-null summaries (skip if all messages were from current user)
-        if (summary) {
-          chatSummaries.push(summary);
-        }
-      }
-    }
+    const summaryPromises = allChats
+        .filter((chat) => unreadByChat[chat.chatID])
+        .map((chat) => limit(async () => {
+          const chatId = chat.chatID;
+          const chatName = getChatName(chat);
+          try {
+            const summary = await generateSummaryForChat(
+                chatId,
+                unreadByChat[chatId],
+                chatName,
+                userId,
+                currentUserName,
+                mode,
+            );
+            return summary;
+          } catch (error) {
+            console.error(`[summarizeUnread] Error summarizing ${chatId}:`, error.message);
+            return null;
+          }
+        }));
+
+    const results = await Promise.all(summaryPromises);
+
+    // Filter out null results
+    chatSummaries.push(...results.filter((s) => s !== null));
 
     console.log(`[summarizeUnread] Generated ${chatSummaries.length} chat summaries`);
 

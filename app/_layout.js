@@ -72,6 +72,12 @@ export default function RootLayout() {
       clearAllData().catch(err => console.error('[App] Error clearing SQLite:', err));
       setChats([]);
       useMessageStore.getState().clearMessages();
+      
+      // Clear global summary modal state on logout
+      setGlobalSummary(null);
+      setShowGlobalSummaryModal(false);
+      lastSummaryCheck.current = 0;
+      
       return;
     }
     
@@ -179,33 +185,38 @@ export default function RootLayout() {
           await processPendingMessages();
           
           // 4. Check for unread messages and show global summary (throttled)
-          const now = Date.now();
-          const timeSinceLastCheck = now - lastSummaryCheck.current;
-          const MIN_CHECK_INTERVAL = 60000; // 1 minute throttle
-          
-          if (timeSinceLastCheck > MIN_CHECK_INTERVAL) {
-            lastSummaryCheck.current = now;
-            lifecycleLog('Checking for unread messages...');
-            
-            // Import dynamically to avoid circular dependency
-            const { summarizeUnreadGlobal } = require('../services/aiService');
-            
-            try {
-              const result = await summarizeUnreadGlobal(false);
-              
-              if (result.success && result.data?.hasUnread) {
-                lifecycleLog('Found unread messages, showing global summary modal');
-                setGlobalSummary(result.data);
-                setShowGlobalSummaryModal(true);
-              } else {
-                lifecycleLog('No unread messages found');
-              }
-            } catch (error) {
-              // Silent fail - don't bother user with AI errors on app open
-              lifecycleLog('Error fetching global summary', error);
-            }
+          // Only check if user is still authenticated
+          if (!currentUser) {
+            lifecycleLog('Skipping summary check (user not authenticated)');
           } else {
-            lifecycleLog(`Skipping summary check (throttled, ${Math.round(timeSinceLastCheck/1000)}s since last check)`);
+            const now = Date.now();
+            const timeSinceLastCheck = now - lastSummaryCheck.current;
+            const MIN_CHECK_INTERVAL = 60000; // 1 minute throttle
+            
+            if (timeSinceLastCheck > MIN_CHECK_INTERVAL) {
+              lastSummaryCheck.current = now;
+              lifecycleLog('Checking for unread messages...');
+              
+              // Import dynamically to avoid circular dependency
+              const { summarizeUnreadGlobal } = require('../services/aiService');
+              
+              try {
+                const result = await summarizeUnreadGlobal(false);
+                
+                if (result.success && result.data?.hasUnread) {
+                  lifecycleLog('Found unread messages, showing global summary modal');
+                  setGlobalSummary(result.data);
+                  setShowGlobalSummaryModal(true);
+                } else {
+                  lifecycleLog('No unread messages found');
+                }
+              } catch (error) {
+                // Silent fail - don't bother user with AI errors on app open
+                lifecycleLog('Error fetching global summary', error);
+              }
+            } else {
+              lifecycleLog(`Skipping summary check (throttled, ${Math.round(timeSinceLastCheck/1000)}s since last check)`);
+            }
           }
           
           lifecycleLog('Foreground operations complete');

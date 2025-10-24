@@ -182,16 +182,23 @@ export async function summarizeThread(chatId, options = {}) {
 /**
  * Summarize all unread messages across all chats (global summary)
  *
- * @param {boolean} [forceRefresh=false] - Skip cache and force fresh summary
+ * @param {Object} options - Options
+ * @param {boolean} [options.forceRefresh=false] - Skip cache and force fresh summary
+ * @param {string} [options.mode="auto"] - Summary mode: "fast", "rich", or "auto" (progressive)
  * @return {Promise<Object>} Result with global summary data
  *
  * @example
- * const result = await summarizeUnreadGlobal();
+ * // Auto mode (progressive fast → rich)
+ * const result = await summarizeUnreadGlobal({mode: "auto"});
  * if (result.success && result.data.hasUnread) {
  *   console.log(result.data.summary);
  * }
+ *
+ * @example
+ * // Direct rich mode
+ * const result = await summarizeUnreadGlobal({mode: "rich"});
  */
-export async function summarizeUnreadGlobal(forceRefresh = false) {
+export async function summarizeUnreadGlobal({forceRefresh = false, mode = "auto"} = {}) {
   try {
     const user = auth.currentUser;
 
@@ -206,16 +213,47 @@ export async function summarizeUnreadGlobal(forceRefresh = false) {
 
     const callable = httpsCallable(functions, "summarizeUnread");
 
+    // Auto mode: fast first, then rich in background
+    if (mode === "auto") {
+      // Fast pass - return immediately for instant UX
+      const fastResult = await callable({
+        forceRefresh,
+        mode: "fast",
+      });
+
+      console.log("[AI Service] summarizeUnread fast mode success");
+
+      // Kick off rich pass in background (don't await)
+      callable({
+        forceRefresh: false, // Don't force refresh on background call
+        mode: "rich",
+      }).then(() => {
+        console.log("[AI Service] Background rich summary complete");
+      }).catch((err) => {
+        console.warn("[AI Service] Background rich summary failed:", err.message);
+      });
+
+      return {
+        success: true,
+        cached: fastResult.data.cached || false,
+        data: fastResult.data,
+        mode: "fast",
+      };
+    }
+
+    // Direct mode (fast or rich)
     const result = await callable({
-      forceRefresh: forceRefresh || false,
+      forceRefresh,
+      mode,
     });
 
-    console.log("[AI Service] summarizeUnread success");
+    console.log(`[AI Service] summarizeUnread ${mode} mode success`);
 
     return {
       success: true,
       cached: result.data.cached || false,
       data: result.data,
+      mode,
     };
   } catch (error) {
     console.error("[AI Service] Global summarization failed:", error.message);
@@ -314,7 +352,7 @@ export async function updateActionItemStatus(chatId, itemId, status) {
 }
 
 /**
- * Smart semantic search through messages
+ * Smart semantic search through messages (per-chat)
  *
  * @param {string} chatId - Chat ID to search
  * @param {string} query - Search query
@@ -357,6 +395,56 @@ export async function smartSearch(chatId, query, options = {}) {
     };
   } catch (error) {
     console.error("[AI Service] Smart search failed:", error);
+
+    return {
+      success: false,
+      error: error.code || "UNKNOWN",
+      message: getErrorMessage(error),
+    };
+  }
+}
+
+/**
+ * Global semantic search across all chats (two-stage)
+ *
+ * @param {string} query - Search query
+ * @param {string} stage - "stage1" (fast) or "stage2" (deep)
+ * @return {Promise<Object>} Result with matching messages
+ *
+ * @example
+ * // Stage 1 (fast)
+ * const fast = await searchMessagesGlobal("deployment date", "stage1");
+ * // Stage 2 (deep)
+ * const deep = await searchMessagesGlobal("deployment date", "stage2");
+ */
+export async function searchMessagesGlobal(query, stage = "stage1") {
+  try {
+    const user = auth.currentUser;
+
+    if (!user) {
+      console.error("[AI Service] No authenticated user!");
+      return {
+        success: false,
+        error: "unauthenticated",
+        message: "Please sign in to use AI features",
+      };
+    }
+
+    const callable = httpsCallable(functions, "searchMessages");
+
+    const result = await callable({
+      query,
+      stage,
+    });
+
+    console.log(`[AI Service] searchMessages ${stage} success`);
+
+    return {
+      success: true,
+      data: result.data,
+    };
+  } catch (error) {
+    console.error("[AI Service] Global search failed:", error);
 
     return {
       success: false,

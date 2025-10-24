@@ -156,9 +156,13 @@ exports.summarizeThread = summarizeThread;
 const {extractActionItems} = require("./extractActionItems");
 exports.extractActionItems = extractActionItems;
 
-// AI Features - Smart Search
+// AI Features - Smart Search (per-chat)
 const {smartSearch} = require("./smartSearch");
 exports.smartSearch = smartSearch;
+
+// AI Features - Global Smart Search (two-stage, cross-chat)
+const {searchMessages} = require("./searchMessages");
+exports.searchMessages = searchMessages;
 
 // AI Features - Global Unread Summary
 const {summarizeUnread} = require("./summarizeUnread");

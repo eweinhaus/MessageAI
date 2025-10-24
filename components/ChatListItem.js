@@ -89,6 +89,11 @@ export default function ChatListItem({
       onPress={handlePress}
       activeOpacity={0.7}
     >
+      {/* Blue dot indicator for unread messages (iMessage style) */}
+      {isUnread && (
+        <View style={styles.blueDot} />
+      )}
+      
       {/* Avatar with online indicator */}
       <View style={styles.avatarContainer}>
         <Avatar 
@@ -159,6 +164,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+  },
+  blueDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#007AFF', // iOS blue color
+    marginRight: 8,
   },
   avatarContainer: {
     position: 'relative',

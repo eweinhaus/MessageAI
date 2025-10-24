@@ -75,6 +75,42 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="actionItems"
+        options={{
+          title: 'Action Items',
+          tabBarLabel: 'Tasks',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="checkbox-outline" size={size} color={color} />
+          ),
+          headerLeft: () => (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={26} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          title: 'Smart Search',
+          tabBarLabel: 'Search',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search" size={size} color={color} />
+          ),
+          headerLeft: () => (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleLogout}
+            >
+              <Ionicons name="log-out-outline" size={26} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
     </Tabs>
   );
 }

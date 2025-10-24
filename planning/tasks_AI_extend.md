@@ -36,16 +36,16 @@
 ### Tasks
 
 #### 1. Create watermark tracking service (NEW) ✓
-- [ ] Create `services/watermarkService.js` (~100 lines)
-- [ ] Export `getUserWatermarks(userId)` - fetch from `/users/{userId}/aiCache/watermarks`
-- [ ] Export `updateWatermarks(userId, watermarks)` - bulk update
-- [ ] Export `getUnreadChatsWithMessages(userId, watermarks)` - returns `{chatId: [messages]}`
-- [ ] This is the ONLY new service needed
+- [x] Create `services/watermarkService.js` (~100 lines)
+- [x] Export `getUserWatermarks(userId)` - fetch from `/users/{userId}/aiCache/watermarks`
+- [x] Export `updateWatermarks(userId, watermarks)` - bulk update
+- [x] Export `getUnreadChatsWithMessages(userId, watermarks)` - returns `{chatId: [messages]}`
+- [x] This is the ONLY new service needed
 
 #### 2. Create Cloud Function wrapper: summarizeUnread (ADAPT) ✓
-- [ ] Create `functions/summarizeUnread.js` (~150 lines)
-- [ ] **Reuse existing:** Import all logic from `summarizeThread.js`
-- [ ] New behavior:
+- [x] Create `functions/summarizeUnread.js` (~150 lines)
+- [x] **Reuse existing:** Import all logic from `summarizeThread.js`
+- [x] New behavior:
   ```javascript
   exports.summarizeUnread = onCall(async (request) => {
     const userId = request.auth.uid;
@@ -76,12 +76,12 @@
     return { hasUnread: true, ...merged };
   });
   ```
-- [ ] Extract reusable logic from `summarizeThread.js` into helper functions
-- [ ] NO need to rewrite prompts or context building - reuse existing!
+- [x] Extract reusable logic from `summarizeThread.js` into helper functions
+- [x] NO need to rewrite prompts or context building - reuse existing!
 
 #### 3. Add trigger on app open (NEW) ✓
-- [ ] Modify `app/_layout.js`
-- [ ] Add AppState listener:
+- [x] Modify `app/_layout.js`
+- [x] Add AppState listener:
   ```javascript
   useEffect(() => {
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
@@ -101,12 +101,12 @@
     }
   };
   ```
-- [ ] ~50 lines added to root layout
+- [x] ~50 lines added to root layout
 
 #### 4. Adapt SummaryModal for global use (MINIMAL CHANGES) ✓
-- [ ] **Keep existing** `components/SummaryModal.js` - it already works!
-- [ ] Add ONE new prop: `isGlobal` (boolean)
-- [ ] If `isGlobal`, show chat names next to action items/decisions:
+- [x] **Keep existing** `components/SummaryModal.js` - it already works!
+- [x] Add ONE new prop: `isGlobal` (boolean)
+- [x] If `isGlobal`, show chat names next to action items/decisions:
   ```javascript
   {summary.actionItems.map(item => (
     <View key={item.id}>
@@ -115,10 +115,10 @@
     </View>
   ))}
   ```
-- [ ] ~20 lines changed, rest stays the same
+- [x] ~20 lines changed, rest stays the same
 
 #### 5. Add client function (NEW) ✓
-- [ ] In `services/aiService.js`, add ONE function:
+- [x] In `services/aiService.js`, add ONE function:
   ```javascript
   export async function summarizeUnreadGlobal(forceRefresh = false) {
     const callable = httpsCallable(functions, 'summarizeUnread');
@@ -126,12 +126,12 @@
     return { success: true, data: result.data };
   }
   ```
-- [ ] ~20 lines added
+- [x] ~20 lines added
 
 #### 6. Test ✓
-- [ ] Send messages across 3 chats, close app, reopen
-- [ ] Verify: Modal appears with merged summary
-- [ ] Verify: Delta processing works (doesn't re-process old messages)
+- [x] Send messages across 3 chats, close app, reopen
+- [x] Verify: Modal appears with merged summary
+- [x] Verify: Delta processing works (doesn't re-process old messages)
 
 ### Summary of Changes
 - **1 new service** (watermarkService.js ~100 lines)
@@ -152,15 +152,15 @@
 ### Tasks
 
 #### 1. Create priority scoring service (NEW) ✓
-- [ ] Create `services/priorityService.js` (~150 lines)
-- [ ] Export `calculateLocalScore(chat)` - instant lightweight scoring
-- [ ] Export `calculateFinalScore(localScore, aiSignals)` - combine with AI
-- [ ] Export `shouldRunAI(localScore, unreadCount)` - threshold check
-- [ ] No need to modify existing AI logic!
+- [x] Create `services/priorityService.js` (~150 lines)
+- [x] Export `calculateLocalScore(chat)` - instant lightweight scoring
+- [x] Export `calculateFinalScore(localScore, aiSignals)` - combine with AI
+- [x] Export `shouldRunAI(localScore, unreadCount)` - threshold check
+- [x] No need to modify existing AI logic!
 
 #### 2. Modify analyzePriorities to support batch (SMALL CHANGE) ✓
-- [ ] In `functions/analyzePriorities.js`:
-- [ ] Change signature to accept EITHER `chatId` OR `chats: [{chatId, messages}]`:
+- [x] In `functions/analyzePriorities.js`:
+- [x] Change signature to accept EITHER `chatId` OR `chats: [{chatId, messages}]`:
   ```javascript
   exports.analyzePriorities = onCall(async (request) => {
     const { chatId, chats, messageCount = 30 } = request.data;
@@ -181,11 +181,11 @@
     }
   });
   ```
-- [ ] ~30 lines added to existing function, rest unchanged
+- [x] ~30 lines added to existing function, rest unchanged
 
 #### 3. Add chat list sorting (MODIFY EXISTING) ✓
-- [ ] In `app/(tabs)/index.js` (home screen):
-- [ ] Add sorting logic before rendering:
+- [x] In `app/(tabs)/index.js` (home screen):
+- [x] Add sorting logic before rendering:
   ```javascript
   const [sortedChats, setSortedChats] = useState([]);
   
@@ -216,16 +216,16 @@
     })();
   }, [chats]);
   ```
-- [ ] ~80 lines added, existing rendering logic unchanged
+- [x] ~80 lines added, existing rendering logic unchanged
 
 #### 4. Add visual indicators (MODIFY EXISTING) ✓
-- [ ] In `components/ChatListItem.js`:
-- [ ] Add TWO new props: `isUrgent`, `isUnread`
-- [ ] Apply bold style if unread:
+- [x] In `components/ChatListItem.js`:
+- [x] Add TWO new props: `isUrgent`, `isUnread`
+- [x] Apply bold style if unread:
   ```javascript
   <Text style={[styles.chatName, isUnread && { fontWeight: 'bold' }]}>
   ```
-- [ ] Add red "!" badge if urgent:
+- [x] Add red "!" badge if urgent:
   ```jsx
   {isUrgent && (
     <View style={styles.urgentBadge}>
@@ -233,10 +233,10 @@
     </View>
   )}
   ```
-- [ ] ~30 lines added to existing component
+- [x] ~30 lines added to existing component
 
 #### 5. Add client function (SMALL ADDITION) ✓
-- [ ] In `services/aiService.js`, modify existing `analyzePriorities`:
+- [x] In `services/aiService.js`, modify existing `analyzePriorities`:
   ```javascript
   export async function analyzePriorities(chatId, options = {}) {
     // Existing per-chat logic (keep)
@@ -252,7 +252,7 @@
     }
   }
   ```
-- [ ] ~15 lines added to existing function
+- [x] ~15 lines added to existing function
 
 ### Summary of Changes
 - **1 new service** (priorityService.js ~150 lines)
@@ -273,17 +273,17 @@
 ### Tasks
 
 #### 1. Update bottom navigation (SIMPLE) ✓
-- [ ] In `app/(tabs)/_layout.js`:
-- [ ] Add TWO new tab screens:
+- [x] In `app/(tabs)/_layout.js`:
+- [x] Add TWO new tab screens:
   ```jsx
   <Tabs.Screen name="action-items" options={{title: "Actions", ...}} />
   <Tabs.Screen name="search" options={{title: "Search", ...}} />
   ```
-- [ ] ~10 lines added
+- [x] ~10 lines added
 
 #### 2. Create action-items tab (REUSE EXISTING) ✓
-- [ ] Create `app/(tabs)/action-items.js` (~150 lines)
-- [ ] **Import and use existing `ActionItemsList` component - zero changes needed!**
+- [x] Create `app/(tabs)/action-items.js` (~150 lines)
+- [x] **Import and use existing `ActionItemsList` component - zero changes needed!**
   ```javascript
   export default function ActionItemsScreen() {
     const [items, setItems] = useState([]);
@@ -317,11 +317,11 @@
     );
   }
   ```
-- [ ] Existing `ActionItemsList` already has filtering/sorting - reuse as-is!
+- [x] Existing `ActionItemsList` already has filtering/sorting - reuse as-is!
 
 #### 3. Modify extractActionItems to write globally (TINY CHANGE) ✓
-- [ ] In `functions/extractActionItems.js`:
-- [ ] Change Firestore write location from subcollection to global:
+- [x] In `functions/extractActionItems.js`:
+- [x] Change Firestore write location from subcollection to global:
   ```javascript
   // OLD (per-chat): /chats/{chatId}/actionItems/{itemId}
   const ref = db.collection('chats').doc(chatId).collection('actionItems').doc();
@@ -336,13 +336,13 @@
     // ... rest unchanged
   });
   ```
-- [ ] ~5 lines changed, rest stays the same
-- [ ] Existing prompt, logic, UI - all unchanged!
+- [x] ~5 lines changed, rest stays the same
+- [x] Existing prompt, logic, UI - all unchanged!
 
 #### 4. Create search tab (NEW SCREEN, REUSE FUNCTION) ✓
-- [ ] Create `app/(tabs)/search.js` (~250 lines)
-- [ ] **Reuse existing `smartSearch` function from aiService.js - zero function changes!**
-- [ ] Just need UI wrapper:
+- [x] Create `app/(tabs)/search.js` (~250 lines)
+- [x] **Reuse existing `smartSearch` function from aiService.js - zero function changes!**
+- [x] Just need UI wrapper:
   ```javascript
   export default function SearchScreen() {
     const [query, setQuery] = useState('');
@@ -371,8 +371,8 @@
   ```
 
 #### 5. Modify smartSearch to support global (TINY CHANGE) ✓
-- [ ] In `functions/smartSearch.js`:
-- [ ] Add support for `global: true` option:
+- [x] In `functions/smartSearch.js`:
+- [x] Add support for `global: true` option:
   ```javascript
   exports.smartSearch = onCall(async (request) => {
     const { chatId, query, global } = request.data;
@@ -390,11 +390,11 @@
     }
   });
   ```
-- [ ] ~30 lines added, existing logic unchanged
+- [x] ~30 lines added, existing logic unchanged
 
 #### 6. Create SearchResultCard component (NEW, SIMPLE) ✓
-- [ ] Create `components/SearchResultCard.js` (~80 lines)
-- [ ] Simple card layout - no complex logic needed
+- [x] Create `components/SearchResultCard.js` (~80 lines)
+- [x] Simple card layout - no complex logic needed
 
 ### Summary of Changes
 - **1 navigation modification** (app/(tabs)/_layout.js +10 lines)

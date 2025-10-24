@@ -1,10 +1,10 @@
 # Progress Tracker
 
 ## Current Status
-**Project Phase**: Phase 2 AI Implementation IN PROGRESS 🚀  
-**Last Updated**: October 23, 2025  
-**Overall Completion**: 100% MVP (PR 1-12) + PR16, PR17, PR18, & PR19 Complete ✅  
-**Current Focus**: PR21 (Priority Ordering Migration)
+**Project Phase**: Phase 2 AI Implementation - 90% COMPLETE 🎉  
+**Last Updated**: October 24, 2025  
+**Overall Completion**: 100% MVP (PR 1-12) + PR16-22 Complete ✅  
+**Current Focus**: PR23 (Polish & Optimization) - Ready to Start
 
 ## What's Working ✅
 - Expo project runs on physical device (Expo Go)
@@ -144,17 +144,37 @@
 - [x] **PR 17**: Priority Detection Feature ✅ (October 22, 2025)
 - [x] **PR 18**: Thread Summarization Feature ✅ (October 23, 2025)
 - [x] **PR 19**: Action Item Extraction Feature ✅ (October 23, 2025)
-- [x] **PR 20**: Global Summary Infrastructure ✅ (October 23, 2025)
-  - Created `functions/summarizeUnread.js` for delta-based cross-chat summaries
+- [x] **PR 20**: Global Summary Infrastructure ✅ (October 23-24, 2025)
+  - Created `functions/summarizeUnread.js` for delta-based cross-chat summaries (563 lines)
   - Added `services/watermarkService.js` for per-chat watermarks
-  - Integrated `app/_layout.js` with AppState listener to auto-show modal on foreground
+  - Integrated `app/_layout.js` with AppState listener to auto-show modal on foreground and on fresh start
   - Enhanced `components/SummaryModal.js` with `isGlobal` prop and chat badges
   - Added client `summarizeUnreadGlobal()` in `services/aiService.js`
   - Caching: 15 min TTL via `summaryGlobal` per user; rate limit 5 ops/hr
-  - Cost control: Cap 20 msgs/chat, batch queries, merge summaries client-friendly
-  - Lint clean; unit tests added for core paths (Functions v2 harness adjustments pending)
-- [ ] **PR 21**: Decision Tracking Feature (advanced)
-- [ ] **PR 22**: AI Polish, Testing & Demo
+  - Cost control: Cap per-chat messages, batch queries, merge summaries
+  - Throttled summary checks (60s minimum interval) to prevent spam
+  - Truly unread messages (using readBy array) not watermark-only
+- [x] **PR 21**: AI Priority Ordering Migration ✅ (October 23-24, 2025)
+  - Created `services/priorityService.js` for hybrid local + AI scoring (257 lines)
+  - Implemented calculateLocalScore (instant, no AI), calculateFinalScore, shouldRunAI
+  - Chat list uses priority scoring for intelligent ordering
+  - ChatListItem enhanced with isUrgent prop and urgentBadge styling
+  - analyzePriorities supports batch operations for multiple chats
+  - Selective AI analysis (only high-priority candidates) for cost optimization
+- [x] **PR 22**: Global Action Items + Smart Search Tabs ✅ (October 23-24, 2025)
+  - Added two new bottom tabs: "Action Items" and "Search"
+  - Created `app/(tabs)/actionItems.js` screen with "Decisions Only" filter (243 lines)
+  - Created `app/(tabs)/search.js` screen with two-stage search UI (404 lines)
+  - Created `functions/searchMessages.js` for global semantic search (278 lines)
+  - Stage 1 (fast): 10 msgs/chat across 50 chats, Stage 2 (deep): 100 msgs/chat
+  - Collection group queries for global action items across all chats
+  - SearchResultCard component with relevance badges and chat navigation
+  - extractActionItems modified to write to global collection
+- [ ] **PR 23**: Polish & Optimization (NOT STARTED)
+  - One-tap actions in SummaryModal
+  - Priority explanation tooltips in ChatListItem
+  - Performance memoization
+  - Comprehensive testing
 
 #### Future Phase 2 (Deferred)
 - [ ] **PR 23**: Firestore Security Rules
@@ -284,6 +304,26 @@ None. MVP is complete and tested.
   - Target: > 90%
 
 ## Recent Changes
+- October 24, 2025: **PR20, PR21, PR22 - Global AI Features - ALL COMPLETE** 🎉🎉🎉
+  - **PR20 Summary**: Global unread summarization with delta processing (563 lines)
+    - Auto-popup on app open/foreground with 60s throttling
+    - Watermark-based tracking to avoid reprocessing
+    - True unread detection using readBy arrays
+    - Hybrid context approach (unread + 6 preceding messages)
+  - **PR21 Priority Ordering**: Hybrid local + AI scoring (257 lines)
+    - calculateLocalScore for instant responsiveness
+    - Selective AI analysis for high-priority chats only
+    - Chat list intelligently sorted by priority
+    - Urgent badges and visual indicators
+  - **PR22 Global Tabs**: Action Items + Smart Search (925 lines total)
+    - Two new bottom tabs fully integrated
+    - Global action items with "Decisions Only" filter
+    - Two-stage semantic search (fast → deep)
+    - Collection group queries across all chats
+    - 278-line searchMessages Cloud Function
+  - **Total Impact**: ~1,800 new lines of production code
+  - **Reused**: 100% of existing components (ActionItemsList, SummaryModal, etc.)
+  - **Status**: Ready for PR23 polish and manual testing
 - October 23, 2025: **PR18 - Thread Summarization Feature - COMPLETE & TESTED** 🎉🎉
   - **Implementation summary**:
     - Created `components/SummaryModal.js` (560+ lines) - Full-featured modal with 5 sections

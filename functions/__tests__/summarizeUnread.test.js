@@ -406,5 +406,206 @@ describe("summarizeUnread Cloud Function", () => {
       expect(result.success).toBe(true);
     });
   });
+
+  describe("Context Window Optimization", () => {
+    test("should fetch up to 6 previous messages before first unread", async () => {
+      mockRequest.data.mode = "rich";
+      mockGet.mockResolvedValue({exists: false});
+
+      // Mock chat with unread messages
+      const mockChatData = [{
+        chatID: "chat1",
+        type: "1:1",
+        participantIDs: ["test-user-id", "user2"],
+        participantNames: ["Alice", "Bob"],
+      }];
+
+      let previousQueryCalled = false;
+      let previousQueryLimit = 0;
+
+      // Mock the chat query
+      mockWhere.mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          forEach: (callback) => mockChatData.forEach((chat) => callback({data: () => chat})),
+        }),
+      });
+
+      // Mock collection to track query patterns
+      mockCollection.mockImplementation((collectionName) => {
+        if (collectionName === "chats") {
+          return {
+            doc: jest.fn((docId) => ({
+              collection: jest.fn((subCollection) => {
+                if (subCollection === "messages") {
+                  return {
+                    // This is the unread messages query
+                    where: jest.fn().mockReturnValue({
+                      orderBy: jest.fn().mockReturnValue({
+                        limit: jest.fn().mockReturnValue({
+                          get: jest.fn().mockResolvedValue({
+                            empty: false,
+                            docs: [
+                              {id: "msg4", data: () => ({messageID: "msg4", text: "Unread 1", timestamp: {toMillis: () => 1000000004000}})},
+                              {id: "msg5", data: () => ({messageID: "msg5", text: "Unread 2", timestamp: {toMillis: () => 1000000005000}})},
+                              {id: "msg6", data: () => ({messageID: "msg6", text: "Unread 3", timestamp: {toMillis: () => 1000000006000}})},
+                            ],
+                          }),
+                        }),
+                      }),
+                    }),
+                    // This is the previous messages query
+                    orderBy: jest.fn().mockReturnValue({
+                      limit: jest.fn((limit) => {
+                        previousQueryCalled = true;
+                        previousQueryLimit = limit;
+                        return {
+                          get: jest.fn().mockResolvedValue({
+                            docs: [
+                              {id: "msg3", data: () => ({messageID: "msg3", text: "Read 3", timestamp: {toMillis: () => 1000000003000}})},
+                              {id: "msg2", data: () => ({messageID: "msg2", text: "Read 2", timestamp: {toMillis: () => 1000000002000}})},
+                              {id: "msg1", data: () => ({messageID: "msg1", text: "Read 1", timestamp: {toMillis: () => 1000000001000}})},
+                            ],
+                          }),
+                        };
+                      }),
+                    }),
+                  };
+                }
+                return {where: jest.fn(), orderBy: jest.fn()};
+              }),
+              get: mockGet,
+              set: mockSet,
+            })),
+            where: mockWhere,
+          };
+        }
+        return {doc: mockDoc, where: mockWhere};
+      });
+
+      await summarizeUnread(mockRequest);
+
+      expect(previousQueryCalled).toBe(true);
+      expect(previousQueryLimit).toBe(6);
+    });
+
+    test("should handle chats with fewer than 6 previous messages", async () => {
+      mockRequest.data.mode = "rich";
+      mockGet.mockResolvedValue({exists: false});
+
+      const mockChatData = [{
+        chatID: "chat1",
+        type: "1:1",
+        participantIDs: ["test-user-id", "user2"],
+        participantNames: ["Alice", "Bob"],
+      }];
+
+      mockWhere.mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          forEach: (callback) => mockChatData.forEach((chat) => callback({data: () => chat})),
+        }),
+      });
+
+      mockCollection.mockImplementation((collectionName) => {
+        if (collectionName === "chats") {
+          return {
+            doc: jest.fn(() => ({
+              collection: jest.fn((subCollection) => {
+                if (subCollection === "messages") {
+                  return {
+                    where: jest.fn().mockReturnValue({
+                      orderBy: jest.fn().mockReturnValue({
+                        limit: jest.fn().mockReturnValue({
+                          get: jest.fn().mockResolvedValue({
+                            empty: false,
+                            docs: [
+                              {id: "msg3", data: () => ({messageID: "msg3", text: "Unread 1", timestamp: {toMillis: () => 1000000003000}})},
+                            ],
+                          }),
+                        }),
+                      }),
+                    }),
+                    orderBy: jest.fn().mockReturnValue({
+                      limit: jest.fn().mockReturnValue({
+                        get: jest.fn().mockResolvedValue({
+                          docs: [
+                            {id: "msg2", data: () => ({messageID: "msg2", text: "Read 2", timestamp: {toMillis: () => 1000000002000}})},
+                            {id: "msg1", data: () => ({messageID: "msg1", text: "Read 1", timestamp: {toMillis: () => 1000000001000}})},
+                          ],
+                        }),
+                      }),
+                    }),
+                  };
+                }
+                return {where: jest.fn(), orderBy: jest.fn()};
+              }),
+              get: mockGet,
+              set: mockSet,
+            })),
+            where: mockWhere,
+          };
+        }
+        return {doc: mockDoc, where: mockWhere};
+      });
+
+      const result = await summarizeUnread(mockRequest);
+
+      expect(result.success).toBe(true);
+      // Should handle gracefully with only 2 previous messages available
+    });
+
+    test("should skip summarization when no unread messages exist", async () => {
+      mockRequest.data.mode = "rich";
+      mockGet.mockResolvedValue({exists: false});
+
+      const mockChatData = [{
+        chatID: "chat1",
+        type: "1:1",
+        participantIDs: ["test-user-id", "user2"],
+        participantNames: ["Alice", "Bob"],
+      }];
+
+      mockWhere.mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          forEach: (callback) => mockChatData.forEach((chat) => callback({data: () => chat})),
+        }),
+      });
+
+      mockCollection.mockImplementation((collectionName) => {
+        if (collectionName === "chats") {
+          return {
+            doc: jest.fn(() => ({
+              collection: jest.fn((subCollection) => {
+                if (subCollection === "messages") {
+                  return {
+                    where: jest.fn().mockReturnValue({
+                      orderBy: jest.fn().mockReturnValue({
+                        limit: jest.fn().mockReturnValue({
+                          get: jest.fn().mockResolvedValue({
+                            empty: true,
+                            docs: [],
+                          }),
+                        }),
+                      }),
+                    }),
+                  };
+                }
+                return {where: jest.fn(), orderBy: jest.fn()};
+              }),
+              get: mockGet,
+              set: mockSet,
+            })),
+            where: mockWhere,
+          };
+        }
+        return {doc: mockDoc, where: mockWhere};
+      });
+
+      const result = await summarizeUnread(mockRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.hasUnread).toBe(false);
+      // Should not make OpenAI call for chats with no unread messages
+    });
+  });
 });
 
