@@ -10,6 +10,7 @@ import OfflineBanner from '../components/OfflineBanner';
 import NotificationBanner from '../components/NotificationBanner';
 import ErrorBoundary from '../components/ErrorBoundary';
 import ErrorToast from '../components/ErrorToast';
+import SummaryModal from '../components/SummaryModal';
 import { initDatabase, flushPendingWrites } from '../db/database';
 import { getAllChats } from '../db/messageDb';
 import { performFullSync } from '../utils/syncManager';
@@ -31,6 +32,9 @@ export default function RootLayout() {
   const appState = useRef(AppState.currentState);
   const [notificationBanner, setNotificationBanner] = useState(null);
   const notificationCleanup = useRef(null);
+  const [globalSummary, setGlobalSummary] = useState(null);
+  const [showGlobalSummaryModal, setShowGlobalSummaryModal] = useState(false);
+  const lastSummaryCheck = useRef(0);
 
   // Initialize database on app startup (before anything else)
   useEffect(() => {
@@ -94,6 +98,27 @@ export default function RootLayout() {
         // Step 3: Process any pending offline messages
         await processPendingMessages();
         
+        // Step 4: Check for unread messages and show global summary (on fresh start)
+        try {
+          const now = Date.now();
+          lastSummaryCheck.current = now;
+          
+          lifecycleLog('Checking for unread messages on fresh start...');
+          const { summarizeUnreadGlobal } = require('../services/aiService');
+          const result = await summarizeUnreadGlobal(false);
+          
+          if (result.success && result.data?.hasUnread) {
+            lifecycleLog('Found unread messages, showing global summary modal');
+            setGlobalSummary(result.data);
+            setShowGlobalSummaryModal(true);
+          } else {
+            lifecycleLog('No unread messages found on start');
+          }
+        } catch (error) {
+          // Silent fail - don't bother user with AI errors on app start
+          lifecycleLog('Error fetching global summary on start', error);
+        }
+        
       } catch (error) {
         console.error('[App] Error loading/syncing data:', error);
       }
@@ -152,6 +177,36 @@ export default function RootLayout() {
           // 3. Process pending messages queue
           lifecycleLog('Processing pending messages after foreground...');
           await processPendingMessages();
+          
+          // 4. Check for unread messages and show global summary (throttled)
+          const now = Date.now();
+          const timeSinceLastCheck = now - lastSummaryCheck.current;
+          const MIN_CHECK_INTERVAL = 60000; // 1 minute throttle
+          
+          if (timeSinceLastCheck > MIN_CHECK_INTERVAL) {
+            lastSummaryCheck.current = now;
+            lifecycleLog('Checking for unread messages...');
+            
+            // Import dynamically to avoid circular dependency
+            const { summarizeUnreadGlobal } = require('../services/aiService');
+            
+            try {
+              const result = await summarizeUnreadGlobal(false);
+              
+              if (result.success && result.data?.hasUnread) {
+                lifecycleLog('Found unread messages, showing global summary modal');
+                setGlobalSummary(result.data);
+                setShowGlobalSummaryModal(true);
+              } else {
+                lifecycleLog('No unread messages found');
+              }
+            } catch (error) {
+              // Silent fail - don't bother user with AI errors on app open
+              lifecycleLog('Error fetching global summary', error);
+            }
+          } else {
+            lifecycleLog(`Skipping summary check (throttled, ${Math.round(timeSinceLastCheck/1000)}s since last check)`);
+          }
           
           lifecycleLog('Foreground operations complete');
         } catch (error) {
@@ -315,6 +370,14 @@ export default function RootLayout() {
         onDismiss={clearError}
         type="error"
       />
+      {globalSummary && (
+        <SummaryModal
+          visible={showGlobalSummaryModal}
+          onClose={() => setShowGlobalSummaryModal(false)}
+          summary={globalSummary}
+          isGlobal={true}
+        />
+      )}
     </ErrorBoundary>
   );
 }

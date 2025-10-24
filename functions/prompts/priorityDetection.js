@@ -211,25 +211,61 @@ ${JSON.stringify(example.expectedOutput, null, 2)}
 }
 
 /**
+ * Batch mode system prompt for chat-level priority signals
+ * Returns overall chat urgency flags instead of per-message analysis
+ */
+const BATCH_PRIORITY_SYSTEM_PROMPT = "You are analyzing a workplace chat " +
+  `to determine its overall priority level.
+
+Analyze the conversation and return boolean signals:
+{
+  "highImportance": boolean,
+  "unansweredQuestion": boolean,
+  "mentionsDeadline": boolean,
+  "requiresAction": boolean,
+  "hasBlocker": boolean,
+  "summary": "Brief 1-sentence urgency summary"
+}
+
+Signal definitions:
+- highImportance: Contains urgent keywords (ASAP, critical, urgent, emergency)
+- unansweredQuestion: Has direct questions without clear answers
+- mentionsDeadline: References time-sensitive dates (today, EOD, deadline)
+- requiresAction: Requests specific actions or decisions
+- hasBlocker: Mentions blocking issues (blocked, broken, down, failed)
+
+Be conservative - only set true if there's clear evidence in the messages.`;
+
+/**
  * Build complete prompt with system instructions and examples
  * @param {string} conversationContext - Conversation to analyze
- * @param {boolean} [includeExamples=false] - Include few-shot examples
+ * @param {boolean} [batchMode=false] - Use batch mode (chat-level signals)
  * @return {string} Complete prompt for OpenAI
  */
-function buildPriorityPrompt(conversationContext, includeExamples = false) {
-  let prompt = PRIORITY_SYSTEM_PROMPT;
+function buildPriorityPrompt(conversationContext, batchMode = false) {
+  let prompt;
 
-  if (includeExamples) {
-    prompt += "\n\n" + formatFewShotExamples();
-  }
+  if (batchMode) {
+    // Batch mode: chat-level signals
+    prompt = BATCH_PRIORITY_SYSTEM_PROMPT;
+    prompt += `
 
-  prompt += `
+Analyze this chat:
+
+${conversationContext}
+
+Return JSON with the signal flags as specified above.`;
+  } else {
+    // Single mode: per-message priorities
+    prompt = PRIORITY_SYSTEM_PROMPT;
+    prompt += `
 
 Now analyze this conversation:
 
 ${conversationContext}
 
 Return JSON with the priorities array as specified above.`;
+  }
 
   return prompt;
 }
@@ -237,6 +273,7 @@ Return JSON with the priorities array as specified above.`;
 // Export all prompt components
 module.exports = {
   PRIORITY_SYSTEM_PROMPT,
+  BATCH_PRIORITY_SYSTEM_PROMPT,
   PRIORITY_FEWSHOTS,
   formatFewShotExamples,
   buildPriorityPrompt,

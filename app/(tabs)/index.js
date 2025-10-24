@@ -1,5 +1,5 @@
-// Home Screen - Chat List
-import React, { useEffect, useState, useCallback } from 'react';
+// Home Screen - Chat List with Priority Ordering
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -18,9 +18,18 @@ import useChatStore from '../../store/chatStore';
 import ChatListItem from '../../components/ChatListItem';
 import Icon from '../../components/Icon';
 import colors from '../../constants/colors';
-import { getAllChats, insertChat } from '../../db/messageDb';
+import { getAllChats, insertChat, getMessagesForChat } from '../../db/messageDb';
 import { syncChatsFromFirestore } from '../../utils/syncManager';
 import { registerListener, unregisterListener } from '../../utils/listenerManager';
+import { analyzePriorities } from '../../services/aiService';
+import {
+  calculateLocalScore,
+  shouldRunAI,
+  calculateFinalScore,
+  sanitizeAISignals,
+  isUrgent,
+  normalizeTimestamp,
+} from '../../services/priorityService';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -29,6 +38,11 @@ export default function HomeScreen() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Priority ordering state
+  const [sortedChats, setSortedChats] = useState([]);
+  const [isRefiningPriorities, setIsRefiningPriorities] = useState(false);
+  const [lastPriorityRunAt, setLastPriorityRunAt] = useState(null);
   
   // Load chats from SQLite on mount (instant display)
   useEffect(() => {
@@ -166,6 +180,187 @@ export default function HomeScreen() {
     }
   }, [addChat, updateChat]);
   
+  // Priority-based sorting with AI refinement
+  useEffect(() => {
+    if (!chats || chats.length === 0) {
+      setSortedChats([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function sortChatsWithPriority() {
+      try {
+        // Step 1: Calculate local scores for all chats (instant)
+        const chatsWithLocalScores = chats.map((chat) => {
+          const localScore = calculateLocalScore(chat);
+          const unreadCount = chat.unreadCount || 0;
+          
+          return {
+            ...chat,
+            localScore,
+            priorityScore: localScore, // Default to local score
+            isUnread: unreadCount > 0,
+            isUrgent: false,
+          };
+        });
+
+        // Step 2: Sort by local score as baseline (instant feedback)
+        const baselineSorted = [...chatsWithLocalScores].sort((a, b) => {
+          // Primary: priority score
+          if (b.localScore !== a.localScore) {
+            return b.localScore - a.localScore;
+          }
+          // Secondary: unread count
+          if (b.unreadCount !== a.unreadCount) {
+            return (b.unreadCount || 0) - (a.unreadCount || 0);
+          }
+          // Tertiary: last message timestamp
+          const aTime = normalizeTimestamp(a.lastMessageTimestamp);
+          const bTime = normalizeTimestamp(b.lastMessageTimestamp);
+          return bTime - aTime;
+        });
+
+        // Set baseline immediately for instant UI update
+        if (!cancelled) {
+          setSortedChats(baselineSorted);
+        }
+
+        // Step 3: Determine which chats need AI analysis
+        const candidates = chatsWithLocalScores.filter((chat) => 
+          shouldRunAI({
+            localScore: chat.localScore,
+            unreadCount: chat.unreadCount || 0,
+            lastPriorityRunAt,
+            throttleMinutes: 5,
+          })
+        );
+
+        // Early exit if no candidates or throttled
+        if (candidates.length === 0) {
+          console.log('[HomeScreen] No chats need AI priority analysis');
+          return;
+        }
+
+        // Limit to 5 chats to keep latency manageable
+        const limitedCandidates = candidates.slice(0, 5);
+        
+        console.log(
+          `[HomeScreen] Running AI priority analysis on ` +
+          `${limitedCandidates.length} chats`
+        );
+
+        // Step 4: Fetch recent messages for each candidate
+        setIsRefiningPriorities(true);
+        
+        const chatsWithMessages = await Promise.all(
+          limitedCandidates.map(async (chat) => {
+            try {
+              const messages = await getMessagesForChat(chat.chatID, 30);
+              return {
+                chatId: chat.chatID,
+                messages: messages || [],
+              };
+            } catch (error) {
+              console.error(
+                `[HomeScreen] Error fetching messages for ${chat.chatID}:`,
+                error
+              );
+              return {
+                chatId: chat.chatID,
+                messages: [],
+              };
+            }
+          })
+        );
+
+        // Filter out chats with no messages
+        const validChats = chatsWithMessages.filter(
+          (c) => c.messages.length > 0
+        );
+
+        if (validChats.length === 0 || cancelled) {
+          return;
+        }
+
+        // Step 5: Call AI batch analysis
+        const aiResult = await analyzePriorities(null, {
+          chats: validChats,
+          messageCount: 30,
+          forceRefresh: false,
+        });
+
+        if (cancelled) return;
+
+        if (aiResult.success && aiResult.data && aiResult.data.chats) {
+          // Step 6: Merge AI signals with local scores
+          const refinedChats = baselineSorted.map((chat) => {
+            const aiData = aiResult.data.chats.find(
+              (c) => c.chatId === chat.chatID
+            );
+            
+            if (aiData && aiData.signals) {
+              const sanitized = sanitizeAISignals(aiData.signals);
+              const finalScore = calculateFinalScore(
+                chat.localScore,
+                sanitized
+              );
+              
+              return {
+                ...chat,
+                priorityScore: finalScore,
+                aiSignals: sanitized,
+                isUrgent: isUrgent(finalScore),
+              };
+            }
+            
+            return chat;
+          });
+
+          // Step 7: Re-sort with final scores
+          const finalSorted = [...refinedChats].sort((a, b) => {
+            // Primary: priority score
+            if (b.priorityScore !== a.priorityScore) {
+              return b.priorityScore - a.priorityScore;
+            }
+            // Secondary: unread count
+            if (b.unreadCount !== a.unreadCount) {
+              return (b.unreadCount || 0) - (a.unreadCount || 0);
+            }
+            // Tertiary: last message timestamp
+            const aTime = normalizeTimestamp(a.lastMessageTimestamp);
+            const bTime = normalizeTimestamp(b.lastMessageTimestamp);
+            return bTime - aTime;
+          });
+
+          if (!cancelled) {
+            setSortedChats(finalSorted);
+            setLastPriorityRunAt(Date.now());
+            console.log('[HomeScreen] Priority refinement complete');
+          }
+        } else {
+          console.error(
+            '[HomeScreen] AI priority analysis failed:',
+            aiResult.message
+          );
+        }
+      } catch (error) {
+        console.error('[HomeScreen] Error in priority sorting:', error);
+      } finally {
+        if (!cancelled) {
+          setIsRefiningPriorities(false);
+        }
+      }
+    }
+
+    sortChatsWithPriority();
+
+    // Cleanup on unmount or deps change
+    return () => {
+      cancelled = true;
+    };
+  }, [chats, lastPriorityRunAt]);
+
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
     if (!currentUser) return;
@@ -175,6 +370,8 @@ export default function HomeScreen() {
       console.log('[HomeScreen] Manual refresh triggered');
       const syncedChats = await syncChatsFromFirestore(currentUser.userID);
       setChats(syncedChats);
+      // Force priority refresh by resetting timestamp
+      setLastPriorityRunAt(null);
       console.log('[HomeScreen] Refresh complete');
     } catch (error) {
       console.error('[HomeScreen] Error refreshing chats:', error);
@@ -190,7 +387,12 @@ export default function HomeScreen() {
   
   // Render chat list item
   const renderChatItem = ({ item }) => (
-    <ChatListItem chat={item} />
+    <ChatListItem 
+      chat={item}
+      isUnread={item.isUnread}
+      isUrgent={item.isUrgent}
+      priorityScore={item.priorityScore}
+    />
   );
   
   // Render empty state
@@ -231,21 +433,31 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <View style={styles.container}>
-      <FlatList
-        data={chats}
-        renderItem={renderChatItem}
-        keyExtractor={(item) => item.chatID}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            colors={['#4CAF50']}
-            tintColor="#4CAF50"
-          />
-        }
-        ListEmptyComponent={renderEmptyState}
-        contentContainerStyle={chats.length === 0 ? styles.emptyContainer : null}
-      />
+        {/* Priority refinement indicator */}
+        {isRefiningPriorities && (
+          <View style={styles.refiningBanner}>
+            <ActivityIndicator size="small" color="#4CAF50" />
+            <Text style={styles.refiningText}>Refining priority order...</Text>
+          </View>
+        )}
+        
+        <FlatList
+          data={sortedChats}
+          renderItem={renderChatItem}
+          keyExtractor={(item) => item.chatID}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={['#4CAF50']}
+              tintColor="#4CAF50"
+            />
+          }
+          ListEmptyComponent={renderEmptyState}
+          contentContainerStyle={
+            sortedChats.length === 0 ? styles.emptyContainer : null
+          }
+        />
       </View>
     </SafeAreaView>
   );
@@ -270,6 +482,22 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#666',
+  },
+  refiningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#E8F5E9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#C8E6C9',
+  },
+  refiningText: {
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#2E7D32',
+    fontWeight: '500',
   },
   emptyContainer: {
     flexGrow: 1,

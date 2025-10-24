@@ -4,7 +4,7 @@
 **Project Phase**: Phase 2 AI Implementation IN PROGRESS 🚀  
 **Last Updated**: October 23, 2025  
 **Overall Completion**: 100% MVP (PR 1-12) + PR16, PR17, PR18, & PR19 Complete ✅  
-**Current Focus**: PR20 (Smart Search)
+**Current Focus**: PR21 (Priority Ordering Migration)
 
 ## What's Working ✅
 - Expo project runs on physical device (Expo Go)
@@ -144,7 +144,15 @@
 - [x] **PR 17**: Priority Detection Feature ✅ (October 22, 2025)
 - [x] **PR 18**: Thread Summarization Feature ✅ (October 23, 2025)
 - [x] **PR 19**: Action Item Extraction Feature ✅ (October 23, 2025)
-- [ ] **PR 20**: Smart Search Feature (semantic search) 🔜
+- [x] **PR 20**: Global Summary Infrastructure ✅ (October 23, 2025)
+  - Created `functions/summarizeUnread.js` for delta-based cross-chat summaries
+  - Added `services/watermarkService.js` for per-chat watermarks
+  - Integrated `app/_layout.js` with AppState listener to auto-show modal on foreground
+  - Enhanced `components/SummaryModal.js` with `isGlobal` prop and chat badges
+  - Added client `summarizeUnreadGlobal()` in `services/aiService.js`
+  - Caching: 15 min TTL via `summaryGlobal` per user; rate limit 5 ops/hr
+  - Cost control: Cap 20 msgs/chat, batch queries, merge summaries client-friendly
+  - Lint clean; unit tests added for core paths (Functions v2 harness adjustments pending)
 - [ ] **PR 21**: Decision Tracking Feature (advanced)
 - [ ] **PR 22**: AI Polish, Testing & Demo
 

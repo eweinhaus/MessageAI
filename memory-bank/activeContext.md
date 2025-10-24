@@ -3,7 +3,7 @@
 ## Current Status
 **Phase**: Phase 2 AI Implementation - PIVOTING TO GLOBAL FEATURES 🔄  
 **Date**: October 23, 2025  
-**Current PR**: PR19 COMPLETE ✅ + DEPLOYED ✅ | Next: PR20 (Global Summary Infrastructure)  
+**Current PR**: PR20 COMPLETE ✅ (Global Summary Infrastructure)  
 **Firebase Project**: MessageAI-dev  
 **Major Change**: Moving from per-chat AI features to global, proactive intelligence
 
@@ -100,7 +100,7 @@
   2. ✅ PR 17: Priority Detection (quick win) - COMPLETE & TESTED
   3. ✅ PR 18: Thread Summarization (RAG showcase) - COMPLETE & TESTED
   4. ✅ PR 19: Action Item Extraction - COMPLETE & DEPLOYED
-  5. 🔜 PR 20: Smart Search (semantic search) - NEXT
+  5. ✅ PR 20: Global Summary Infrastructure - COMPLETE
   6. PR 21: Decision Tracking (advanced agents)
   7. PR 22: Polish & Testing
 

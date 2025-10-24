@@ -102,6 +102,7 @@
      - translateMessage: Real-time translation
      - extractActionItems: Parse conversation for tasks
      - summarizeThread: Summarize last N messages
+     - summarizeUnread: Global unread delta summarization (PR20)
 
 #### Push Notifications (Dual System)
 - **MVP**: Foreground notifications (in-app banner) ✅ COMPLETE
@@ -138,7 +139,7 @@
 - **Firebase CLI**: For deploying Cloud Functions
 
 #### Testing Tools (Phase 2)
-- **Unit Tests**: Jest + React Native Testing Library
+- **Unit Tests**: Jest + React Native Testing Library (Functions v2 handlers require `.call({data}, data, context)` invocation in tests; some internal traces may need harness shims.)
 - **Integration Tests**: Firebase Emulators
 - **E2E Tests**: Detox (optional)
 - **CI/CD**: GitHub Actions
@@ -386,6 +387,8 @@ firebase functions:log
 3. **No message editing/deletion** - Deferred to Phase 2
 4. **No typing indicators** - Adds complexity
 5. **Initial-based avatars** - No profile pictures yet
+6. **Firestore forbids undefined values** - Always normalize/sanitize objects before writes (conditional assignments or JSON stringify/parse) to avoid errors.
+7. **AI cache envelope** - Use `{ type, result, metadata }` for AI caches; for user-scoped caches, use `userId` as the key and access data via `cached.result.*`.
 
 ### Recently Completed (October 21, 2025)
 1. ✅ **Foreground push notifications** - Working with dual token support

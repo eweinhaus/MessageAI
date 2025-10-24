@@ -15,12 +15,21 @@ import { usePresence } from '../hooks/usePresence';
  * - Last message preview
  * - Timestamp
  * - Unread badge (optional)
+ * - Urgent badge (red "!" for priority chats)
  * - Online status indicator for 1:1 chats (optional)
  * 
  * @param {Object} props
  * @param {Object} props.chat - Chat object from store/database
+ * @param {boolean} [props.isUnread] - Chat has unread messages
+ * @param {boolean} [props.isUrgent] - Chat requires urgent attention
+ * @param {number} [props.priorityScore] - Priority score (0-100) for debugging
  */
-export default function ChatListItem({ chat }) {
+export default function ChatListItem({ 
+  chat, 
+  isUnread = false, 
+  isUrgent = false,
+  priorityScore 
+}) {
   const router = useRouter();
   const { currentUser } = useUserStore();
   
@@ -95,11 +104,29 @@ export default function ChatListItem({ chat }) {
       
       {/* Chat Content */}
       <View style={styles.content}>
-        {/* Top row: Name and Timestamp */}
+        {/* Top row: Name, Urgent Badge, and Timestamp */}
         <View style={styles.topRow}>
-          <Text style={styles.chatName} numberOfLines={1}>
+          <Text 
+            style={[
+              styles.chatName, 
+              isUnread && styles.chatNameUnread
+            ]} 
+            numberOfLines={1}
+          >
             {chatName}
           </Text>
+          
+          {/* Urgent badge (red "!") */}
+          {isUrgent && (
+            <View 
+              style={styles.urgentBadge}
+              accessibilityLabel="Urgent chat"
+              accessibilityRole="alert"
+            >
+              <Text style={styles.urgentText}>!</Text>
+            </View>
+          )}
+          
           {timestamp && (
             <Text style={styles.timestamp}>{timestamp}</Text>
           )}
@@ -153,6 +180,24 @@ const styles = StyleSheet.create({
     color: '#000',
     flex: 1,
     marginRight: 8,
+  },
+  chatNameUnread: {
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  urgentBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#F44336',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
+  urgentText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   timestamp: {
     fontSize: 12,

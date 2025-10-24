@@ -160,6 +160,10 @@ exports.extractActionItems = extractActionItems;
 const {smartSearch} = require("./smartSearch");
 exports.smartSearch = smartSearch;
 
+// AI Features - Global Unread Summary
+const {summarizeUnread} = require("./summarizeUnread");
+exports.summarizeUnread = summarizeUnread;
+
 /**
  * Triggered when new message created in
  * /chats/{chatID}/messages/{messageID}

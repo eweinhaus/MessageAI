@@ -22,6 +22,32 @@
 ```
 
 ## Core Design Patterns
+### 0. Delta-Based Global AI Summaries (New in PR20)
+
+**Pattern**: Per-chat watermarks + unread delta fetch → per-chat summaries → merged global result.
+
+**Implementation**:
+- Watermarks stored at `/users/{userId}/aiCache/watermarks` as `{ [chatId]: lastMillis }` with `updatedAt`.
+- On app foreground, callable `summarizeUnread`:
+  1) Read watermarks
+  2) Query `timestamp > watermark` per chat (limit 20 per chat)
+  3) Reuse thread summarization to summarize each chat
+  4) Merge into a single summary with chat badges
+  5) Update watermarks to last seen message timestamp
+  6) Cache under user scope with type `summaryGlobal` (TTL ~15m)
+
+**Client UX**:
+- Root layout listens to AppState; throttled (≥60s) check to avoid spam.
+- Shows `SummaryModal` with `isGlobal=true` and chat badges.
+
+**Cost Controls**:
+- Limit per-chat messages; batch queries; 15m cache TTL; 5 ops/hour rate limit.
+
+**Edge-Case Handling**:
+- Normalize AI outputs to objects (keyPoints{text}, decisions{text}, actionItems{task}) to prevent shape drift.
+- Guard timestamp extraction (support Firestore Timestamp or millis); skip undefined.
+- Strip undefined fields before writes (Firestore constraint).
+
 
 ### 1. Offline-First Architecture
 

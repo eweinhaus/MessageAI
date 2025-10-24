@@ -54,6 +54,7 @@ export default function SummaryModal({
   loading,
   error,
   onRefresh,
+  isGlobal = false,
 }) {
   // Loading state
   if (loading) {
@@ -128,8 +129,10 @@ export default function SummaryModal({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <Text style={styles.headerIcon}>📝</Text>
-              <Text style={styles.headerTitle}>Thread Summary</Text>
+              <Text style={styles.headerIcon}>{isGlobal ? '📬' : '📝'}</Text>
+              <Text style={styles.headerTitle}>
+                {isGlobal ? 'Unread Messages Summary' : 'Thread Summary'}
+              </Text>
             </View>
             <TouchableOpacity onPress={onClose} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
               <Text style={styles.closeIcon}>✕</Text>
@@ -154,12 +157,58 @@ export default function SummaryModal({
                 <Text style={styles.sectionTitle}>
                   Key Points ({summary.keyPoints.length})
                 </Text>
-                {summary.keyPoints.map((point, index) => (
-                  <View key={index} style={styles.bulletItem}>
-                    <Text style={styles.bullet}>•</Text>
-                    <Text style={styles.bulletText}>{point}</Text>
-                  </View>
-                ))}
+                {summary.keyPoints.map((point, index) => {
+                  // Safely extract text from point (handle string, object, or array-like)
+                  let pointText = '';
+                  let chatName = null;
+                  
+                  if (typeof point === 'string') {
+                    pointText = point;
+                  } else if (typeof point === 'object' && point !== null) {
+                    // Extract chat name first (if present)
+                    chatName = point.chatName || null;
+                    
+                    // Extract text field
+                    if (typeof point.text === 'string') {
+                      pointText = point.text;
+                    } else if (point.text && typeof point.text === 'object') {
+                      // Text is array-like object - extract only numeric keys
+                      const textObj = point.text;
+                      const numericKeys = Object.keys(textObj)
+                        .filter(key => !isNaN(parseInt(key)))
+                        .sort((a, b) => parseInt(a) - parseInt(b));
+                      pointText = numericKeys.map(key => textObj[key]).join('');
+                    } else if (!point.text && typeof point === 'object') {
+                      // Point itself might be the array-like object
+                      const numericKeys = Object.keys(point)
+                        .filter(key => !isNaN(parseInt(key)))
+                        .sort((a, b) => parseInt(a) - parseInt(b));
+                      if (numericKeys.length > 0) {
+                        pointText = numericKeys.map(key => point[key]).join('');
+                      } else {
+                        // Fallback: just get non-chatName string values
+                        pointText = Object.entries(point)
+                          .filter(([k, v]) => k !== 'chatName' && typeof v === 'string')
+                          .map(([_, v]) => v)
+                          .join(' ');
+                      }
+                    }
+                  }
+                  
+                  return (
+                    <View key={index} style={styles.bulletItem}>
+                      <Text style={styles.bullet}>•</Text>
+                      <View style={{flex: 1}}>
+                        <Text style={styles.bulletText}>{pointText}</Text>
+                        {isGlobal && chatName && (
+                          <View style={styles.chatBadge}>
+                            <Text style={styles.chatBadgeText}>{chatName}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             )}
 
@@ -169,12 +218,58 @@ export default function SummaryModal({
                 <Text style={styles.sectionTitle}>
                   Decisions Made ({summary.decisions.length})
                 </Text>
-                {summary.decisions.map((decision, index) => (
-                  <View key={index} style={styles.decisionCard}>
-                    <Text style={styles.decisionIcon}>✓</Text>
-                    <Text style={styles.decisionText}>{decision}</Text>
-                  </View>
-                ))}
+                {summary.decisions.map((decision, index) => {
+                  // Safely extract text from decision (handle string, object, or array-like)
+                  let decisionText = '';
+                  let chatName = null;
+                  
+                  if (typeof decision === 'string') {
+                    decisionText = decision;
+                  } else if (typeof decision === 'object' && decision !== null) {
+                    // Extract chat name first (if present)
+                    chatName = decision.chatName || null;
+                    
+                    // Extract text field
+                    if (typeof decision.text === 'string') {
+                      decisionText = decision.text;
+                    } else if (decision.text && typeof decision.text === 'object') {
+                      // Text is array-like object - extract only numeric keys
+                      const textObj = decision.text;
+                      const numericKeys = Object.keys(textObj)
+                        .filter(key => !isNaN(parseInt(key)))
+                        .sort((a, b) => parseInt(a) - parseInt(b));
+                      decisionText = numericKeys.map(key => textObj[key]).join('');
+                    } else if (!decision.text && typeof decision === 'object') {
+                      // Decision itself might be the array-like object
+                      const numericKeys = Object.keys(decision)
+                        .filter(key => !isNaN(parseInt(key)))
+                        .sort((a, b) => parseInt(a) - parseInt(b));
+                      if (numericKeys.length > 0) {
+                        decisionText = numericKeys.map(key => decision[key]).join('');
+                      } else {
+                        // Fallback: just get non-chatName string values
+                        decisionText = Object.entries(decision)
+                          .filter(([k, v]) => k !== 'chatName' && typeof v === 'string')
+                          .map(([_, v]) => v)
+                          .join(' ');
+                      }
+                    }
+                  }
+                  
+                  return (
+                    <View key={index} style={styles.decisionCard}>
+                      <Text style={styles.decisionIcon}>✓</Text>
+                      <View style={{flex: 1}}>
+                        <Text style={styles.decisionText}>{decisionText}</Text>
+                        {isGlobal && chatName && (
+                          <View style={styles.chatBadge}>
+                            <Text style={styles.chatBadgeText}>{chatName}</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
               </View>
             )}
 
@@ -184,25 +279,55 @@ export default function SummaryModal({
                 <Text style={styles.sectionTitle}>
                   Action Items ({summary.actionItems.length})
                 </Text>
-                {summary.actionItems.map((item, index) => (
-                  <View key={index} style={styles.actionCard}>
-                    <Text style={styles.actionTask}>{item.task}</Text>
-                    <View style={styles.actionMetaContainer}>
-                      {item.assignee && (
-                        <View style={styles.actionMeta}>
-                          <Text style={styles.actionMetaIcon}>👤</Text>
-                          <Text style={styles.actionMetaText}>{item.assignee}</Text>
-                        </View>
-                      )}
-                      {item.deadline && (
-                        <View style={styles.actionMeta}>
-                          <Text style={styles.actionMetaIcon}>📅</Text>
-                          <Text style={styles.actionMetaText}>{item.deadline}</Text>
+                {summary.actionItems.map((item, index) => {
+                  // Safely extract task text (handle string or object)
+                  let taskText = '';
+                  let assignee = item?.assignee || null;
+                  let deadline = item?.deadline || null;
+                  let chatName = item?.chatName || null;
+                  
+                  if (typeof item === 'string') {
+                    taskText = item;
+                  } else if (typeof item === 'object' && item !== null) {
+                    if (typeof item.task === 'string') {
+                      taskText = item.task;
+                    } else if (item.task && typeof item.task === 'object') {
+                      // Task is array-like object - extract only numeric keys
+                      const textObj = item.task;
+                      const numericKeys = Object.keys(textObj)
+                        .filter(key => !isNaN(parseInt(key)))
+                        .sort((a, b) => parseInt(a) - parseInt(b));
+                      taskText = numericKeys.map(key => textObj[key]).join('');
+                    } else {
+                      taskText = String(item.task || '');
+                    }
+                  }
+                  
+                  return (
+                    <View key={index} style={styles.actionCard}>
+                      <Text style={styles.actionTask}>{taskText}</Text>
+                      <View style={styles.actionMetaContainer}>
+                        {assignee && (
+                          <View style={styles.actionMeta}>
+                            <Text style={styles.actionMetaIcon}>👤</Text>
+                            <Text style={styles.actionMetaText}>{String(assignee)}</Text>
+                          </View>
+                        )}
+                        {deadline && (
+                          <View style={styles.actionMeta}>
+                            <Text style={styles.actionMetaIcon}>📅</Text>
+                            <Text style={styles.actionMetaText}>{String(deadline)}</Text>
+                          </View>
+                        )}
+                      </View>
+                      {isGlobal && chatName && (
+                        <View style={[styles.chatBadge, {marginTop: 8}]}>
+                          <Text style={styles.chatBadgeText}>{String(chatName)}</Text>
                         </View>
                       )}
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             )}
 
@@ -540,6 +665,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  
+  // Chat Badge (for global summaries)
+  chatBadge: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  chatBadgeText: {
+    fontSize: 12,
+    color: '#1976d2',
+    fontWeight: '500',
   },
 });
 

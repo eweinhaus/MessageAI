@@ -41,24 +41,69 @@ function getErrorMessage(error) {
 /**
  * Analyze message priorities to detect urgent messages
  *
+ * Single mode:
  * @param {string} chatId - Chat ID to analyze
  * @param {Object} [options] - Options
  * @param {number} [options.messageCount=30] - Number of messages to analyze
  * @param {boolean} [options.forceRefresh=false] - Skip cache and force fresh analysis
+ *
+ * Batch mode (for global priority ordering):
+ * @param {null} chatId - Pass null for batch mode
+ * @param {Object} options - Options
+ * @param {Array} options.chats - Array of {chatId, messages} objects
+ * @param {number} [options.messageCount=30] - Max messages per chat
+ * @param {boolean} [options.forceRefresh=false] - Skip cache
+ *
  * @return {Promise<Object>} Result with success status and data/error
  *
  * @example
+ * // Single mode
  * const result = await analyzePriorities(chatId);
  * if (result.success) {
  *   console.log(result.data.priorities);
- * } else {
- *   console.error(result.error, result.message);
+ * }
+ *
+ * @example
+ * // Batch mode
+ * const result = await analyzePriorities(null, {
+ *   chats: [{chatId: "abc", messages: [...]}, ...]
+ * });
+ * if (result.success) {
+ *   result.data.chats.forEach(chat => console.log(chat.signals));
  * }
  */
 export async function analyzePriorities(chatId, options = {}) {
   try {
+    // Check authentication first
+    const user = auth.currentUser;
+    if (!user) {
+      console.error("[AI Service] No authenticated user!");
+      return {
+        success: false,
+        error: "unauthenticated",
+        message: "Please sign in to use AI features",
+      };
+    }
+
     const callable = httpsCallable(functions, "analyzePriorities");
 
+    // Batch mode: analyzing multiple chats
+    if (!chatId && options.chats && Array.isArray(options.chats)) {
+      console.log(`[AI Service] Batch analyzing ${options.chats.length} chats`);
+      
+      const result = await callable({
+        chats: options.chats,
+        messageCount: options.messageCount || 30,
+        forceRefresh: options.forceRefresh || false,
+      });
+
+      return {
+        success: true,
+        data: result.data,
+      };
+    }
+
+    // Single mode: analyzing one chat
     const result = await callable({
       chatId,
       messageCount: options.messageCount || 30,
@@ -125,6 +170,55 @@ export async function summarizeThread(chatId, options = {}) {
     };
   } catch (error) {
     console.error("[AI Service] Summarization failed:", error.message);
+
+    return {
+      success: false,
+      error: error.code || "UNKNOWN",
+      message: getErrorMessage(error),
+    };
+  }
+}
+
+/**
+ * Summarize all unread messages across all chats (global summary)
+ *
+ * @param {boolean} [forceRefresh=false] - Skip cache and force fresh summary
+ * @return {Promise<Object>} Result with global summary data
+ *
+ * @example
+ * const result = await summarizeUnreadGlobal();
+ * if (result.success && result.data.hasUnread) {
+ *   console.log(result.data.summary);
+ * }
+ */
+export async function summarizeUnreadGlobal(forceRefresh = false) {
+  try {
+    const user = auth.currentUser;
+
+    if (!user) {
+      console.error("[AI Service] No authenticated user!");
+      return {
+        success: false,
+        error: "unauthenticated",
+        message: "Please sign in to use AI features",
+      };
+    }
+
+    const callable = httpsCallable(functions, "summarizeUnread");
+
+    const result = await callable({
+      forceRefresh: forceRefresh || false,
+    });
+
+    console.log("[AI Service] summarizeUnread success");
+
+    return {
+      success: true,
+      cached: result.data.cached || false,
+      data: result.data,
+    };
+  } catch (error) {
+    console.error("[AI Service] Global summarization failed:", error.message);
 
     return {
       success: false,
