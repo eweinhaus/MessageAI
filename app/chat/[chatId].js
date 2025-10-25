@@ -27,14 +27,14 @@ import ErrorToast from '../../components/ErrorToast';
 
 /**
  * Immediate priority analysis - no delay, no debounce
- * Analyzes last 10 messages immediately when triggered
+ * Analyzes ALL unanalyzed messages immediately when triggered
  * @param {string} chatId - Chat ID to analyze
  */
 async function immediatePriorityAnalysis(chatId) {
   try {
     console.log(`[ChatDetail] Immediate priority analysis for chat ${chatId}`);
     await analyzePriorities(chatId, {
-      messageCount: 10, // Analyze last 10 messages for better coverage
+      messageCount: 1000, // Analyze up to 1000 messages (all unanalyzed ones)
       forceRefresh: true, // Always get fresh results to catch new messages
     });
     console.log(`[ChatDetail] Immediate priority analysis complete for ${chatId}`);
@@ -290,34 +290,11 @@ export default function ChatDetailScreen() {
     };
   }, [chatId]);
 
-  // Handle AI Priority Analysis
+  // Handle AI Priority Analysis (deprecated - AI button removed)
   const handleAnalyzePriorities = async () => {
-    setShowAIPanel(false);
-    setAILoading((prev) => ({ ...prev, priorities: true }));
-    setError(null);
-
-    try {
-      const result = await analyzePriorities(chatId, { 
-        messageCount: 30,
-        forceRefresh: false, // Use cache when available (24hr TTL)
-      });
-
-      if (result.success) {
-        const urgentCount = result.data.priorities.filter(p => p.priority === 'urgent').length;
-        const message = urgentCount > 0 
-          ? `Found ${urgentCount} urgent message${urgentCount > 1 ? 's' : ''}!`
-          : 'No urgent messages found.';
-        setError({ type: 'success', message });
-      } else {
-        console.error('[ChatDetail] Priority analysis failed:', result.error);
-        setError({ type: 'error', message: result.message });
-      }
-    } catch (err) {
-      console.error('[ChatDetail] Unexpected error:', err);
-      setError({ type: 'error', message: 'Something went wrong. Please try again.' });
-    } finally {
-      setAILoading((prev) => ({ ...prev, priorities: false }));
-    }
+    // This function is kept for backwards compatibility but AI button is removed
+    console.warn('[ChatDetail] handleAnalyzePriorities called but AI button is disabled');
+    setError({ type: 'info', message: 'Priority analysis runs automatically in the background' });
   };
 
   // Handle AI Thread Summarization

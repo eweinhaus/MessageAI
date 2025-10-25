@@ -4,6 +4,7 @@
 
 const {
   PRIORITY_SYSTEM_PROMPT,
+  BATCH_PRIORITY_SYSTEM_PROMPT,
   PRIORITY_FEWSHOTS,
   formatFewShotExamples,
   buildPriorityPrompt,
@@ -94,9 +95,9 @@ describe("Priority Detection Prompts", () => {
 
     it("should build prompt with examples", () => {
       const prompt = buildPriorityPrompt(testConversation, true);
-      expect(prompt).toContain(PRIORITY_SYSTEM_PROMPT);
+      expect(prompt).toContain(BATCH_PRIORITY_SYSTEM_PROMPT);
       expect(prompt).toContain(testConversation);
-      expect(prompt).toContain("Example 1");
+      expect(prompt).not.toContain("Example 1"); // Batch mode doesn't use few-shot examples
     });
 
     it("should include analysis instruction", () => {

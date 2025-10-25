@@ -411,7 +411,7 @@ if (change.type === 'added') {
 - ✅ **PR17: PRIORITY DETECTION FEATURE - COMPLETE & TESTED** 🎉 (October 22, 2025)
   - ✅ Client-side AI service integration (`services/aiService.js`)
   - ✅ AI Insights Panel component with 5 AI feature buttons
-  - ✅ Priority Detection button in chat header (sparkles icon)
+  - ❌ ~~Priority Detection button in chat header (sparkles icon)~~ → **Removed**
   - ✅ Red bubble UI for urgent messages (white bold text)
   - ✅ Real-time Firestore listener for priority updates
   - ✅ ErrorToast component for user-friendly error messages
@@ -427,12 +427,45 @@ if (change.type === 'added') {
     - `components/AIInsightsPanel.js` (275 lines) - Modal with feature list
     - `components/ErrorToast.js` (170 lines) - Animated error notifications
   - Files modified:
-    - `app/chat/[chatId].js` - Added AI button, panel, priorities state, listeners
+    - `app/chat/[chatId].js` - Updated AI panel integration, removed AI button, enhanced priority detection
     - `components/MessageBubble.js` - Added red bubble styling for urgent messages
     - `components/MessageList.js` - Pass priorities to MessageBubble
-    - `components/ChatHeader.js` - Added AI button to header
+    - `components/ChatHeader.js` - Removed AI button from header
     - `functions/analyzePriorities.js` - Fixed message ID parsing, added forceRefresh
   - Status: **Feature complete, tested, and production-ready**
+
+## 🔧 Priority Detection Enhancement (October 25, 2025)
+
+**Critical Fix**: Updated priority detection to analyze ALL unanalyzed messages instead of just the last 10.
+
+**Problem Identified**:
+- System was only analyzing last 10 messages (`messageCount: 10`)
+- Poor incremental tracking - only checked analysis run timestamps, not individual messages
+- Messages that failed analysis or were sent during rate limits weren't re-analyzed
+
+**Solution Implemented**:
+1. ✅ **Complete Message Analysis** - Now fetches up to 1000 messages and checks which have been analyzed
+2. ✅ **Proper Incremental Tracking** - Queries existing priority records to identify unanalyzed messages
+3. ✅ **Batch Processing** - Handles Firestore query limits (10 items) with proper batching
+4. ✅ **Message-Level Tracking** - Stores analysis metadata per message, not just per analysis run
+5. ❌ **Removed AI Button** - Manual priority detection no longer available via UI (runs automatically)
+
+**Technical Changes**:
+- `functions/analyzePriorities.js` - Complete rewrite of analysis logic
+- `app/chat/[chatId].js` - Updated to analyze all messages, removed AI button
+- Memory bank updated to reflect changes
+
+**Impact**:
+- ✅ **Complete Coverage**: All unanalyzed messages will be processed
+- ✅ **No Missed Messages**: Failed analyses will be retried
+- ✅ **Better Reliability**: Proper tracking prevents gaps in coverage
+- ✅ **Cleaner UX**: Automatic background processing without manual intervention
+
+**Files Modified**:
+- `functions/analyzePriorities.js` (~50 lines changed)
+- `app/chat/[chatId].js` (~10 lines changed)
+- `memory-bank/*.md` (documentation updates)
+
 - ✅ **PR16: AI INFRASTRUCTURE SETUP - COMPLETE & DEPLOYED** 🎉🎉 (October 22, 2025)
   - ✅ OpenAI GPT-4 Turbo API integration configured
   - ✅ Langchain orchestration framework set up
