@@ -1,8 +1,8 @@
 # MessageAI MVP - Task List
 
-**Goal:** Production-quality messaging infrastructure with real-time sync, offline support, and foreground push notifications.
+**Goal:** Production-quality messaging infrastructure with real-time sync, offline support, and full push notifications.
 
-**Scope:** Text-only messaging, initial-based avatars, basic group chat, online status (no typing indicators).
+**Scope:** Text-only messaging, initial-based avatars, basic group chat, online status with typing indicators.
 
 ---
 
@@ -797,9 +797,9 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
 
 ---
 
-## PR 11: Foreground Push Notifications ✅
+## PR 11: Push Notifications ✅
 
-**Objective:** Send push notifications to users when they receive messages while app is in foreground.
+**Objective:** Send push notifications to users when they receive messages (background and foreground).
 
 **Status**: Implementation Complete - Manual Steps Required
 
@@ -851,7 +851,7 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
     - [x] Call `requestPermissions()`
     - [x] If granted, call `getFCMToken()` then `saveFCMToken()`
     - [x] Call `setupNotificationListeners()`
-  - [x] Listen for foreground notifications:
+  - [x] Listen for notifications (background and foreground):
     - [x] Use Expo Notifications `addNotificationReceivedListener`
     - [x] Display in-app banner/toast with sender name and message preview
     - [x] Auto-dismiss after 3 seconds or allow tap to navigate
@@ -894,6 +894,7 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
 - [x] ❗ User A sends message to User B (physical devices)
 - [x] ❗ Cloud Function triggers (check Firebase console logs)
 - [x] ❗ User B (app in foreground) receives in-app notification banner
+- [x] ❗ User B (app in background) receives system notification
 - [x] ❗ Banner shows correct sender name and message preview
 - [x] ❗ Tap banner navigates to correct chat
 - [x] ❗ Banner auto-dismisses after 3s if not tapped
@@ -927,7 +928,7 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
 - **Status:** Implementation complete, manual deployment + testing required
 
 ### Commit
-`feat: implement foreground push notifications via Cloud Functions (PR11)`
+`feat: implement push notifications (background and foreground) via Cloud Functions (PR11)`
 
 ---
 
@@ -1168,11 +1169,15 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
     - [ ] User A turns off airplane mode
     - [ ] Message sends automatically
     - [ ] User B receives message
-  - [ ] **Test 3: Foreground Notification**
-    - [ ] User B has app open on chat list
+  - [ ] **Test 3: Push Notifications**
+    - [ ] User B has app open on chat list (foreground)
     - [ ] User A sends message
     - [ ] User B sees in-app notification banner
     - [ ] Tap banner navigates to chat
+    - [ ] User B backgrounds/kills app
+    - [ ] User A sends message
+    - [ ] User B sees system notification
+    - [ ] Tap notification navigates to chat
   - [ ] **Test 4: Force Quit**
     - [ ] User A sends message
     - [ ] Immediately force-quit app
@@ -1251,7 +1256,7 @@ All testing scenarios from `md_files/PR8_TESTING_GUIDE.md` completed successfull
   - [ ] Scenarios to demonstrate
 - [ ] Record demo video
   - [ ] 5-7 minutes
-  - [ ] Show: real-time messaging, offline queue, group chat, foreground notifications, online status
+  - [ ] Show: real-time messaging, offline queue, group chat, push notifications (background and foreground), online status
   - [ ] Use 2 devices (or 1 device + emulator)
   - [ ] Clear narration or text overlays
 
@@ -1284,7 +1289,7 @@ Before considering MVP complete:
 - [ ] Offline messages queue and send when online
 - [ ] Read receipts work (show when messages are read)
 - [ ] Online/offline status displays correctly
-- [ ] Foreground push notifications work
+- [ ] Push notifications work (background and foreground)
 
 ### Reliability
 - [ ] No message loss across 100+ test messages
@@ -1336,7 +1341,7 @@ Before considering MVP complete:
 5. ✅ PR 9: Read receipts (reliability indicator)
 6. ✅ PR 12: App lifecycle (crash recovery)
 7. ⚠️ PR 10: Presence (can simplify)
-8. ⚠️ PR 11: Push notifications (foreground only, nice-to-have)
+8. ✅ PR 11: Push notifications (background and foreground, complete)
 9. ⚠️ PR 13: Group chat polish (core group works from PR 6-8)
 10. ⚠️ PR 14: UI polish (can be basic)
 11. ✅ PR 15: Testing (non-negotiable)

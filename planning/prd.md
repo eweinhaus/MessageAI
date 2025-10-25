@@ -10,16 +10,16 @@
 
 ## 1. Executive Summary
 
-MessageAI is a React Native messaging application that enables real-time one-on-one and group conversations with reliable message delivery, offline support, and foreground push notifications. The MVP focuses on proven messaging infrastructure—message persistence, real-time sync, optimistic UI updates, and graceful offline handling.
+MessageAI is a React Native messaging application that enables real-time one-on-one and group conversations with reliable message delivery, offline support, and full push notifications. The MVP focuses on proven messaging infrastructure—message persistence, real-time sync, optimistic UI updates, and graceful offline handling.
 
 **Core Philosophy:** A simple, reliable messaging experience beats a feature-rich app with flaky delivery.
 
 **Key Scope Decisions:**
-- ✅ Foreground push notifications (background deferred to Phase 2)
+- ✅ Full push notifications (background and foreground)
 - ✅ Text-only messaging (images/media deferred)
 - ✅ Initial-based avatars (profile pictures deferred)
 - ✅ Basic group chat (advanced features deferred)
-- ✅ Online status (typing indicators deferred)
+- ✅ Online status with typing indicators
 
 ---
 
@@ -36,7 +36,7 @@ MessageAI is a React Native messaging application that enables real-time one-on-
 - **Delivery Time:** Messages appear on recipient device within 2 seconds on good network
 - **Offline Reliability:** Messages sent while offline queue and deliver when connectivity returns
 - **App Stability:** Zero message loss on app crash/restart
-- **Push Notification Delivery:** 90%+ of push notifications delivered when app in foreground
+- **Push Notification Delivery:** 90%+ of push notifications delivered (background and foreground)
 - **Read Receipt Accuracy:** Read receipts reflect actual user engagement
 - **Group Chat Accuracy:** Group messages display correct sender attribution and timestamps
 
@@ -53,7 +53,7 @@ MessageAI is a React Native messaging application that enables real-time one-on-
 ### Use Cases
 1. **Real-Time Conversation:** User A sends a message; User B receives it within 2 seconds if online
 2. **Offline Resilience:** User goes offline, receives messages in queue, comes back online and syncs all messages
-3. **Foreground Activity:** App in foreground receives push notification; message appears in chat
+3. **Background/Foreground Activity:** App receives push notification; message appears in chat or shows system notification
 4. **Session Recovery:** User force-quits app mid-message; message still sends, chat history preserved
 5. **Group Coordination:** Three users discuss plans in group chat with clear message attribution
 
@@ -224,7 +224,7 @@ MessageAI is a React Native messaging application that enables real-time one-on-
 
 ---
 
-### 4.7 Push Notifications (Foreground Only)
+### 4.7 Push Notifications (Background and Foreground)
 
 **Feature:** Alert Users to Incoming Messages While App is Open
 
@@ -232,6 +232,7 @@ MessageAI is a React Native messaging application that enables real-time one-on-
 |---|---|
 | **Push Trigger** | When message sent to recipient, Cloud Function triggers push notification to recipient's device. |
 | **Foreground Behavior** | While app in foreground, notification appears as in-app banner/toast with sender name and message preview. |
+| **Background Behavior** | While app in background or killed, notification appears as system notification with badge count and sound. |
 | **Notification Content** | Shows sender name and message preview (first 80 characters). |
 | **Tap Action** | Tapping notification navigates to that chat (if not already there). |
 | **Silent Fail** | If push notification fails, message still delivered in-app via real-time listener. Push is nice-to-have, not critical. |
@@ -239,9 +240,8 @@ MessageAI is a React Native messaging application that enables real-time one-on-
 | **Permission Handling** | Request notification permission on first app launch. Gracefully handle if denied. |
 
 **Out of Scope (MVP):**
-- Background/killed app notifications
-- Notification badges
-- Notification center persistence
+- Notification badges (iOS badge count)
+- Notification center persistence (Android notification history)
 - Custom notification sounds
 - Notification grouping
 
@@ -374,13 +374,13 @@ User A → In active chat with User B
 - Firebase Firestore - Real-time database & message persistence
 - Firebase Cloud Functions - Serverless backend for push notifications
 - Firebase Authentication - User sign-up, login, session management
-- Firebase Cloud Messaging (FCM) - Push notifications (foreground only)
+- Firebase Cloud Messaging (FCM) - Push notifications (background and foreground)
 
 **Mobile Frontend:**
 - React Native (Expo)
 - Expo Router - File-based navigation
 - Expo SQLite - Local message storage & offline persistence
-- Expo Notifications - Push notification handling (foreground)
+- Expo Notifications - Push notification handling (background and foreground)
 - @react-native-community/netinfo - Network status monitoring
 - Firebase SDK (Firestore + Auth)
 - Zustand - State management
@@ -503,7 +503,7 @@ User A → In active chat with User B
 
 **Auth Token Refresh:** Firebase Auth SDK automatically refreshes tokens. App uses `onAuthStateChanged` listener to detect token changes. On refresh, update any pending API calls.
 
-**Push Notifications (Foreground):** Cloud Function triggers on message creation. Checks if recipient online and app in foreground; sends FCM notification. Client receives, displays as in-app toast.
+**Push Notifications (Background & Foreground):** Cloud Function triggers on message creation. Sends FCM notification regardless of app state. Client receives and displays as system notification (background) or in-app toast (foreground).
 
 **Initial-Based Avatars:** Generated client-side from display name. First letter of first name + first letter of last name. Background color generated from hash of userID for consistency.
 
@@ -517,7 +517,8 @@ All scenarios must pass before MVP submission. Test after each relevant PR.
 |---|---|---|---|
 | **1** | **Real-Time Message** | User A sends "Hello" to User B on good network | User B receives within 2 seconds; read receipt appears when read |
 | **2** | **Offline Send** | User A sends message while offline, goes online | Message sends automatically; User B receives |
-| **3** | **Foreground Notification** | User B has app open in chat list, User A sends message | User B sees in-app notification with message preview |
+| **3** | **Push Notification** | User B has app backgrounded, User A sends message | User B sees system notification with message preview |
+| **3a** | **Foreground Notification** | User B has app open in chat list, User A sends message | User B sees in-app notification with message preview |
 | **4** | **Force Quit** | User A sends message, app force-quit before confirmation | Message sends on restart; appears in chat history |
 | **5** | **Poor Network** | Test with throttled connection (3G simulation) | Messages eventually deliver; no duplicates; UI shows status |
 | **6** | **Rapid Fire** | User A sends 20 messages in 10 seconds | All appear in correct order; no loss or duplication |
@@ -531,8 +532,8 @@ All scenarios must pass before MVP submission. Test after each relevant PR.
 ## 8. Out of Scope (MVP)
 
 **Deferred to Phase 2:**
-- Background/killed app push notifications
-- Typing indicators
+- Notification badges and advanced notification features
+- Advanced typing features (typing in multiple chats simultaneously)
 - Profile picture uploads
 - Image/media messages
 - Video/audio calls
@@ -599,7 +600,7 @@ Create in-app dev menu (accessible via shake gesture):
 - [ ] All 10 testing scenarios pass on physical device
 - [ ] No messages lost across 100+ test messages
 - [ ] App doesn't crash during any scenario
-- [ ] Push notifications work in foreground
+- [ ] Push notifications work in background and foreground
 - [ ] Offline queue processes correctly
 - [ ] Code committed to GitHub with comprehensive README
 - [ ] Setup instructions tested from scratch (by someone else if possible)
@@ -618,7 +619,7 @@ An MVP build is **successful** if:
 3. ✅ **Optimistic UI updates work** (message appears instantly before server confirm)
 4. ✅ **Group chat with 3+ users functions** with clear attribution
 5. ✅ **Offline messages queue and send** when connectivity returns with clear UI feedback
-6. ✅ **Foreground push notifications work** for in-app alerts
+6. ✅ **Push notifications work** in background and foreground
 7. ✅ **Read receipts accurately reflect** who's read what
 8. ✅ **App doesn't crash or lose data** during lifecycle events
 9. ✅ **Network status detection works** with persistent UI indicator
@@ -644,7 +645,7 @@ An MVP build is **successful** if:
 10. Network detection with UI feedback
 
 ### Should Have (Enhanced MVP)
-1. Foreground push notifications
+1. Full push notifications (background and foreground)
 2. Pull-to-refresh on chat list
 3. Initial-based avatars with color
 4. Group member list

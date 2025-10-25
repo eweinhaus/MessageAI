@@ -30,15 +30,13 @@ Build a reliable, real-time messaging app that handles online/offline scenarios 
 - Text-only messaging
 - Initial-based avatars
 - Basic group chat
-- Online status (no typing indicators)
-- Foreground push notifications
+- Online status with typing indicators
+- Full push notifications (background and foreground)
 - Offline message queuing
 - Message persistence (SQLite + Firestore)
 - Optimistic UI updates
 
 ### MVP Excludes ❌ (Deferred to Phase 2)
-- Background push notifications
-- Typing indicators
 - Profile picture uploads
 - Image/media messages
 - Message editing/deletion
