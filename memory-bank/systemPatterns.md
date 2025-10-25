@@ -358,14 +358,14 @@ exports.onMessageCreated = onDocumentCreated(
 [Device receives push]
         ↓
 [App in foreground → Show banner]
-[App in background → System notification (Phase 2)]
+[App in background → Show system notification]
         ↓
 [User taps → Navigate to chat]
 ```
 
 **Client-Side Listeners**:
 ```javascript
-// Foreground notification listener
+// Notification received listener (handles both foreground and background)
 Notifications.addNotificationReceivedListener((notification) => {
   const {title, body, data} = notification.request.content;
   
@@ -618,7 +618,7 @@ TYPING_TIMEOUT = 3000ms    // Consider stale after 3 seconds
               ↓
 [Device receives push]
               ↓
-[Show in-app toast (foreground only)]
+[Show system notification (background) or in-app toast (foreground)]
               ↓
 [User views message]
               ↓

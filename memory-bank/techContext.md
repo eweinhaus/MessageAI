@@ -44,9 +44,9 @@
 - **Integration**: Triggers queue processing on reconnect
 
 #### Push Notifications: Expo Notifications
-- **MVP Scope**: Foreground only
-- **Phase 2**: Background/killed app notifications
-- **Integration**: Works with Firebase Cloud Messaging (FCM)
+- **Full Support**: Background and killed app notifications working
+- **Implementation**: Complete with Firebase Cloud Messaging (FCM) integration
+- **Features**: System notifications, badge counts, sound alerts
 
 ### Backend / Cloud Services
 
@@ -106,8 +106,8 @@
      - summarizeUnread: Global unread delta summarization (PR20)
 
 #### Push Notifications (Dual System)
-- **MVP**: Foreground notifications (in-app banner) ✅ COMPLETE
-- **Architecture**: 
+- **Complete Implementation**: Background and foreground notifications working ✅
+- **Architecture**:
   - **Expo Go**: Uses Expo Push Service (exp.host API)
   - **Standalone**: Uses Firebase Cloud Messaging (FCM)
   - **Automatic Detection**: Cloud Function detects token type
@@ -117,14 +117,15 @@
   - `app/_layout.js` - Setup on app initialization
 - **Features**:
   - Token registration on app startup
-  - In-app banner (slide-in, auto-dismiss after 3s)
+  - System notifications when app is backgrounded/killed
+  - In-app banner when app is foregrounded (slide-in, auto-dismiss after 3s)
   - Tap-to-navigate to specific chat
+  - Badge counts and sound alerts
   - Duplicate prevention (60s TTL)
   - Works with both Expo Go and native builds
-- **Token Management**: 
+- **Token Management**:
   - Stored in user's Firestore document (`fcmToken` field)
   - Project ID: `12be9046-fac8-441c-aa03-f047cfed9f72`
-- **Phase 2**: Background and killed app notifications
 
 ### Development Tools
 
@@ -165,10 +166,11 @@
 - Plain text only
 - Media support in Phase 2
 
-#### Foreground Notifications Only
-- Background notifications complex (requires native configuration)
-- Foreground sufficient for MVP validation
-- Full implementation in Phase 2
+#### Full Notification Support
+- Background notifications implemented and working
+- System notifications appear when app is backgrounded or killed
+- In-app banners when app is foregrounded
+- Badge counts and sound alerts supported
 
 #### Initial-Based Avatars
 - No profile picture uploads

@@ -65,7 +65,7 @@
 - ✅ **PR 8**: Send Message with Optimistic UI & Offline Queue (TESTED ✅)
 - ✅ **PR 9**: Read Receipts & Delivery Status (TESTED ✅)
 - ✅ **PR 10**: Online/Offline Presence (TESTED ✅)
-- ✅ **PR 11**: Foreground Push Notifications (TESTED ✅)
+- ✅ **PR 11**: Push Notifications (Background & Foreground) (TESTED ✅)
 - ✅ **PR 12**: Basic Group Chat Polish (TESTED ✅)
 - ✅ **MVP Testing**: All core features validated on physical devices
 
@@ -132,7 +132,7 @@
 - [x] **PR 8**: Send Message with Optimistic UI & Offline Queue (TESTED ✅)
 - [x] **PR 9**: Read Receipts & Delivery Status (TESTED ✅)
 - [x] **PR 10**: Online/Offline Presence (TESTED ✅)
-- [x] **PR 11**: Foreground Push Notifications (TESTED ✅)
+- [x] **PR 11**: Push Notifications (Background & Foreground) (TESTED ✅)
 
 #### Polish & Reliability - ✅ COMPLETE
 - [x] **PR 12**: Basic Group Chat Polish (TESTED ✅)
@@ -187,7 +187,7 @@
 - [ ] **PR 23**: Firestore Security Rules
 - [ ] **PR 24**: Auth Token Refresh Handling  
 - [ ] **PR 25**: Error Tracking & Monitoring
-- [ ] **PR 26**: Background Push Notifications & Badges
+- [x] **Background Push Notifications**: Complete (included in PR 11)
 - [ ] **PR 27**: Profile Pictures & Image Upload
 - [ ] **PR 28**: Message Editing & Deletion
 - [ ] **PR 29**: Message Reactions
@@ -233,7 +233,7 @@ None. MVP is complete and tested.
 - [x] Offline messages queue and send when online (PR 8 - TESTED ✅)
 - [x] Read receipts work (PR 9 - TESTED ✅)
 - [x] Online/offline status displays correctly (PR 10 - TESTED ✅)
-- [x] Foreground push notifications work (PR 11 - TESTED ✅)
+- [x] Push notifications work (background and foreground) (PR 11 - TESTED ✅)
 - [x] No message loss across 100+ test messages (PR 8 - TESTED ✅)
 - [x] App handles force-quit gracefully (PR 8 - TESTED ✅)
 - [x] App handles network transitions (PR 8 - TESTED ✅)
@@ -531,7 +531,7 @@ None. MVP is complete and tested.
   - Member sorting with real-time updates implemented
   - Offline status indicators added
   - Dynamic group initials in header functional
-- October 21, 2025: **PR11 - Foreground Push Notifications - COMPLETE & TESTED** 🎉
+- October 21, 2025: **PR11 - Push Notifications (Background & Foreground) - COMPLETE & TESTED** 🎉
   - **Critical Fix**: Updated Cloud Function to support both Expo and FCM push tokens
   - **Issue**: Expo Go returns `ExponentPushToken[...]` format, not native FCM tokens
   - **Solution**: Dual notification system with automatic token type detection
@@ -680,7 +680,7 @@ None. MVP is complete and tested.
   - ✅ Optimistic UI updates
   - ✅ Read receipts and delivery status
   - ✅ Online/offline presence tracking
-  - ✅ Foreground push notifications with dual token support
+  - ✅ Push notifications (background and foreground) with dual token support
   - ✅ Group chat with proper attribution
   - ✅ Contact picker and chat creation
   - ✅ Network status detection
@@ -695,7 +695,7 @@ None. MVP is complete and tested.
   - Choose AI persona
   - Implement 5 core AI features + 1 advanced
   - Add Firestore security rules
-  - Background push notifications
+  - Advanced notification features (badge counts, custom sounds)
   - Production deployment (EAS Build)
   - Demo video and documentation
 - **Project successfully demonstrates:**
