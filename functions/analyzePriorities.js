@@ -182,35 +182,8 @@ exports.analyzePriorities = onCall(async (request) => {
       );
     }
 
-    // 7. Fetch messages from Firestore
-    const messages = await getLastNMessages(chatId, messageCount);
-
-    // 8. Check if there are any new messages since last analysis
-    if (lastAnalyzedTimestamp && messages.length > 0) {
-      const newestMessageTimestamp = Math.max(
-          ...messages.map((m) => m.timestamp),
-      );
-
-      if (newestMessageTimestamp <= lastAnalyzedTimestamp) {
-        logger.info(
-            "[Priority] No new messages since last analysis, " +
-            "returning cached result",
-        );
-        // Return empty result - no new priorities to analyze
-        return {
-          priorities: [],
-          messageCount: messages.length,
-          cached: true,
-          skipReason: "no_new_messages",
-          lastAnalyzedAt: lastAnalyzedTimestamp,
-        };
-      }
-
-      logger.info(
-          "[Priority] New messages detected since last analysis, " +
-          "proceeding with analysis",
-      );
-    }
+    // 7. Get ALL messages from Firestore (not just last N)
+    const messages = await getLastNMessages(chatId, 1000); // Get up to 1000 messages
 
     if (messages.length === 0) {
       logger.info(`[Priority] No messages found in chat ${chatId}`);
@@ -221,15 +194,56 @@ exports.analyzePriorities = onCall(async (request) => {
       };
     }
 
-    logger.info(`[Priority] Fetched ${messages.length} messages`);
+    logger.info(`[Priority] Fetched ${messages.length} messages for analysis`);
 
-    // 9. Build context for OpenAI with message IDs
+    // 8. Check which messages already have priority analysis (batch in chunks of 10)
+    const messageIds = messages.map((m) => m.messageID);
+    const analyzedMessageIds = new Set();
+
+    // Query existing priorities in batches of 10 (Firestore 'in' limit)
+    for (let i = 0; i < messageIds.length; i += 10) {
+      const chunk = messageIds.slice(i, i + 10);
+      const existingPrioritiesSnapshot = await prioritiesRef
+          .where("messageId", "in", chunk)
+          .get();
+
+      existingPrioritiesSnapshot.docs.forEach((doc) => {
+        analyzedMessageIds.add(doc.data().messageId);
+      });
+    }
+
+    // Filter to only unanalyzed messages
+    const unanalyzedMessages = messages.filter(
+        (message) => !analyzedMessageIds.has(message.messageID)
+    );
+
+    logger.info(
+        `[Priority] ${analyzedMessageIds.size} messages already analyzed, ` +
+        `${unanalyzedMessages.length} messages need analysis`
+    );
+
+    // If no new messages to analyze, return early
+    if (unanalyzedMessages.length === 0) {
+      logger.info("[Priority] All messages already analyzed, returning cached result");
+      return {
+        priorities: [],
+        messageCount: messages.length,
+        cached: true,
+        skipReason: "all_messages_analyzed",
+        analyzedCount: analyzedMessageIds.size,
+        totalCount: messages.length,
+      };
+    }
+
+    logger.info(`[Priority] Analyzing ${unanalyzedMessages.length} unanalyzed messages`);
+
+    // 9. Build context for OpenAI with message IDs (use all messages for context)
     const contextData = buildMessageContext(messages, {
       format: "detailed",
-      maxMessages: messageCount,
+      maxMessages: Math.min(messages.length, 50), // Use up to 50 for context
     });
 
-    // Create numbered message list for AI
+    // Create numbered message list for AI (use all messages for context)
     const numberedMessages = messages.map((msg, index) => {
       return `${index}. [${msg.messageID}] ${msg.senderName}: ${msg.text}`;
     }).join("\n");
@@ -299,22 +313,25 @@ exports.analyzePriorities = onCall(async (request) => {
         .doc(chatId)
         .collection("priorities");
 
-    // Clear old priorities for these messages
-    const messageIds = messages.map((m) => m.messageID).slice(0, 10);
-    const existingSnapshot = await prioritiesCollection
-        .where("messageId", "in", messageIds)
-        .get();
+    // Clear old priorities for the unanalyzed messages (batch in chunks of 10 due to Firestore limit)
+    const unanalyzedMessageIds = unanalyzedMessages.map((m) => m.messageID);
+    for (let i = 0; i < unanalyzedMessageIds.length; i += 10) {
+      const chunk = unanalyzedMessageIds.slice(i, i + 10);
+      const existingSnapshot = await prioritiesCollection
+          .where("messageId", "in", chunk)
+          .get();
 
-    existingSnapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
+      existingSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+    }
 
-    // Write new priorities
+    // Write new priorities only for unanalyzed messages
     priorityData.priorities.forEach((priority) => {
       // GPT returns the messageId directly, not an index
-      // Try to find it in our messages array to validate
+      // Try to find it in our unanalyzed messages array to validate
       const messageId = priority.messageId;
-      const foundMessage = messages.find((m) => m.messageID === messageId);
+      const foundMessage = unanalyzedMessages.find((m) => m.messageID === messageId);
 
       if (foundMessage) {
         const docRef = prioritiesCollection.doc(messageId);
@@ -334,7 +351,7 @@ exports.analyzePriorities = onCall(async (request) => {
         batch.set(docRef, dataToWrite);
       } else {
         logger.warn(
-            `[Priority] Message ID ${messageId} not found in messages`,
+            `[Priority] Message ID ${messageId} not found in unanalyzed messages`,
         );
       }
     });
@@ -349,6 +366,8 @@ exports.analyzePriorities = onCall(async (request) => {
     const resultToCache = {
       priorities: priorityData.priorities,
       messageCount: messages.length,
+      analyzedCount: unanalyzedMessages.length,
+      totalAnalyzed: analyzedMessageIds.size + unanalyzedMessages.length,
       analyzedAt: Date.now(),
     };
 
@@ -357,6 +376,8 @@ exports.analyzePriorities = onCall(async (request) => {
       result: resultToCache,
       metadata: {
         messageCount: messages.length,
+        unanalyzedCount: unanalyzedMessages.length,
+        analyzedCount: analyzedMessageIds.size,
         urgentCount: priorityData.priorities
             .filter((p) => p.priority === "urgent").length,
         model: "gpt-4o-mini",

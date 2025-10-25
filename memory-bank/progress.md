@@ -437,11 +437,11 @@ None. MVP is complete and tested.
     - Modified `app/chat/[chatId].js` - Added AI button, panel state, Firestore listeners
     - Modified `components/MessageBubble.js` - Added red bubble styling for urgent messages
     - Modified `components/MessageList.js` - Pass priorities to bubbles
-    - Modified `components/ChatHeader.js` - Added AI button in header
+    - Modified `components/ChatHeader.js` - Removed AI button from header
     - Modified `functions/analyzePriorities.js` - Fixed message ID parsing bug, added forceRefresh
   - **Key features**:
-    - ✅ AI Insights panel accessible from chat header (sparkles icon)
-    - ✅ Priority Detection analyzes last 30 messages
+    - ❌ ~~AI Insights panel accessible from chat header (sparkles icon)~~ → **Removed**
+    - ✅ Priority Detection analyzes ALL unanalyzed messages (up to 1000 total)
     - ✅ Urgent messages display with red bubble and white bold text
     - ✅ Real-time updates via Firestore listener
     - ✅ User-friendly error messages with ErrorToast

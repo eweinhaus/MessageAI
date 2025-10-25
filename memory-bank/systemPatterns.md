@@ -98,7 +98,7 @@
 
 - **AI Analysis** (selective, cached):
   - Only runs for high-priority candidates (localScore > 0.5 OR unreadCount > 5)
-  - Analyzes last 30 messages for urgency signals
+  - Analyzes ALL unanalyzed messages (up to 1000 total) for urgency signals
   - Cached 6 hours with forceRefresh option
   - Rate limited: 200 operations/hour per user
 
