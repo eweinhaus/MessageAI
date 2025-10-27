@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { subscribeToAuth, logout as authLogout } from '../services/auth';
 import { setUserOffline, cleanupPresence } from '../services/presenceService';
 import { clearAllData } from '../db/database';
+import { getUserProfile } from '../services/firestore';
 
 // Flag to prevent multiple initializations
 let isInitialized = false;
@@ -137,20 +138,37 @@ const useUserStore = create((set, get) => ({
     set({ isLoading: true });
 
     // Subscribe to Firebase auth state changes
-    const unsubscribe = subscribeToAuth((firebaseUser) => {
+    const unsubscribe = subscribeToAuth(async (firebaseUser) => {
       console.log('Auth state changed:', firebaseUser ? firebaseUser.uid : 'null');
       
       if (firebaseUser) {
-        // User is signed in
-        const user = {
-          userID: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-          photoURL: firebaseUser.photoURL,
-          emailVerified: firebaseUser.emailVerified,
-        };
-        
-        get().setCurrentUser(user);
+        // User is signed in - fetch profile from Firestore for accurate display name
+        try {
+          const firestoreProfile = await getUserProfile(firebaseUser.uid);
+          
+          const user = {
+            userID: firebaseUser.uid,
+            email: firebaseUser.email,
+            // Use Firestore display name first (most reliable), fall back to Firebase Auth, then email
+            displayName: firestoreProfile?.displayName || firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+            photoURL: firebaseUser.photoURL,
+            emailVerified: firebaseUser.emailVerified,
+          };
+          
+          console.log('[UserStore] User profile loaded:', user.displayName);
+          get().setCurrentUser(user);
+        } catch (error) {
+          console.error('[UserStore] Error loading Firestore profile:', error);
+          // Fallback to Firebase Auth data if Firestore fetch fails
+          const user = {
+            userID: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+            photoURL: firebaseUser.photoURL,
+            emailVerified: firebaseUser.emailVerified,
+          };
+          get().setCurrentUser(user);
+        }
       } else {
         // User is signed out
         get().setCurrentUser(null);
