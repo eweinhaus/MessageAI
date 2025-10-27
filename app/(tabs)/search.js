@@ -175,7 +175,12 @@ export default function GlobalSearchScreen() {
       )}
 
       {/* Content */}
-      {results.length === 0 && !isSearching && !query ? (
+      {isSearching ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Searching...</Text>
+        </View>
+      ) : results.length === 0 && !query ? (
         <View style={styles.suggestionsContainer}>
           <Text style={styles.suggestionsTitle}>Suggested Searches:</Text>
           {suggestedQueries.map((suggestedQuery, index) => (
@@ -191,7 +196,7 @@ export default function GlobalSearchScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      ) : results.length === 0 && !isSearching ? (
+      ) : results.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Icon name="search-outline" size={64} color="#ccc" />
           <Text style={styles.emptyText}>No results found</Text>
@@ -376,6 +381,18 @@ const styles = StyleSheet.create({
     color: "#666",
     fontStyle: "italic",
     lineHeight: 18,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
   },
   emptyContainer: {
     flex: 1,

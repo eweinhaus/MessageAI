@@ -27,14 +27,14 @@ import ErrorToast from '../../components/ErrorToast';
 
 /**
  * Immediate priority analysis - no delay, no debounce
- * Analyzes ALL unanalyzed messages immediately when triggered
+ * Analyzes last 10 messages immediately when triggered
  * @param {string} chatId - Chat ID to analyze
  */
 async function immediatePriorityAnalysis(chatId) {
   try {
     console.log(`[ChatDetail] Immediate priority analysis for chat ${chatId}`);
     await analyzePriorities(chatId, {
-      messageCount: 1000, // Analyze up to 1000 messages (all unanalyzed ones)
+      messageCount: 10, // Analyze last 10 messages for urgency detection
       forceRefresh: true, // Always get fresh results to catch new messages
     });
     console.log(`[ChatDetail] Immediate priority analysis complete for ${chatId}`);

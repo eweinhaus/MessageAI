@@ -101,6 +101,21 @@ export default function SummaryPage() {
     router.push(`/chat/${chatId}`);
   };
 
+  // Loading state
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Loading summary...</Text>
+          <Text style={styles.loadingSubtext}>
+            Analyzing your unread messages
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // Error state
   if (error) {
     return (

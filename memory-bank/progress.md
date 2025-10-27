@@ -311,6 +311,20 @@ None. MVP is complete and tested.
   - Target: > 90%
 
 ## Recent Changes
+- October 27, 2025: **Fixed AI Summary Loading State - COMPLETE** 🎨✅
+  - **Issue**: When logging into new account, "All Caught Up!" displayed immediately without loading indicator
+  - **Root Cause**: Component checked for empty summary before checking loading state
+  - **Fix**: Added loading state check before error/empty checks in `app/(tabs)/index.js`
+  - **Impact**: Users now see loading spinner with "Loading summary..." text during initial load
+  - **Files Modified**: `app/(tabs)/index.js` (13 lines added)
+  - **UX Improvement**: Clear distinction between "loading" and "no unread messages" states
+- October 27, 2025: **Fixed Priority Detection messageCount Bug - COMPLETE** 🐛✅
+  - **Issue**: Firebase error `messageCount must be between 1 and 100` appearing in logs
+  - **Root Cause**: `immediatePriorityAnalysis` was passing `messageCount: 1000` which exceeds limit
+  - **Fix**: Changed to `messageCount: 10` in `app/chat/[chatId].js` line 37
+  - **Impact**: Priority analysis now works without errors, faster and more cost-effective
+  - **Files Modified**: `app/chat/[chatId].js` (2 lines), documentation updated
+  - **Validation**: Confirmed all other analyzePriorities calls use valid ranges (10, 30, 50)
 - October 24, 2025: **Removed Global Summary Auto-popup - COMPLETE** ✅
   - **Rationale**: User now has dedicated AI Summary tab, auto-popup no longer needed
   - **Changes Made**:

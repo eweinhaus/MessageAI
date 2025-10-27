@@ -285,7 +285,6 @@ function mergeSummaries(chatSummaries) {
   console.log(`[summarizeUnread] Merging ${chatSummaries.length} chat summaries`);
 
   const merged = {
-    summary: "",
     keyPoints: [],
     decisions: [],
     actionItems: [],
@@ -293,10 +292,6 @@ function mergeSummaries(chatSummaries) {
     totalMessageCount: 0,
     chats: [],
   };
-
-  // Build high-level summary text
-  const chatNames = chatSummaries.map((s) => s.chatName).join(", ");
-  merged.summary = `You have unread messages in ${chatSummaries.length} chat(s): ${chatNames}. `;
 
   chatSummaries.forEach((chatSummary) => {
     // Aggregate counts
@@ -573,7 +568,6 @@ exports.summarizeUnread = onCall(async (request) => {
     console.log("[summarizeUnread] Caching result");
     const resultToCache = {
       hasUnread: true,
-      summary: mergedSummary.summary,
       chatCount: mergedSummary.chatCount,
       totalMessageCount: mergedSummary.totalMessageCount,
       chats: mergedSummary.chats,
