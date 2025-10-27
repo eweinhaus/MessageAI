@@ -97,7 +97,8 @@ describe("Priority Detection Prompts", () => {
       const prompt = buildPriorityPrompt(testConversation, true);
       expect(prompt).toContain(BATCH_PRIORITY_SYSTEM_PROMPT);
       expect(prompt).toContain(testConversation);
-      expect(prompt).not.toContain("Example 1"); // Batch mode doesn't use few-shot examples
+      // Batch mode doesn't use few-shot examples
+      expect(prompt).not.toContain("Example 1");
     });
 
     it("should include analysis instruction", () => {
