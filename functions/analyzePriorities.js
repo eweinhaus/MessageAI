@@ -183,7 +183,8 @@ exports.analyzePriorities = onCall(async (request) => {
     }
 
     // 7. Get ALL messages from Firestore (not just last N)
-    const messages = await getLastNMessages(chatId, 1000); // Get up to 1000 messages
+    // Get up to 1000 messages
+    const messages = await getLastNMessages(chatId, 1000);
 
     if (messages.length === 0) {
       logger.info(`[Priority] No messages found in chat ${chatId}`);
@@ -194,9 +195,12 @@ exports.analyzePriorities = onCall(async (request) => {
       };
     }
 
-    logger.info(`[Priority] Fetched ${messages.length} messages for analysis`);
+    logger.info(
+        `[Priority] Fetched ${messages.length} messages for analysis`,
+    );
 
-    // 8. Check which messages already have priority analysis (batch in chunks of 10)
+    // 8. Check which messages already have priority analysis
+    // (batch in chunks of 10)
     const messageIds = messages.map((m) => m.messageID);
     const analyzedMessageIds = new Set();
 
@@ -214,17 +218,20 @@ exports.analyzePriorities = onCall(async (request) => {
 
     // Filter to only unanalyzed messages
     const unanalyzedMessages = messages.filter(
-        (message) => !analyzedMessageIds.has(message.messageID)
+        (message) => !analyzedMessageIds.has(message.messageID),
     );
 
     logger.info(
         `[Priority] ${analyzedMessageIds.size} messages already analyzed, ` +
-        `${unanalyzedMessages.length} messages need analysis`
+        `${unanalyzedMessages.length} messages need analysis`,
     );
 
     // If no new messages to analyze, return early
     if (unanalyzedMessages.length === 0) {
-      logger.info("[Priority] All messages already analyzed, returning cached result");
+      logger.info(
+          "[Priority] All messages already analyzed, " +
+          "returning cached result",
+      );
       return {
         priorities: [],
         messageCount: messages.length,
@@ -235,12 +242,17 @@ exports.analyzePriorities = onCall(async (request) => {
       };
     }
 
-    logger.info(`[Priority] Analyzing ${unanalyzedMessages.length} unanalyzed messages`);
+    logger.info(
+        `[Priority] Analyzing ${unanalyzedMessages.length} ` +
+        "unanalyzed messages",
+    );
 
-    // 9. Build context for OpenAI with message IDs (use all messages for context)
+    // 9. Build context for OpenAI with message IDs
+    // (use all messages for context)
+    // Use up to 50 for context
     const contextData = buildMessageContext(messages, {
       format: "detailed",
-      maxMessages: Math.min(messages.length, 50), // Use up to 50 for context
+      maxMessages: Math.min(messages.length, 50),
     });
 
     // Create numbered message list for AI (use all messages for context)
@@ -313,7 +325,8 @@ exports.analyzePriorities = onCall(async (request) => {
         .doc(chatId)
         .collection("priorities");
 
-    // Clear old priorities for the unanalyzed messages (batch in chunks of 10 due to Firestore limit)
+    // Clear old priorities for the unanalyzed messages
+    // (batch in chunks of 10 due to Firestore limit)
     const unanalyzedMessageIds = unanalyzedMessages.map((m) => m.messageID);
     for (let i = 0; i < unanalyzedMessageIds.length; i += 10) {
       const chunk = unanalyzedMessageIds.slice(i, i + 10);
@@ -331,7 +344,9 @@ exports.analyzePriorities = onCall(async (request) => {
       // GPT returns the messageId directly, not an index
       // Try to find it in our unanalyzed messages array to validate
       const messageId = priority.messageId;
-      const foundMessage = unanalyzedMessages.find((m) => m.messageID === messageId);
+      const foundMessage = unanalyzedMessages.find(
+          (m) => m.messageID === messageId,
+      );
 
       if (foundMessage) {
         const docRef = prioritiesCollection.doc(messageId);
@@ -351,7 +366,8 @@ exports.analyzePriorities = onCall(async (request) => {
         batch.set(docRef, dataToWrite);
       } else {
         logger.warn(
-            `[Priority] Message ID ${messageId} not found in unanalyzed messages`,
+            `[Priority] Message ID ${messageId} not found in ` +
+            "unanalyzed messages",
         );
       }
     });
